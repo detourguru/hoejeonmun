@@ -46,6 +46,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* 커스텀 컬러토큰 */
+  --color-primary: #8b2942;
+  --color-point: #e8b4bc;
+  --color-sub: #fff8f6;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #2b2124;
+  --color-text-muted: #8a7377;
+  --color-border: #f0dfe2;
 }
 
 :root {
@@ -81,6 +91,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* 커스텀 컬러토큰 */
+  --color-primary: #8b2942;
+  --color-point: #e8b4bc;
+  --color-sub: #fff8f6;
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #2b2124;
+  --color-text-muted: #8a7377;
+  --color-border: #f0dfe2;
 }
 
 .dark {
@@ -115,6 +135,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* 커스텀 컬러토큰 */
+  --color-primary: #e8a0ae;
+  --color-point: #d68e96;
+  --color-sub: #2b2124;
+  --color-bg: #1a1416;
+  --color-surface: #241b1e;
+  --color-text: #f5e9ea;
+  --color-text-muted: #b89aa0;
+  --color-border: #3a2c30;
 }
 
 @layer base {
