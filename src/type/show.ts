@@ -20,27 +20,27 @@ export type GenreName =
   | "서커스/마술"
   | "뮤지컬";
 
-export const GENRE_MAP = {
-  AAAA: "연극",
-  BBBC: "무용(서양/한국무용)",
-  BBBE: "대중무용",
-  CCCA: "서양음악(클래식)",
-  CCCC: "한국음악(국악)",
-  CCCD: "대중음악",
-  EEEA: "복합",
-  EEEB: "서커스/마술",
-  GGGA: "뮤지컬",
-} as const satisfies Record<GenreCode, GenreName>;
+export const GENRE_OPTIONS: { value: GenreCode; label: GenreName }[] = [
+  { value: "AAAA", label: "연극" },
+  { value: "BBBC", label: "무용(서양/한국무용)" },
+  { value: "BBBE", label: "대중무용" },
+  { value: "CCCA", label: "서양음악(클래식)" },
+  { value: "CCCC", label: "한국음악(국악)" },
+  { value: "CCCD", label: "대중음악" },
+  { value: "EEEA", label: "복합" },
+  { value: "EEEB", label: "서커스/마술" },
+  { value: "GGGA", label: "뮤지컬" },
+];
 
 export type StateCode = "01" | "02" | "03";
 
 export type StateName = "공연예정" | "공연중" | "공연완료";
 
-export const STATE_MAP = {
-  "01": "공연예정",
-  "02": "공연중",
-  "03": "공연완료",
-} as const satisfies Record<StateCode, StateName>;
+export const STATE_OPTIONS: { value: StateCode; label: StateName }[] = [
+  { value: "01", label: "공연예정" },
+  { value: "02", label: "공연중" },
+  { value: "03", label: "공연완료" },
+];
 
 export type StateKey = "upcoming" | "ongoing" | "ended";
 
@@ -52,7 +52,6 @@ export const STATE_KEY_MAP = {
 
 export type AreaCode =
   | "11"
-  | "UNI"
   | "28"
   | "30"
   | "27"
@@ -69,7 +68,6 @@ export type AreaCode =
 
 export type AreaName =
   | "서울"
-  | "대학로"
   | "인천"
   | "대전"
   | "대구"
@@ -84,50 +82,22 @@ export type AreaName =
   | "강원"
   | "제주";
 
-export const AREA_MAP = {
-  "11": "서울",
-  UNI: "대학로",
-  "28": "인천",
-  "30": "대전",
-  "27": "대구",
-  "29": "광주",
-  "26": "부산",
-  "31": "울산",
-  "36": "세종",
-  "41": "경기",
-  "43|44": "충청",
-  "45|46": "전라",
-  "47|48": "경상",
-  "50": "제주",
-  "51": "강원",
-} as const satisfies Record<AreaCode, AreaName>;
-
-export type AreaGroupCode = "ALL" | "DAEHAKRO" | "METRO" | "NON_METRO";
-export const AREA_GROUP = {
-  ALL: [],
-  DAEHAKRO: ["UNI"],
-  METRO: ["11", "28", "41"],
-  NON_METRO: [
-    "30",
-    "27",
-    "29",
-    "26",
-    "31",
-    "36",
-    "43|44",
-    "45|46",
-    "47|48",
-    "50",
-    "51",
-  ],
-} as const satisfies Record<AreaGroupCode, readonly AreaCode[]>;
-
-export const AREA_GROUP_MAP = {
-  ALL: "전체",
-  DAEHAKRO: "대학로",
-  METRO: "수도권",
-  NON_METRO: "비수도권",
-} as const satisfies Record<AreaGroupCode, string>;
+export const AREA_OPTIONS: { value: AreaCode; label: AreaName }[] = [
+  { value: "11", label: "서울" },
+  { value: "28", label: "인천" },
+  { value: "30", label: "대전" },
+  { value: "27", label: "대구" },
+  { value: "29", label: "광주" },
+  { value: "26", label: "부산" },
+  { value: "31", label: "울산" },
+  { value: "36", label: "세종" },
+  { value: "41", label: "경기" },
+  { value: "43|44", label: "충청" },
+  { value: "45|46", label: "전라" },
+  { value: "47|48", label: "경상" },
+  { value: "50", label: "제주" },
+  { value: "51", label: "강원" },
+];
 
 export type Show = {
   mt20id: string;
