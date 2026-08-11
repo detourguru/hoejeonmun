@@ -21,6 +21,15 @@ export const FilterBar = () => {
         />
 
         <SelectBox
+          name="shcate"
+          placeholder="장르"
+          options={[
+            { value: "AAAA", label: "연극" },
+            { value: "GGGA", label: "뮤지컬" },
+          ]}
+        />
+
+        <SelectBox
           name="sort"
           placeholder="기본순"
           options={[

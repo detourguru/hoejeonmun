@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/show/filter-bar";
 
 const DEFAULT_FILTERS = {
   prfstate: "02",
+  shcate: "GGGA",
 };
 
 const SORT_COMPARATORS = {
@@ -33,7 +34,7 @@ function withRequiredParams(params: URLSearchParams) {
     stdate: toKopisDate(today),
     eddate: toKopisDate(oneYearLater),
     cpage: "1",
-    rows: "30",
+    rows: "100",
   };
 
   Object.entries(defaults).forEach(([key, value]) => {
