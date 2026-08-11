@@ -11,13 +11,40 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ShowCard } from "@/components/card/ShowCard";
 
+const toKopisDate = (date: Date) =>
+  `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+
+/** KOPIS 필수 파라미터 — 없으면 INVALID REQUEST PARAMETER ERROR가 반환된다 */
+function withRequiredParams(params: URLSearchParams) {
+  const today = new Date();
+  const oneYearLater = new Date(today);
+  oneYearLater.setFullYear(today.getFullYear() + 1);
+
+  const defaults = {
+    stdate: toKopisDate(today),
+    eddate: toKopisDate(oneYearLater),
+    cpage: "1",
+    rows: "30",
+  };
+
+  Object.entries(defaults).forEach(([key, value]) => {
+    if (!params.has(key)) params.set(key, value);
+  });
+
+  return params;
+}
+
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const queryParams = new URLSearchParams(params as Record<string, string>);
+  const queryParams = withRequiredParams(
+    new URLSearchParams(params as Record<string, string>),
+  );
 
   const data: Show[] = await getKopis("/pblprfr", queryParams);
 
