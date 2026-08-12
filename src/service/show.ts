@@ -4,7 +4,7 @@ import {
   normalizeDate,
   toKopisDate,
 } from "@/lib/date";
-import { fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
+import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
 import {
   AREA,
   AREA_NAMES_BY_CODE,
@@ -14,6 +14,7 @@ import {
   GenreCode,
   SEARCHABLE_MONTHS,
   Show,
+  ShowDetail,
   SORT,
   SortKey,
   STATE,
@@ -26,6 +27,8 @@ const MAX_PAGES = 10;
 export const PAGE_SIZE = 30;
 
 export const SHOWS_CACHE_TAG = "shows";
+
+export const showCacheTag = (id: string) => `show:${id}`;
 
 const SORT_COMPARATORS: Record<SortKey, (a: Show, b: Show) => number> = {
   openDate: (a, b) =>
@@ -75,6 +78,17 @@ export async function getShows(): Promise<Show[]> {
   );
 
   return pages.flat().filter((show) => show?.mt20id);
+}
+
+// 없는 mt20id를 넘기면 Kopis가 빈 dbs를 주므로 null로 구분
+export async function getShow(id: string): Promise<ShowDetail | null> {
+  const [show] = await fetchKopis<ShowDetail>(
+    `/pblprfr/${encodeURIComponent(id)}`,
+    new URLSearchParams(),
+    { revalidate: REVALIDATE, tags: [SHOWS_CACHE_TAG, showCacheTag(id)] },
+  );
+
+  return show ?? null;
 }
 
 const getFirstFromArray = (value: string | string[] | undefined) =>
