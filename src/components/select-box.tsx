@@ -19,7 +19,7 @@ export const SelectBox = ({
   placeholder = "전체",
 }: {
   name: string;
-  options: { value: string; label: string }[];
+  options: readonly { value: string; label: string }[];
   placeholder?: string;
 }) => {
   const searchParams = useSearchParams();
