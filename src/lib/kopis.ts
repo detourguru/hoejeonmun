@@ -11,6 +11,13 @@ export type KopisCacheOptions = {
   tags?: string[];
 };
 
+// Kopis XML은 항목이 하나면 배열로 감싸지 않고 단일 값으로 내려준다
+export function toArray<T>(value: T | T[] | undefined | null): T[] {
+  if (value == null) return [];
+
+  return Array.isArray(value) ? value : [value];
+}
+
 export async function fetchKopis<T>(
   path: string,
   params: URLSearchParams,
@@ -49,11 +56,7 @@ export async function fetchKopis<T>(
   }
 
   // dbs 는 있는데 db 가 없으면 조건에 맞는 공연이 없는 정상 응답임
-  const db = parsed.dbs?.db;
-
-  if (db == null) return [];
-
-  return Array.isArray(db) ? db : [db];
+  return toArray<T>(parsed.dbs?.db);
 }
 
 // 순회를 돌며 결과 호출
