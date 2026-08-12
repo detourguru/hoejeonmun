@@ -32,22 +32,20 @@ export const GENRE_OPTIONS: { value: GenreCode; label: GenreName }[] = [
   { value: "GGGA", label: "뮤지컬" },
 ];
 
-export type StateCode = "01" | "02" | "03";
+export type StateCode = "01" | "02";
 
-export type StateName = "공연예정" | "공연중" | "공연완료";
+export type StateName = "개막예정" | "진행중";
 
 export const STATE_OPTIONS: { value: StateCode; label: StateName }[] = [
-  { value: "01", label: "공연예정" },
-  { value: "02", label: "공연중" },
-  { value: "03", label: "공연완료" },
+  { value: "01", label: "개막예정" },
+  { value: "02", label: "진행중" },
 ];
 
-export type StateKey = "upcoming" | "ongoing" | "ended";
+export type StateKey = "upcoming" | "ongoing";
 
 export const STATE_KEY_MAP = {
-  공연예정: "upcoming",
-  공연중: "ongoing",
-  공연완료: "ended",
+  개막예정: "upcoming",
+  진행중: "ongoing",
 } as const satisfies Record<StateName, StateKey>;
 
 export type AreaCode =
