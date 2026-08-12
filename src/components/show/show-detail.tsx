@@ -1,10 +1,29 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
+import { CastingUploadButton } from "@/components/show/casting-upload-button";
 import { StateBadge } from "@/components/show/state-badge";
 import { Badge } from "@/components/ui/badge";
 import { toArray } from "@/lib/kopis";
 import { getShow } from "@/service/show";
+import { ShowRelate } from "@/type/show";
+
+// 헤더 높이가 포스터를 넘지 않도록 접지 않고 보여줄 예매처 수
+const VISIBLE_RELATE_COUNT = 2;
+
+const RelateLink = ({ relatenm, relateurl }: ShowRelate) => (
+  <li>
+    <a
+      href={relateurl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-between rounded border border-border px-2.5 py-1.5 text-xs text-text transition-colors hover:bg-point"
+    >
+      {relatenm}
+      <span aria-hidden>↗</span>
+    </a>
+  </li>
+);
 
 const Section = ({
   title,
@@ -37,8 +56,6 @@ export const ShowDetail = async ({ id }: { id: string }) => {
   const styurls = toArray(show.styurls?.styurl);
 
   const details = [
-    { label: "공연장", value: show.fcltynm },
-    { label: "공연 기간", value: `${show.prfpdfrom} ~ ${show.prfpdto}` },
     { label: "공연 시간", value: show.prfruntime },
     { label: "관람 연령", value: show.prfage },
     { label: "가격", value: show.pcseguidance },
@@ -61,7 +78,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
           <div className="h-44 w-32 shrink-0 rounded bg-point/40" />
         )}
 
-        <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex gap-1">
             <Badge variant="outline">{show.genrenm}</Badge>
             <StateBadge state={show.prfstate} />
@@ -71,7 +88,31 @@ export const ShowDetail = async ({ id }: { id: string }) => {
             {show.prfnm}
           </h1>
 
-          <p className="text-xs text-text-muted">{show.area}</p>
+          <p className="text-xs text-text-muted">{show.fcltynm}</p>
+          <p className="text-xs text-text-muted">{`${show.prfpdfrom} ~ ${show.prfpdto}`}</p>
+
+          {relates.length > 0 && (
+            <div className="mt-auto flex flex-col gap-1">
+              <ul className="flex flex-col gap-1">
+                {relates.slice(0, VISIBLE_RELATE_COUNT).map((relate) => (
+                  <RelateLink key={relate.relateurl} {...relate} />
+                ))}
+              </ul>
+
+              {relates.length > VISIBLE_RELATE_COUNT && (
+                <details>
+                  <summary className="cursor-pointer list-none text-xs text-text-muted [&::-webkit-details-marker]:hidden">
+                    예매처 {relates.length - VISIBLE_RELATE_COUNT}곳 더 보기
+                  </summary>
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {relates.slice(VISIBLE_RELATE_COUNT).map((relate) => (
+                      <RelateLink key={relate.relateurl} {...relate} />
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -84,10 +125,11 @@ export const ShowDetail = async ({ id }: { id: string }) => {
         ))}
       </dl>
 
-      {/*
-        TODO: 캐스팅보드(달력/목록 토글) + 업로드 진입점
-        회차 데이터는 Kopis에 없어 UGC 업로드 -> Gemini 파싱 -> Supabase 저장이 선행되어야함
-      */}
+      {/* TODO: 캐스팅보드(달력/목록 토글) */}
+      <Section title="캐스팅보드">
+        <CastingUploadButton />
+      </Section>
+
       {show.dtguidance && (
         <Section title="공연 시간">
           <p className="whitespace-pre-line text-sm text-text">
@@ -120,25 +162,6 @@ export const ShowDetail = async ({ id }: { id: string }) => {
           <p className="whitespace-pre-line text-sm leading-relaxed text-text">
             {show.sty}
           </p>
-        </Section>
-      )}
-
-      {relates.length > 0 && (
-        <Section title="예매처">
-          <ul className="flex flex-wrap gap-2">
-            {relates.map(({ relatenm, relateurl }) => (
-              <li key={relateurl}>
-                <a
-                  href={relateurl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
-                >
-                  {relatenm}
-                </a>
-              </li>
-            ))}
-          </ul>
         </Section>
       )}
 
