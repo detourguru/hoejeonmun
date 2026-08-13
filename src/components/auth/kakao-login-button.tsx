@@ -16,6 +16,7 @@ export const KakaoLoginButton = ({ next }: { next: string }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
+        scopes: "profile_nickname profile_image", 
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
