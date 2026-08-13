@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const PROTECTED_PATHS = ["/actor/favorite"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -37,20 +39,32 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: If you remove getClaims() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
 
-  // FIXME: 로그인 페이지 만들면 보호할 라우트 목록 정해서 리다이렉트 조건 다시 추가
-  // const user = data?.claims;
-  // if (
-  //   !user &&
-  //   !request.nextUrl.pathname.startsWith("/login") &&
-  //   !request.nextUrl.pathname.startsWith("/auth")
-  // ) {
-  //   // no user, potentially respond by redirecting the user to the login page
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = "/auth/login";
-  //   return NextResponse.redirect(url);
-  // }
+  // 공연/배우 조회는 비회원도 봐야 하므로 전면 보호하지 않는다
+  // 제보/신고/즐겨찾기 같은 쓰기는 각 서버 코드에서 따로 확인한다.
+  const isProtected = PROTECTED_PATHS.some((path) =>
+    request.nextUrl.pathname.startsWith(path),
+  );
+
+  if (!data?.claims && isProtected) {
+    const url = request.nextUrl.clone();
+
+    url.pathname = "/login";
+    url.searchParams.set(
+      "next",
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    );
+
+    // 리다이렉트로 갈아타면 위에서 갱신한 세션 쿠키가 사라지므로 옮겨 담는다
+    const redirectResponse = NextResponse.redirect(url);
+
+    supabaseResponse.cookies
+      .getAll()
+      .forEach((cookie) => redirectResponse.cookies.set(cookie));
+
+    return redirectResponse;
+  }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:
