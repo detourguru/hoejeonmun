@@ -53,3 +53,59 @@ export function toInputDate(date: Date): string {
 export function normalizeDate(value: string): string {
   return value.replace(/\D/g, "");
 }
+
+// KOPIS의 YYYY.MM.DD -> YYYY-MM-DD
+export function toIsoDate(value: string): string {
+  const digits = normalizeDate(value);
+
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+}
+
+// YYYY-MM
+export function toMonth(date: Date): string {
+  const [year, month] = toParts(date);
+
+  return `${year}-${month}`;
+}
+
+// YYYY-MM -> 그 달 1일
+export function parseMonth(value: string): Date | null {
+  const matched = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+
+  if (!matched) return null;
+
+  return new Date(Date.UTC(Number(matched[1]), Number(matched[2]) - 1, 1));
+}
+
+export function getMonthRange(month: Date) {
+  const year = month.getUTCFullYear();
+  const index = month.getUTCMonth();
+
+  return {
+    start: toInputDate(new Date(Date.UTC(year, index, 1))),
+    end: toInputDate(new Date(Date.UTC(year, index + 1, 0))),
+  };
+}
+
+// null이면 빈칸 / 아니면 YYYY-MM-DD
+export function getCalendarCells(month: Date): (string | null)[] {
+  const year = month.getUTCFullYear();
+  const index = month.getUTCMonth();
+
+  const firstWeekday = new Date(Date.UTC(year, index, 1)).getUTCDay();
+  const lastDate = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
+
+  return [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: lastDate }, (_, day) =>
+      toInputDate(new Date(Date.UTC(year, index, day + 1))),
+    ),
+  ];
+}
+
+export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
+// 날짜만 있으면 타임존과 무관하므로 UTC로 계산한다
+export function getWeekday(isoDate: string): string {
+  return WEEKDAYS[new Date(`${isoDate}T00:00:00Z`).getUTCDay()];
+}

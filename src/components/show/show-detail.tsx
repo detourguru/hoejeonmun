@@ -1,7 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CastingUploadButton } from "@/components/show/casting-upload-button";
 import { StateBadge } from "@/components/show/state-badge";
 import { Badge } from "@/components/ui/badge";
 import { toArray } from "@/lib/kopis";
@@ -125,9 +125,13 @@ export const ShowDetail = async ({ id }: { id: string }) => {
         ))}
       </dl>
 
-      {/* TODO: 캐스팅보드(달력/목록 토글) */}
       <Section title="캐스팅보드">
-        <CastingUploadButton />
+        <Link
+          href={`/show/${id}/castings`}
+          className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
+        >
+          회차별 캐스팅 보기
+        </Link>
       </Section>
 
       {show.dtguidance && (
