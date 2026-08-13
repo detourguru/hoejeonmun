@@ -6,8 +6,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // FIXME: 로그인 페이지 만들면 보호할 라우트 목록 정해서 리다이렉트 조건 다시 추가
-  //   matcher: [
-  //     "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
-  //   ],
+  matcher: [
+    // 세션 갱신이 필요한 화면 요청
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };
