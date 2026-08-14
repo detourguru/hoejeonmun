@@ -61,6 +61,8 @@ Rules:
 - The board usually omits the year. Resolve every date using the run above.
 - Drop any row whose date falls outside the run.
 - A merged cell applies to every row or column it spans.
+- If a time cell lists multiple times separated by a slash (e.g. "13:00/15:00"), output one performance per time, each with the same casting as that row.
+- Skip any row that indicates there is no performance that day (e.g. "공연 없음"); do not include it in "performances".
 - Use the role names in the header row as the keys of "casting".
 - Omit a cell from "casting" when it is empty or a placeholder such as "-".
 - If no casting table exists, return an empty performances array.
