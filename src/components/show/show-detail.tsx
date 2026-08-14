@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { StateBadge } from "@/components/show/state-badge";
 import { Badge } from "@/components/ui/badge";
 import { toArray } from "@/lib/kopis";
+import { getActorIdsByNames } from "@/service/actor";
 import { getShow } from "@/service/show";
 import { ShowRelate } from "@/type/show";
 
@@ -52,6 +53,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
 
   const cast = splitNames(show.prfcast);
   const crew = splitNames(show.prfcrew);
+  const actorIds = await getActorIdsByNames(cast);
   const relates = toArray(show.relates?.relate);
   const styurls = toArray(show.styurls?.styurl);
 
@@ -144,13 +146,31 @@ export const ShowDetail = async ({ id }: { id: string }) => {
 
       {cast.length > 0 && (
         <Section title="출연진">
-          {/* TODO: UGC 태깅 데이터가 쌓이면 /actor/{id} 로 연결 */}
           <ul className="flex flex-wrap gap-1">
-            {cast.map((name) => (
-              <li key={name}>
-                <Badge variant="outline">{name}</Badge>
-              </li>
-            ))}
+            {cast.map((name) => {
+              const actorId = actorIds.get(name);
+
+              return (
+                <li key={name}>
+                  <Link
+                    href={
+                      actorId
+                        ? `/actor/${actorId}`
+                        : `/actor/name/${encodeURIComponent(name)}`
+                    }
+                  >
+                    <Badge
+                      variant="outline"
+                      className={
+                        actorId ? "border-primary text-primary" : undefined
+                      }
+                    >
+                      {name}
+                    </Badge>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </Section>
       )}

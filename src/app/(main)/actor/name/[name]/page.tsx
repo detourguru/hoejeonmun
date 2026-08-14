@@ -1,0 +1,38 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { BackButton } from "@/components/back-button";
+import { getActorIdsByNames } from "@/service/actor";
+
+type Props = { params: Promise<{ name: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { name } = await params;
+
+  return { title: `${decodeURIComponent(name)} | 회전문` };
+}
+
+export default async function Page({ params }: Props) {
+  const name = decodeURIComponent((await params).name);
+
+  const actorId = (await getActorIdsByNames([name])).get(name);
+
+  if (actorId) redirect(`/actor/${actorId}`);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <BackButton />
+
+      <h2 className="text-lg font-bold text-text">{name}</h2>
+
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="text-sm text-text-muted">
+          아직 {name} 배우의 회차 정보가 없어요.
+        </p>
+        <p className="text-xs text-text-muted">
+          공연 상세에서 캐스팅보드를 제보하면 회차별로 자동 정리돼요.
+        </p>
+      </div>
+    </div>
+  );
+}
