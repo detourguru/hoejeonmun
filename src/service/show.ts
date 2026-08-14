@@ -181,3 +181,17 @@ export function paginateShows(shows: Show[], page: number) {
 export function sortShows(shows: Show[], sort: SortKey = DEFAULT_SORT): Show[] {
   return [...shows].sort(SORT_COMPARATORS[sort]);
 }
+
+const SEARCH_TERM_LIMIT = 20;
+
+export async function searchShows(keyword: string): Promise<Show[]> {
+  const normalized = normalizeText(keyword);
+
+  if (!normalized) return [];
+
+  const matched = (await getShows()).filter((show) =>
+    normalizeText(show.prfnm).includes(normalized),
+  );
+
+  return sortShows(matched).slice(0, SEARCH_TERM_LIMIT);
+}

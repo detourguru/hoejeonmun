@@ -105,6 +105,43 @@ export async function getActorShows(actorId: number) {
   }));
 }
 
+export async function getActorIdsByNames(names: string[]) {
+  if (names.length === 0) return new Map<string, number>();
+
+  const supabase = await createClient();
+
+  // 캐스팅 보드 표기와 KOPIS 제공 이름이 항상 같지 않을 수 있으므로 in 조회
+  const { data, error } = await supabase
+    .from("actors")
+    .select("id, name")
+    .in("name", names);
+
+  if (error) throw error;
+
+  return new Map(data.map(({ id, name }) => [name, id]));
+}
+
+const SEARCH_LIMIT = 20;
+
+export async function searchActors(keyword: string): Promise<Actor[]> {
+  const escaped = keyword.replace(/[%_\\]/g, "");
+
+  if (!escaped) return [];
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("actors")
+    .select("id, name")
+    .ilike("name", `%${escaped}%`)
+    .order("name")
+    .limit(SEARCH_LIMIT);
+
+  if (error) throw error;
+
+  return data;
+}
+
 export async function getFavoriteActors(): Promise<Actor[]> {
   const supabase = await createClient();
 
