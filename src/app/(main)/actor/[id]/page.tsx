@@ -5,8 +5,7 @@ import { notFound } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { ActorSlotCard } from "@/components/actor/actor-slot-card";
 import { FavoriteButton } from "@/components/actor/favorite-button";
-import { Calendar } from "@/components/casting/calendar";
-import { CastingViewControls } from "@/components/casting/casting-view-controls";
+import { CastingViews, MonthNav } from "@/components/casting/casting-views";
 import {
   getCalendarCells,
   getMonthRange,
@@ -20,7 +19,7 @@ import {
   getActorShows,
   isFavorited,
 } from "@/service/actor";
-import { groupByDate } from "@/service/casting";
+
 import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
 
 type Props = {
@@ -95,32 +94,39 @@ export default async function Page({ params, searchParams }: Props) {
         </ul>
       )}
 
-      <CastingViewControls view={view} month={month} />
-
       {slots.length === 0 ? (
-        <p className="py-16 text-center text-sm text-text-muted">
-          이 달에는 등록된 일정이 없어요.
-        </p>
-      ) : view === "calendar" ? (
-        <Calendar
+        <>
+          <MonthNav month={month} />
+
+          <p className="py-16 text-center text-sm text-text-muted">
+            이 달에는 등록된 일정이 없어요.
+          </p>
+        </>
+      ) : (
+        <CastingViews
+          month={month}
+          initialView={view}
           cells={getCalendarCells(monthDate)}
+          slots={slots.map((slot) => ({
+            id: slot.id,
+            date: slot.date,
+            time: slot.time,
+            label: slot.showName,
+            colorClass: "bg-point text-text",
+          }))}
           panels={Object.fromEntries(
-            [...groupByDate(slots)].map(([date, daySlots]) => [
-              date,
-              <ul key={date} className="flex flex-col gap-2">
-                {daySlots.map((slot) => (
-                  <ActorSlotCard key={slot.id} slot={slot} />
-                ))}
-              </ul>,
+            slots.map((slot) => [
+              slot.id,
+              <ActorSlotCard key={slot.id} slot={slot} />,
+            ]),
+          )}
+          listItems={Object.fromEntries(
+            slots.map((slot) => [
+              slot.id,
+              <ActorSlotCard key={slot.id} slot={slot} showDate />,
             ]),
           )}
         />
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {slots.map((slot) => (
-            <ActorSlotCard key={slot.id} slot={slot} showDate />
-          ))}
-        </ul>
       )}
     </div>
   );
