@@ -3,10 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/back-button";
-import { Calendar } from "@/components/casting/calendar";
-import { CastingList } from "@/components/casting/casting-list";
 import { SlotCard } from "@/components/casting/slot-card";
-import { CastingViewControls } from "@/components/casting/casting-view-controls";
+import { CastingViews, MonthNav } from "@/components/casting/casting-views";
 import { CastingUploadButton } from "@/components/show/casting-upload-button";
 import {
   getCalendarCells,
@@ -17,14 +15,23 @@ import {
   toIsoDate,
   toMonth,
 } from "@/lib/date";
-import { getShowCastings, groupByDate } from "@/service/casting";
+import { FALLBACK_COLOR, getColorMap } from "@/lib/actor-color";
+import {
+  getShowCastings,
+  getShowFilterData,
+  getSlotPairKey,
+} from "@/service/casting";
 import { getShow } from "@/service/show";
-import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
+import {
+  CASTING_VIEW,
+  DEFAULT_CASTING_VIEW,
+  parseActorsParam,
+} from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ view?: string; month?: string }>;
+  searchParams: Promise<{ view?: string; month?: string; actors?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -52,7 +59,11 @@ function getDefaultMonth(show: ShowDetail) {
 
 export default async function Page({ params, searchParams }: Props) {
   const { id } = await params;
-  const { view: rawView, month: rawMonth } = await searchParams;
+  const {
+    view: rawView,
+    month: rawMonth,
+    actors: rawActors,
+  } = await searchParams;
 
   const show = await getShow(id);
 
@@ -64,6 +75,11 @@ export default async function Page({ params, searchParams }: Props) {
 
   const { start, end } = getMonthRange(monthDate);
   const slots = await getShowCastings(id, start, end);
+
+  const { pairKeys, actors } = await getShowFilterData(id);
+
+  const pairColors = getColorMap(pairKeys);
+  const initialActors = parseActorsParam(rawActors, actors);
 
   return (
     <div className="flex flex-col gap-4">
@@ -79,34 +95,44 @@ export default async function Page({ params, searchParams }: Props) {
         </Link>
       </div>
 
-      <CastingViewControls view={view} month={month} />
-
       {slots.length === 0 ? (
-        // 제보 유도
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <p className="text-sm text-text-muted">
-            아직 이 달의 캐스팅 정보가 없어요.
-          </p>
-          <p className="text-xs text-text-muted">
-            캐스팅보드를 제보하면 회차별로 자동 정리돼요.
-          </p>
-        </div>
-      ) : view === "calendar" ? (
-        <Calendar
+        <>
+          <MonthNav month={month} />
+
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="text-sm text-text-muted">
+              아직 이 달의 캐스팅 정보가 없어요.
+            </p>
+            <p className="text-xs text-text-muted">
+              캐스팅보드를 제보하면 회차별로 자동 정리돼요.
+            </p>
+          </div>
+        </>
+      ) : (
+        <CastingViews
+          month={month}
+          initialView={view}
           cells={getCalendarCells(monthDate)}
+          slots={slots.map((slot) => ({
+            id: slot.id,
+            date: slot.date,
+            time: slot.time,
+            label: getSlotPairKey(slot),
+            colorClass: pairColors.get(getSlotPairKey(slot)) ?? FALLBACK_COLOR,
+            filterKeys: slot.casting.map(({ actor }) => actor),
+          }))}
           panels={Object.fromEntries(
-            [...groupByDate(slots)].map(([date, daySlots]) => [
-              date,
-              <ul key={date} className="flex flex-col gap-2">
-                {daySlots.map((slot) => (
-                  <SlotCard key={slot.id} slot={slot} />
-                ))}
-              </ul>,
+            slots.map((slot) => [slot.id, <SlotCard key={slot.id} slot={slot} />]),
+          )}
+          listItems={Object.fromEntries(
+            slots.map((slot) => [
+              slot.id,
+              <SlotCard key={slot.id} slot={slot} showDate />,
             ]),
           )}
+          filterOptions={actors}
+          initialActors={initialActors}
         />
-      ) : (
-        <CastingList slots={slots} />
       )}
 
       <div className="border-t border-border pt-4">

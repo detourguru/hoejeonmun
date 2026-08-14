@@ -22,7 +22,17 @@ type SlotCastingRow = {
   role_name_raw: string;
   actor_name_raw: string;
   actor_id: number | null;
+  assignment_id: number;
 };
+
+// 원본 표의 앞 두 열을 주연 페어로 본다
+export const LEAD_COUNT = 2;
+
+export const getPairKey = (actors: string[]) =>
+  actors.slice(0, LEAD_COUNT).join("·");
+
+export const getSlotPairKey = (slot: CastingSlot) =>
+  getPairKey(slot.casting.map(({ actor }) => actor));
 
 function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
   const slots = new Map<number, CastingSlot>();
@@ -47,6 +57,7 @@ function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
   return [...slots.values()];
 }
 
+// getShowCastings는 보고 있는 달만 조회
 export async function getShowCastings(
   showId: string,
   start: string,
@@ -56,17 +67,51 @@ export async function getShowCastings(
 
   const { data, error } = await supabase
     .from("slot_castings")
-    .select("slot_id, date, time, role_name_raw, actor_name_raw, actor_id")
+    .select(
+      "slot_id, date, time, role_name_raw, actor_name_raw, actor_id, assignment_id",
+    )
     .eq("show_id", showId)
     .gte("date", start)
     .lte("date", end)
     .order("date")
     .order("time")
-    .order("role_name_raw");
+    // 캐스팅보드 헤더 순서대로 넣었으므로 id 순 == 원본 표의 배역 순서
+    .order("assignment_id");
 
   if (error) throw error;
 
   return groupBySlot(data as SlotCastingRow[]);
+}
+
+export async function getShowFilterData(showId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("slot_castings")
+    .select("slot_id, actor_name_raw, assignment_id")
+    .eq("show_id", showId)
+    .order("assignment_id");
+
+  if (error) throw error;
+
+  const rows = data as Pick<
+    SlotCastingRow,
+    "slot_id" | "actor_name_raw" | "assignment_id"
+  >[];
+
+  const bySlot = new Map<number, string[]>();
+
+  for (const row of rows) {
+    bySlot.set(row.slot_id, [
+      ...(bySlot.get(row.slot_id) ?? []),
+      row.actor_name_raw,
+    ]);
+  }
+
+  return {
+    pairKeys: [...bySlot.values()].map(getPairKey),
+    actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
+  };
 }
 
 export function groupByDate<T extends { date: string }>(items: T[]) {
