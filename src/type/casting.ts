@@ -14,12 +14,32 @@ export const DEFAULT_CASTING_VIEW: CastingView = "calendar";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-// 행 = 날짜 x 시간, 열 = 배역, 셀 = 배우명
-export type ParsedPerformance = {
+// 배우 필터 규칙
+export const ACTORS_PARAM = "actors";
+export const ACTORS_SEPARATOR = ",";
+
+export const parseActorsParam = (
+  value: string | undefined,
+  options: string[],
+) =>
+  (value?.split(ACTORS_SEPARATOR) ?? []).filter((name) =>
+    options.includes(name),
+  );
+
+export type CalendarSlot = {
+  id: number;
   // YYYY-MM-DD
   date: string;
-  weekday: string;
   // HH:mm
+  time: string;
+  label: string;
+  colorClass?: string;
+  filterKeys?: string[];
+};
+
+export type ParsedPerformance = {
+  date: string;
+  weekday: string;
   time: string;
   // 배역명 -> 배우명
   casting: Record<string, string>;
