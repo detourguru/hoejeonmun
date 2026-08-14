@@ -1,7 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import * as z from "zod";
 
-import { getWeekday, toIsoDate } from "@/lib/date";
+import {
+  addMonths,
+  getToday,
+  getWeekday,
+  toInputDate,
+  toIsoDate,
+} from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
@@ -49,12 +55,15 @@ const castingJsonSchema = {
 
 const castingSchema = z.fromJSONSchema(castingJsonSchema);
 
-const buildPrompt = (show: ShowDetail) => `
+const buildPrompt = (show: ShowDetail) => {
+  const { from, to } = resolveRunWindow(show);
+
+  return `
 Extract the casting schedule table from this image.
 
 The image is a casting board for:
 - Title: ${show.prfnm}
-- Run: ${toIsoDate(show.prfpdfrom)} ~ ${toIsoDate(show.prfpdto)}
+- Run: ${from} ~ ${to}
 
 Rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
@@ -69,6 +78,7 @@ Rules:
 - If multiple tables exist, use only the largest and most complete one.
 - Make your best guess for ambiguous text, but never invent a performance that is not visible.
 `;
+};
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -77,13 +87,22 @@ const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
 
+function resolveRunWindow(show: ShowDetail) {
+  if (show.openrun !== "Y")
+    return { from: toIsoDate(show.prfpdfrom), to: toIsoDate(show.prfpdto) };
+  else
+    return {
+      from: toInputDate(addMonths(getToday(), -3)),
+      to: toInputDate(addMonths(getToday(), 3)),
+    };
+}
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizePerformances(
   performances: ParsedPerformance[],
   show: ShowDetail,
 ) {
-  const from = toIsoDate(show.prfpdfrom);
-  const to = toIsoDate(show.prfpdto);
+  const { from, to } = resolveRunWindow(show);
 
   const seen = new Set<string>();
   const valid: ParsedPerformance[] = [];
@@ -98,7 +117,8 @@ function normalizePerformances(
       Object.entries(performance.casting ?? {})
         .map(([role, actor]) => [normalizeName(role), normalizeName(actor)])
         .filter(
-          ([role, actor]) => role && !PLACEHOLDER_NAMES.has(actor.toLowerCase()),
+          ([role, actor]) =>
+            role && !PLACEHOLDER_NAMES.has(actor.toLowerCase()),
         ),
     );
 
@@ -161,7 +181,9 @@ export async function parseCastingBoard(image: Blob, show: ShowDetail) {
     throw new Error("Gemini가 JSON이 아닌 응답을 반환했습니다");
   }
 
-  const parsed = castingSchema.parse(raw) as { performances: ParsedPerformance[] };
+  const parsed = castingSchema.parse(raw) as {
+    performances: ParsedPerformance[];
+  };
 
   return normalizePerformances(parsed.performances, show);
 }
@@ -220,12 +242,10 @@ export async function saveCastingBoard({
     ...new Set(performances.flatMap(({ casting }) => Object.values(casting))),
   ];
 
-  const { error: actorError } = await admin
-    .from("actors")
-    .upsert(
-      actorNames.map((name) => ({ name })),
-      { onConflict: "name", ignoreDuplicates: true },
-    );
+  const { error: actorError } = await admin.from("actors").upsert(
+    actorNames.map((name) => ({ name })),
+    { onConflict: "name", ignoreDuplicates: true },
+  );
 
   if (actorError) throw actorError;
 
