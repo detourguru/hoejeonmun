@@ -46,9 +46,32 @@ export type ParsedPerformance = {
   imageIndex: number;
 };
 
+// 캐스팅표의 특정 날짜에 붙은 인라인 배지(프리뷰/막공/커튼콜데이 등).
+export type ParsedDateTag = {
+  date: string;
+  tag: string;
+  imageIndex: number;
+};
+
+// 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우 (ADR-018)
+export type ParsedEvent = {
+  title: string;
+  description?: string;
+  periodStart: string;
+  periodEnd: string;
+  imageIndex: number;
+};
+
 export type CastingBoardResult = {
   uploadId: number;
   slotCount: number;
   actorCount: number;
+  eventCount: number;
   skippedCount: number;
+};
+
+export type CalendarEventSummary = {
+  date: string;
+  title: string;
+  count: number;
 };

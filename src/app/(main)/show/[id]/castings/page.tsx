@@ -18,8 +18,10 @@ import {
 import { FALLBACK_COLOR, getColorMap } from "@/lib/actor-color";
 import {
   getShowCastings,
+  getShowEvents,
   getShowFilterData,
   getSlotPairKey,
+  summarizeEventsByDate,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
 import {
@@ -74,12 +76,17 @@ export default async function Page({ params, searchParams }: Props) {
   const view = CASTING_VIEW.isCode(rawView) ? rawView : DEFAULT_CASTING_VIEW;
 
   const { start, end } = getMonthRange(monthDate);
-  const slots = await getShowCastings(id, start, end);
+  const cells = getCalendarCells(monthDate);
+  const [slots, events] = await Promise.all([
+    getShowCastings(id, start, end),
+    getShowEvents(id, start, end),
+  ]);
 
   const { pairKeys, actors } = await getShowFilterData(id);
 
   const pairColors = getColorMap(pairKeys);
   const initialActors = parseActorsParam(rawActors, actors);
+  const eventSummaries = [...summarizeEventsByDate(events, cells).values()];
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,7 +107,7 @@ export default async function Page({ params, searchParams }: Props) {
         안 됐을 수 있어요.
       </p>
 
-      {slots.length === 0 ? (
+      {slots.length === 0 && events.length === 0 ? (
         <>
           <MonthNav month={month} />
 
@@ -117,7 +124,8 @@ export default async function Page({ params, searchParams }: Props) {
         <CastingViews
           month={month}
           initialView={view}
-          cells={getCalendarCells(monthDate)}
+          cells={cells}
+          events={eventSummaries}
           slots={slots.map((slot) => ({
             id: slot.id,
             date: slot.date,

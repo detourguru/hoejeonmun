@@ -55,12 +55,10 @@ export async function POST(request: Request) {
   const images = downloads.map(({ data: image }) => image!);
 
   try {
-    const { performances, skippedCount, reason } = await parseCastingBoard(
-      images,
-      show,
-    );
+    const { performances, dateTags, events, skippedCount, reason } =
+      await parseCastingBoard(images, show);
 
-    if (performances.length === 0) {
+    if (performances.length === 0 && events.length === 0) {
       await logParseFailure({
         admin,
         showId,
@@ -73,12 +71,12 @@ export async function POST(request: Request) {
       return fail(
         422,
         reason
-          ? `이미지에서 캐스팅 표를 찾지 못했어요. (${reason})`
-          : "이미지에서 캐스팅 표를 찾지 못했어요.",
+          ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
+          : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
       );
     }
 
-    if (!hasKnownCastOverlap(performances, show)) {
+    if (performances.length > 0 && !hasKnownCastOverlap(performances, show)) {
       await logParseFailure({
         admin,
         showId,
@@ -90,7 +88,7 @@ export async function POST(request: Request) {
       return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
     }
 
-    return Response.json({ performances, skippedCount });
+    return Response.json({ performances, dateTags, events, skippedCount });
   } catch (error) {
     console.error(error);
 

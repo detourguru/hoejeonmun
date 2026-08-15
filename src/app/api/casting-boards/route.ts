@@ -12,12 +12,33 @@ const performanceSchema = z.object({
   imageIndex: z.number(),
 });
 
-const bodySchema = z.object({
-  showId: z.string().min(1),
-  storagePaths: z.array(z.string().min(1)).min(1),
-  performances: z.array(performanceSchema).min(1),
-  skippedCount: z.number(),
+const dateTagSchema = z.object({
+  date: z.string(),
+  tag: z.string(),
+  imageIndex: z.number(),
 });
+
+const eventSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  imageIndex: z.number(),
+});
+
+const bodySchema = z
+  .object({
+    showId: z.string().min(1),
+    storagePaths: z.array(z.string().min(1)).min(1),
+    performances: z.array(performanceSchema),
+    dateTags: z.array(dateTagSchema),
+    events: z.array(eventSchema),
+    skippedCount: z.number(),
+  })
+  .refine(
+    ({ performances, events }) => performances.length > 0 || events.length > 0,
+    { message: "저장할 캐스팅이나 이벤트가 없어요." },
+  );
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -31,7 +52,8 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePaths, performances, skippedCount } = body.data;
+  const { showId, storagePaths, performances, dateTags, events, skippedCount } =
+    body.data;
 
   if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
@@ -43,6 +65,8 @@ export async function POST(request: Request) {
       userId,
       storagePaths,
       performances,
+      dateTags,
+      events,
       skippedCount,
     });
 
