@@ -240,17 +240,25 @@ export async function saveCastingBoard({
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
 
-  const {
-    data: { publicUrl },
-  } = admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath);
-
   const { data: upload, error: uploadError } = await admin
     .from("uploads")
-    .insert({ show_id: showId, user_id: userId, url: publicUrl })
+    .insert({ show_id: showId, user_id: userId })
     .select("id")
     .single();
 
   if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath);
+
+  const { data: uploadImage, error: uploadImageError } = await admin
+    .from("upload_images")
+    .insert({ upload_id: upload.id, url: publicUrl, position: 0 })
+    .select("id")
+    .single();
+
+  if (uploadImageError) throw uploadImageError;
 
   const dates = performances.map(({ date }) => date).sort();
 
@@ -306,6 +314,7 @@ export async function saveCastingBoard({
       role_name_raw: role,
       actor_name_raw: actor,
       actor_id: actorIdByName.get(actor) ?? null,
+      upload_image_id: uploadImage.id,
     }));
   });
 
