@@ -10,12 +10,13 @@ import {
   MAX_IMAGE_BYTES,
 } from "@/type/casting";
 
-type Status = "idle" | "uploading" | "analyzing" | "done";
+type Status = "idle" | "uploading" | "analyzing" | "saving" | "done";
 
 const STATUS_LABEL: Record<Status, string> = {
   idle: "캐스팅보드 제보하기",
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
+  saving: "저장하는 중…",
   done: "다시 제보하기",
 };
 
@@ -29,32 +30,32 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CastingBoardResult | null>(null);
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [previewUrl]);
+  }, [previewUrls]);
 
   const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
 
     event.target.value = "";
 
-    if (!file) return;
+    if (files.length === 0) return;
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
 
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
     setResult(null);
     setError(null);
 
-    if (file.size > MAX_IMAGE_BYTES) {
-      setError("10MB 이하 이미지만 올릴 수 있어요.");
+    if (files.some((file) => file.size > MAX_IMAGE_BYTES)) {
+      setError("이미지 1장당 10MB 이하만 올릴 수 있어요.");
       return;
     }
 
@@ -69,29 +70,35 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
 
     setStatus("uploading");
 
-    const extension = EXTENSIONS[file.type] ?? "jpg";
-    const storagePath = `${userId}/${showId}/${crypto.randomUUID()}.${extension}`;
+    const storagePaths: string[] = [];
 
-    const { error: uploadError } = await supabase.storage
-      .from(CASTING_BOARD_BUCKET)
-      .upload(storagePath, file, { contentType: file.type });
+    for (const file of files) {
+      const extension = EXTENSIONS[file.type] ?? "jpg";
+      const storagePath = `${userId}/${showId}/${crypto.randomUUID()}.${extension}`;
 
-    if (uploadError) {
-      setStatus("idle");
-      setError("이미지를 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
-      return;
+      const { error: uploadError } = await supabase.storage
+        .from(CASTING_BOARD_BUCKET)
+        .upload(storagePath, file, { contentType: file.type });
+
+      if (uploadError) {
+        setStatus("idle");
+        setError("이미지를 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+
+      storagePaths.push(storagePath);
     }
 
     setStatus("analyzing");
 
-    const response = await fetch("/api/casting-boards", {
+    const parseResponse = await fetch("/api/casting-boards/parse", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ showId, storagePath }),
+      body: JSON.stringify({ showId, storagePaths }),
     });
 
-    if (!response.ok) {
-      const { message } = await response
+    if (!parseResponse.ok) {
+      const { message } = await parseResponse
         .json()
         .catch(() => ({ message: "분석에 실패했어요." }));
 
@@ -100,14 +107,40 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
       return;
     }
 
-    setResult(await response.json());
+    const { performances, skippedCount } = await parseResponse.json();
+
+    setStatus("saving");
+
+    const saveResponse = await fetch("/api/casting-boards", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        showId,
+        storagePaths,
+        performances,
+        skippedCount,
+      }),
+    });
+
+    if (!saveResponse.ok) {
+      const { message } = await saveResponse
+        .json()
+        .catch(() => ({ message: "저장에 실패했어요." }));
+
+      setStatus("idle");
+      setError(message);
+      return;
+    }
+
+    setResult(await saveResponse.json());
     setStatus("done");
 
     // 저장된 회차가 캐스팅보드 영역에 바로 보이도록
     router.refresh();
   };
 
-  const pending = status === "uploading" || status === "analyzing";
+  const pending =
+    status === "uploading" || status === "analyzing" || status === "saving";
 
   return (
     <div className="flex flex-col gap-2">
@@ -115,6 +148,7 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleChange}
         className="hidden"
       />
@@ -138,14 +172,19 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
         </p>
       )}
 
-      {previewUrl && (
-        // blob: URL은 최적화 대상이 아니고 업로드 후 휘발되므로 next/image를 쓰지 않는다
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={previewUrl}
-          alt="선택한 캐스팅보드 미리보기"
-          className="h-auto w-full max-w-xs rounded"
-        />
+      {previewUrls.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {previewUrls.map((url) => (
+            // blob: URL은 최적화 대상이 아니고 업로드 후 휘발되므로 next/image를 쓰지 않는다
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={url}
+              src={url}
+              alt="선택한 캐스팅보드 미리보기"
+              className="h-auto w-full max-w-40 rounded"
+            />
+          ))}
+        </div>
       )}
     </div>
   );

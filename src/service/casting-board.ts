@@ -45,8 +45,13 @@ const castingJsonSchema = {
               type: "string",
             },
           },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this row was read from. Used to link this performance back to its source image.",
+          },
         },
-        required: ["date", "weekday", "time", "casting"],
+        required: ["date", "weekday", "time", "casting", "imageIndex"],
       },
     },
     reason: {
@@ -64,14 +69,15 @@ const buildPrompt = (show: ShowDetail) => {
   const { from, to } = resolveRunWindow(show);
 
   return `
-Extract the casting schedule table from this image.
+Extract the casting schedule table from the given image(s).
 
-The image is a casting board for:
+The image(s) are a casting board for:
 - Title: ${show.prfnm}
 - Run: ${from} ~ ${to}
 
 Rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
+- Multiple images may be given. They may be continuous parts of the same table (e.g. a scrolled screenshot split into pieces), and the header row with role names may appear in only one of them.
 - The board usually omits the year. Resolve every date using the run above.
 - Drop any row whose date falls outside the run.
 - A merged cell applies to every row or column it spans.
@@ -137,6 +143,7 @@ export function hasKnownCastOverlap(
 function normalizePerformances(
   performances: ParsedPerformance[],
   show: ShowDetail,
+  imageCount: number,
 ) {
   const { from, to } = resolveRunWindow(show);
 
@@ -167,7 +174,10 @@ function normalizePerformances(
       date <= to &&
       getWeekday(date) === performance.weekday?.trim() &&
       Object.keys(casting).length > 0 &&
-      !seen.has(key);
+      !seen.has(key) &&
+      Number.isInteger(performance.imageIndex) &&
+      performance.imageIndex >= 0 &&
+      performance.imageIndex < imageCount;
 
     if (!isValid) {
       skippedCount += 1;
@@ -175,27 +185,32 @@ function normalizePerformances(
     }
 
     seen.add(key);
-    valid.push({ date, time, weekday: performance.weekday, casting });
+    valid.push({
+      date,
+      time,
+      weekday: performance.weekday,
+      casting,
+      imageIndex: performance.imageIndex,
+    });
   }
 
   return { performances: valid, skippedCount };
 }
 
-export async function parseCastingBoard(image: Blob, show: ShowDetail) {
-  const base64Image = Buffer.from(await image.arrayBuffer()).toString("base64");
+export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
+  const imageBlocks = await Promise.all(
+    images.map(async (image) => ({
+      type: "image" as const,
+      data: Buffer.from(await image.arrayBuffer()).toString("base64"),
+      mime_type: image.type || "image/jpeg",
+    })),
+  );
 
   const client = new GoogleGenAI({});
 
   const interaction = await client.interactions.create({
     model: MODEL,
-    input: [
-      { type: "text", text: buildPrompt(show) },
-      {
-        type: "image",
-        data: base64Image,
-        mime_type: image.type || "image/jpeg",
-      },
-    ],
+    input: [{ type: "text", text: buildPrompt(show) }, ...imageBlocks],
     response_format: {
       type: "text",
       mime_type: "application/json",
@@ -222,19 +237,51 @@ export async function parseCastingBoard(image: Blob, show: ShowDetail) {
     reason?: string;
   };
 
-  return { ...normalizePerformances(parsed.performances, show), reason: parsed.reason };
+  return {
+    ...normalizePerformances(parsed.performances, show, imageBlocks.length),
+    reason: parsed.reason,
+  };
+}
+
+// 파싱 실패 사례
+export async function logParseFailure({
+  admin,
+  showId,
+  userId,
+  storagePaths,
+  type,
+  reason,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  showId: string;
+  userId: string;
+  storagePaths: string[];
+  type: "no_table_found" | "cast_mismatch" | "exception";
+  reason?: string;
+}) {
+  const { error } = await admin.from("parse_failures").insert(
+    storagePaths.map((storagePath) => ({
+      show_id: showId,
+      user_id: userId,
+      storage_path: storagePath,
+      type,
+      reason,
+    })),
+  );
+
+  if (error) console.error("parse_failures insert 실패", error);
 }
 
 export async function saveCastingBoard({
   showId,
   userId,
-  storagePath,
+  storagePaths,
   performances,
   skippedCount,
 }: {
   showId: string;
   userId: string;
-  storagePath: string;
+  storagePaths: string[];
   performances: ParsedPerformance[];
   skippedCount: number;
 }): Promise<CastingBoardResult> {
@@ -248,17 +295,23 @@ export async function saveCastingBoard({
 
   if (uploadError) throw uploadError;
 
-  const {
-    data: { publicUrl },
-  } = admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath);
-
-  const { data: uploadImage, error: uploadImageError } = await admin
+  const { data: uploadImages, error: uploadImagesError } = await admin
     .from("upload_images")
-    .insert({ upload_id: upload.id, url: publicUrl, position: 0 })
-    .select("id")
-    .single();
+    .insert(
+      storagePaths.map((storagePath, position) => ({
+        upload_id: upload.id,
+        url: admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath)
+          .data.publicUrl,
+        position,
+      })),
+    )
+    .select("id, position");
 
-  if (uploadImageError) throw uploadImageError;
+  if (uploadImagesError) throw uploadImagesError;
+
+  const uploadImageIdByPosition = new Map(
+    uploadImages.map(({ id, position }) => [position, id]),
+  );
 
   const dates = performances.map(({ date }) => date).sort();
 
@@ -303,20 +356,23 @@ export async function saveCastingBoard({
 
   const actorIdByName = new Map(actors.map(({ id, name }) => [name, id]));
 
-  const assignments = performances.flatMap(({ date, time, casting }) => {
-    const slotId = slotIdByKey.get(`${date} ${time}`);
+  const assignments = performances.flatMap(
+    ({ date, time, casting, imageIndex }) => {
+      const slotId = slotIdByKey.get(`${date} ${time}`);
+      const uploadImageId = uploadImageIdByPosition.get(imageIndex);
 
-    if (!slotId) return [];
+      if (!slotId || uploadImageId === undefined) return [];
 
-    return Object.entries(casting).map(([role, actor]) => ({
-      upload_id: upload.id,
-      slot_id: slotId,
-      role_name_raw: role,
-      actor_name_raw: actor,
-      actor_id: actorIdByName.get(actor) ?? null,
-      upload_image_id: uploadImage.id,
-    }));
-  });
+      return Object.entries(casting).map(([role, actor]) => ({
+        upload_id: upload.id,
+        slot_id: slotId,
+        role_name_raw: role,
+        actor_name_raw: actor,
+        actor_id: actorIdByName.get(actor) ?? null,
+        upload_image_id: uploadImageId,
+      }));
+    },
+  );
 
   const { error: assignmentError } = await admin
     .from("assignments")
