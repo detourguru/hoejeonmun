@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { Fragment, ReactNode, useState } from "react";
 
 import { WEEKDAYS } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export const Calendar = ({
       {openDate && (
         <ul className="flex flex-col gap-2 border-t border-border pt-4">
           {(byDate.get(openDate) ?? []).map((slot) => (
-            <li key={slot.id}>{panels[slot.id]}</li>
+            <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
           ))}
         </ul>
       )}

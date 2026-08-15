@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { Fragment, ReactNode, useState } from "react";
 
 import { ActorFilter } from "@/components/casting/actor-filter";
 import { Calendar } from "@/components/casting/calendar";
@@ -145,7 +145,7 @@ export const CastingViews = ({
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map((slot) => (
-            <li key={slot.id}>{listItems[slot.id]}</li>
+            <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
           ))}
         </ul>
       )}
