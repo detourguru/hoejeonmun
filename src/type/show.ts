@@ -12,8 +12,8 @@ export type GenreCode = CodeOf<typeof GENRE>;
 export type GenreName = NameOf<typeof GENRE>;
 
 export const STATE = createCodeTable([
-  { value: "01", label: "개막예정" },
-  { value: "02", label: "진행중" },
+  { value: "01", label: "공연예정" },
+  { value: "02", label: "공연중" },
 ]);
 
 export type StateCode = CodeOf<typeof STATE>;

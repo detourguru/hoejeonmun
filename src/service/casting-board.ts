@@ -8,6 +8,7 @@ import {
   toInputDate,
   toIsoDate,
 } from "@/lib/date";
+import { normalizeActorName, splitActorNames } from "@/lib/actor-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
@@ -110,14 +111,7 @@ function resolveRunWindow(show: ShowDetail) {
 }
 
 function parseCastNames(prfcast?: string): Set<string> {
-  if (!prfcast) return new Set(); // 캐스트를 제공하지 않을 시 체크를 건너뛴다
-
-  return new Set(
-    prfcast
-      .split(/[,/·\n]/)
-      .map((name) => normalizeName(name).replace(/\s*등$/, ""))
-      .filter(Boolean),
-  );
+  return new Set(splitActorNames(prfcast));
 }
 
 export function hasKnownCastOverlap(
@@ -158,7 +152,7 @@ function normalizePerformances(
 
     const casting = Object.fromEntries(
       Object.entries(performance.casting ?? {})
-        .map(([role, actor]) => [normalizeName(role), normalizeName(actor)])
+        .map(([role, actor]) => [normalizeName(role), normalizeActorName(actor)])
         .filter(
           ([role, actor]) =>
             role && !PLACEHOLDER_NAMES.has(actor.toLowerCase()),

@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 
 import { StateBadge } from "@/components/show/state-badge";
 import { Badge } from "@/components/ui/badge";
+import { splitActorNames } from "@/lib/actor-name";
 import { toArray } from "@/lib/kopis";
 import { getActorIdsByNames } from "@/service/actor";
+import { getShowFilterData } from "@/service/casting";
 import { getShow } from "@/service/show";
 import { ShowRelate } from "@/type/show";
 
@@ -39,20 +41,19 @@ const Section = ({
   </section>
 );
 
-// "배우A, 배우B" -> ["배우A", "배우B"]
-const splitNames = (value?: string) =>
-  (value ?? "")
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-
 export const ShowDetail = async ({ id }: { id: string }) => {
   const show = await getShow(id);
 
   if (!show) notFound();
 
-  const cast = splitNames(show.prfcast);
-  const crew = splitNames(show.prfcrew);
+  // 제보된 캐스팅보드가 있으면 캐스트들 / fallback: kopis 제공
+  const { actors: registeredActors } = await getShowFilterData(id);
+  const usingKopisCast = registeredActors.length === 0;
+  const cast = usingKopisCast
+    ? splitActorNames(show.prfcast)
+    : registeredActors;
+
+  const crew = splitActorNames(show.prfcrew);
   const actorIds = await getActorIdsByNames(cast);
   const relates = toArray(show.relates?.relate);
   const styurls = toArray(show.styurls?.styurl);
