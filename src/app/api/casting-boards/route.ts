@@ -58,10 +58,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { performances, skippedCount } = await parseCastingBoard(image, show);
+    const { performances, skippedCount, reason } = await parseCastingBoard(
+      image,
+      show,
+    );
 
     if (performances.length === 0) {
-      return fail(422, "이미지에서 캐스팅 표를 찾지 못했어요.");
+      return fail(
+        422,
+        reason
+          ? `이미지에서 캐스팅 표를 찾지 못했어요. (${reason})`
+          : "이미지에서 캐스팅 표를 찾지 못했어요.",
+      );
     }
 
     if (!hasKnownCastOverlap(performances, show)) {
