@@ -95,6 +95,11 @@ export default async function Page({ params, searchParams }: Props) {
         </Link>
       </div>
 
+      <p className="text-xs text-text-muted">
+        캐스팅 정보는 사용자 제보 기반이라 제보 시점 이후 변경된 내용은 반영이
+        안 됐을 수 있어요.
+      </p>
+
       {slots.length === 0 ? (
         <>
           <MonthNav month={month} />
