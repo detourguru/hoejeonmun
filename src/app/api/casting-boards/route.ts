@@ -1,55 +1,23 @@
 import * as z from "zod";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { fail } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
-import {
-  hasKnownCastOverlap,
-  parseCastingBoard,
-  saveCastingBoard,
-} from "@/service/casting-board";
-import { getShow } from "@/service/show";
-import { CASTING_BOARD_BUCKET } from "@/type/casting";
+import { saveCastingBoard } from "@/service/casting-board";
 
-export const maxDuration = 60;
+const performanceSchema = z.object({
+  date: z.string(),
+  weekday: z.string(),
+  time: z.string(),
+  casting: z.record(z.string(), z.string()),
+  imageIndex: z.number(),
+});
 
 const bodySchema = z.object({
   showId: z.string().min(1),
-  storagePath: z.string().min(1),
+  storagePaths: z.array(z.string().min(1)).min(1),
+  performances: z.array(performanceSchema).min(1),
+  skippedCount: z.number(),
 });
-
-const fail = (status: number, message: string) =>
-  Response.json({ message }, { status });
-
-const errorMessage = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-
-  return "알 수 없는 오류";
-};
-
-async function logParseFailure(
-  admin: ReturnType<typeof createAdminClient>,
-  params: {
-    showId: string;
-    userId: string;
-    storagePath: string;
-    type: "no_table_found" | "cast_mismatch" | "exception";
-    reason?: string;
-  },
-) {
-  const { error } = await admin.from("parse_failures").insert({
-    show_id: params.showId,
-    user_id: params.userId,
-    storage_path: params.storagePath,
-    type: params.type,
-    reason: params.reason,
-  });
-
-  if (error) console.error("parse_failures insert 실패", error);
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -63,69 +31,17 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePath } = body.data;
+  const { showId, storagePaths, performances, skippedCount } = body.data;
 
-  // 남이 올린 파일을 자기 제보로 등록하는 걸 막는다.
-  // 다만 원본이 공개라 내려받아 자기 폴더에 다시 올리면 이 검사는 통과한다.
-  // 최신 우선 채택과 붙으면 옛 캐스팅보드를 재업로드해 수정본을 되돌리는 리플레이가
-  // 가능하고, 지금 방어는 신고 5건뿐이다. 막으려면 uploads에 이미지 해시를 두고
-  // 같은 공연에 동일 이미지 재업로드를 거르는 쪽이 가장 싸다.
-  if (!storagePath.startsWith(`${userId}/`)) {
+  if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
   }
 
-  const show = await getShow(showId);
-
-  if (!show) return fail(404, "공연을 찾을 수 없어요.");
-
-  const admin = createAdminClient();
-
-  const { data: image, error: downloadError } = await admin.storage
-    .from(CASTING_BOARD_BUCKET)
-    .download(storagePath);
-
-  if (downloadError || !image) {
-    return fail(404, "업로드된 이미지를 찾을 수 없어요.");
-  }
-
   try {
-    const { performances, skippedCount, reason } = await parseCastingBoard(
-      image,
-      show,
-    );
-
-    if (performances.length === 0) {
-      await logParseFailure(admin, {
-        showId,
-        userId,
-        storagePath,
-        type: "no_table_found",
-        reason,
-      });
-
-      return fail(
-        422,
-        reason
-          ? `이미지에서 캐스팅 표를 찾지 못했어요. (${reason})`
-          : "이미지에서 캐스팅 표를 찾지 못했어요.",
-      );
-    }
-
-    if (!hasKnownCastOverlap(performances, show)) {
-      await logParseFailure(admin, {
-        showId,
-        userId,
-        storagePath,
-        type: "cast_mismatch",
-      });
-
-      return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
-    }
-
     const result = await saveCastingBoard({
       showId,
       userId,
-      storagePath,
+      storagePaths,
       performances,
       skippedCount,
     });
@@ -134,17 +50,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(error);
 
-    await logParseFailure(admin, {
-      showId,
-      userId,
-      storagePath,
-      type: "exception",
-      reason: errorMessage(error),
-    });
-
-    return fail(
-      500,
-      "캐스팅보드를 분석하지 못했어요. 잠시 후 다시 시도해 주세요.",
-    );
+    return fail(500, "저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
   }
 }

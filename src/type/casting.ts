@@ -43,6 +43,7 @@ export type ParsedPerformance = {
   time: string;
   // 배역명 -> 배우명
   casting: Record<string, string>;
+  imageIndex: number;
 };
 
 export type CastingBoardResult = {
