@@ -41,6 +41,19 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
     };
   }, [previewUrls]);
 
+  const handleClick = async () => {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getClaims();
+    const userId = data?.claims?.sub;
+
+    if (!userId) {
+      router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+      return;
+    }
+
+    inputRef.current?.click();
+  };
+
   const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
 
@@ -155,7 +168,7 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
 
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
+        onClick={handleClick}
         disabled={pending}
         className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point disabled:opacity-60"
       >
