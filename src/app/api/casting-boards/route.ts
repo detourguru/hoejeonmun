@@ -20,6 +20,37 @@ const bodySchema = z.object({
 const fail = (status: number, message: string) =>
   Response.json({ message }, { status });
 
+const errorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+
+  return "알 수 없는 오류";
+};
+
+async function logParseFailure(
+  admin: ReturnType<typeof createAdminClient>,
+  params: {
+    showId: string;
+    userId: string;
+    storagePath: string;
+    type: "no_table_found" | "cast_mismatch" | "exception";
+    reason?: string;
+  },
+) {
+  const { error } = await admin.from("parse_failures").insert({
+    show_id: params.showId,
+    user_id: params.userId,
+    storage_path: params.storagePath,
+    type: params.type,
+    reason: params.reason,
+  });
+
+  if (error) console.error("parse_failures insert 실패", error);
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -64,6 +95,14 @@ export async function POST(request: Request) {
     );
 
     if (performances.length === 0) {
+      await logParseFailure(admin, {
+        showId,
+        userId,
+        storagePath,
+        type: "no_table_found",
+        reason,
+      });
+
       return fail(
         422,
         reason
@@ -73,6 +112,13 @@ export async function POST(request: Request) {
     }
 
     if (!hasKnownCastOverlap(performances, show)) {
+      await logParseFailure(admin, {
+        showId,
+        userId,
+        storagePath,
+        type: "cast_mismatch",
+      });
+
       return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
     }
 
@@ -88,6 +134,17 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(error);
 
-    return fail(500, "캐스팅보드를 분석하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    await logParseFailure(admin, {
+      showId,
+      userId,
+      storagePath,
+      type: "exception",
+      reason: errorMessage(error),
+    });
+
+    return fail(
+      500,
+      "캐스팅보드를 분석하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    );
   }
 }
