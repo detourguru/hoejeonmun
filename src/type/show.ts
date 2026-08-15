@@ -71,7 +71,7 @@ export const SORT = createCodeTable([
 
 export type SortKey = CodeOf<typeof SORT>;
 
-export const DEFAULT_SORT: SortKey = "openDate";
+export const DEFAULT_SORT: SortKey = "closeDate"; // 오픈런 공연이 있어 폐막일 순으로 정렬
 
 // 정렬은 '전체' 항목이 필요없으므로 뺀다
 export const SORT_OPTIONS = SORT.options.filter(
