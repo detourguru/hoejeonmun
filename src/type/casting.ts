@@ -53,9 +53,11 @@ export type ParsedDateTag = {
   imageIndex: number;
 };
 
-// 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우 (ADR-018)
+// 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우
 export type ParsedEvent = {
   title: string;
+  // 타 공연 이벤트 올리는 것을 방지
+  rawTitle: string;
   description?: string;
   periodStart: string;
   periodEnd: string;
@@ -68,10 +70,4 @@ export type CastingBoardResult = {
   actorCount: number;
   eventCount: number;
   skippedCount: number;
-};
-
-export type CalendarEventSummary = {
-  date: string;
-  title: string;
-  count: number;
 };

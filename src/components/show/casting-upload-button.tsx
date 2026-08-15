@@ -13,7 +13,7 @@ import {
 type Status = "idle" | "uploading" | "analyzing" | "saving" | "done";
 
 const STATUS_LABEL: Record<Status, string> = {
-  idle: "캐스팅보드 제보하기",
+  idle: "캐스팅보드/이벤트 제보하기",
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
   saving: "저장하는 중…",
@@ -181,7 +181,7 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
       {status === "idle" && !error && !result && (
         <ul className="list-inside list-disc text-xs text-text-muted">
           <li>또렷한 사진일수록 좋아요</li>
-          <li>이름, 배역이 잘 보이게 찍어주세요</li>
+          <li>이름, 배역이나 이벤트 내용과 날짜가 잘 보이게 찍어주세요</li>
           <li>캡처보다 원본 이미지가 더 빨리 읽혀요</li>
         </ul>
       )}

@@ -15,13 +15,12 @@ import {
   toIsoDate,
   toMonth,
 } from "@/lib/date";
-import { FALLBACK_COLOR, getColorMap } from "@/lib/actor-color";
+import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getShowCastings,
   getShowEvents,
   getShowFilterData,
   getSlotPairKey,
-  summarizeEventsByDate,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
 import {
@@ -82,11 +81,9 @@ export default async function Page({ params, searchParams }: Props) {
     getShowEvents(id, start, end),
   ]);
 
-  const { pairKeys, actors } = await getShowFilterData(id);
+  const { actors } = await getShowFilterData(id);
 
-  const pairColors = getColorMap(pairKeys);
   const initialActors = parseActorsParam(rawActors, actors);
-  const eventSummaries = [...summarizeEventsByDate(events, cells).values()];
 
   return (
     <div className="flex flex-col gap-4">
@@ -125,13 +122,13 @@ export default async function Page({ params, searchParams }: Props) {
           month={month}
           initialView={view}
           cells={cells}
-          events={eventSummaries}
+          events={events}
           slots={slots.map((slot) => ({
             id: slot.id,
             date: slot.date,
             time: slot.time,
             label: getSlotPairKey(slot),
-            colorClass: pairColors.get(getSlotPairKey(slot)) ?? FALLBACK_COLOR,
+            colorClass: SLOT_COLOR,
             filterKeys: slot.casting.map(({ actor }) => actor),
           }))}
           panels={Object.fromEntries(
