@@ -97,6 +97,33 @@ function resolveRunWindow(show: ShowDetail) {
     };
 }
 
+function parseCastNames(prfcast?: string): Set<string> {
+  if (!prfcast) return new Set(); // 캐스트를 제공하지 않을 시 체크를 건너뛴다
+
+  return new Set(
+    prfcast
+      .split(/[,/·\n]/)
+      .map((name) => normalizeName(name).replace(/\s*등$/, ""))
+      .filter(Boolean),
+  );
+}
+
+export function hasKnownCastOverlap(
+  performances: ParsedPerformance[],
+  show: ShowDetail,
+) {
+  const known = parseCastNames(show.prfcast);
+
+  // 겹치는 이름이 하나도 없을 때 다른 공연의 캐스트로 판단
+  if (known.size === 0) return true;
+
+  const extracted = performances.flatMap(({ casting }) =>
+    Object.values(casting),
+  );
+
+  return extracted.some((name) => known.has(normalizeName(name)));
+}
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizePerformances(
   performances: ParsedPerformance[],
