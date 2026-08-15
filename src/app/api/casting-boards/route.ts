@@ -2,7 +2,11 @@ import * as z from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { parseCastingBoard, saveCastingBoard } from "@/service/casting-board";
+import {
+  hasKnownCastOverlap,
+  parseCastingBoard,
+  saveCastingBoard,
+} from "@/service/casting-board";
 import { getShow } from "@/service/show";
 import { CASTING_BOARD_BUCKET } from "@/type/casting";
 
@@ -58,6 +62,10 @@ export async function POST(request: Request) {
 
     if (performances.length === 0) {
       return fail(422, "이미지에서 캐스팅 표를 찾지 못했어요.");
+    }
+
+    if (!hasKnownCastOverlap(performances, show)) {
+      return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
     }
 
     const result = await saveCastingBoard({
