@@ -11,6 +11,7 @@ import {
   ACTORS_PARAM,
   ACTORS_SEPARATOR,
   CASTING_VIEW,
+  CalendarEventSummary,
   CalendarSlot,
   CastingView,
 } from "@/type/casting";
@@ -57,6 +58,7 @@ export const CastingViews = ({
   initialView,
   cells,
   slots,
+  events = [],
   panels,
   listItems,
   filterOptions = [],
@@ -66,6 +68,7 @@ export const CastingViews = ({
   initialView: CastingView;
   cells: (string | null)[];
   slots: CalendarSlot[];
+  events?: CalendarEventSummary[];
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
   filterOptions?: string[];
@@ -141,7 +144,7 @@ export const CastingViews = ({
           {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
         </p>
       ) : view === "calendar" ? (
-        <Calendar cells={cells} slots={visible} panels={panels} />
+        <Calendar cells={cells} slots={visible} events={events} panels={panels} />
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map((slot) => (

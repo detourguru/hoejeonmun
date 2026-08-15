@@ -13,6 +13,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
+  ParsedDateTag,
+  ParsedEvent,
   ParsedPerformance,
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
@@ -55,13 +57,69 @@ const castingJsonSchema = {
         required: ["date", "weekday", "time", "casting", "imageIndex"],
       },
     },
+    dateTags: {
+      type: "array",
+      description:
+        "Every date that carries a special inline badge on the casting board (e.g. Preview/프리뷰, 막공, a curtain-call marker), listed once per date -- not once per performance row, even if that date has multiple times.",
+      items: {
+        type: "object",
+        properties: {
+          date: {
+            type: "string",
+            description: 'YYYY-MM-DD, matching a date in "performances".',
+          },
+          tag: {
+            type: "string",
+            description:
+              "The badge's text, verbatim (e.g. 프리뷰, 막공, 커튼콜데이).",
+          },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this badge was read from.",
+          },
+        },
+        required: ["date", "tag", "imageIndex"],
+      },
+    },
+    events: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Korean event/perk name, e.g. 폴라로이드 증정.",
+          },
+          description: {
+            type: "string",
+            description: "Extra details about the event, if any.",
+          },
+          periodStart: {
+            type: "string",
+            description: "Event start date in YYYY-MM-DD format.",
+          },
+          periodEnd: {
+            type: "string",
+            description:
+              "Event end date in YYYY-MM-DD format. Same as periodStart for a single-day event.",
+          },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this event was read from.",
+          },
+        },
+        required: ["title", "periodStart", "periodEnd", "imageIndex"],
+      },
+    },
     reason: {
       type: "string",
       description:
-        "Korean explanation for why performances is empty or clearly incomplete (e.g. image too blurry to read, no table found, header row missing). Omit when parsing succeeded normally.",
+        "Korean explanation for why both performances and events are empty or clearly incomplete (e.g. image too blurry to read, no table or event notice found, header row missing). Omit when parsing succeeded normally.",
     },
   },
-  required: ["performances"],
+  required: ["performances", "dateTags", "events"],
 } satisfies z.core.JSONSchema.JSONSchema;
 
 const castingSchema = z.fromJSONSchema(castingJsonSchema);
@@ -70,13 +128,15 @@ const buildPrompt = (show: ShowDetail) => {
   const { from, to } = resolveRunWindow(show);
 
   return `
-Extract the casting schedule table from the given image(s).
-
-The image(s) are a casting board for:
+Extract information from the given image(s) for:
 - Title: ${show.prfnm}
 - Run: ${from} ~ ${to}
 
-Rules:
+Each image is either a casting board or an event/perk notice. Classify each image using exactly one rule: does it pair actor names with role names?
+- Yes -> it is a casting board. Follow "Casting board rules" below and extract into "performances" and "dateTags". This stays true even if some dates also carry an inline badge — a badge never changes the classification.
+- No -> check whether it instead announces an event: does it mention a date or date range together with promotional wording (e.g. 증정, 이벤트, 데이, 오프닝, 커튼콜)? If so, follow "Event rules" below and extract into "events". If neither condition holds, leave both arrays empty and explain why in "reason".
+
+Casting board rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
 - Multiple images may be given. They may be continuous parts of the same table (e.g. a scrolled screenshot split into pieces), and the header row with role names may appear in only one of them.
 - The board usually omits the year. Resolve every date using the run above.
@@ -85,11 +145,19 @@ Rules:
 - If a time cell lists multiple times separated by a slash (e.g. "13:00/15:00"), output one performance per time, each with the same casting as that row.
 - Skip any row that indicates there is no performance that day (e.g. "공연 없음"); do not include it in "performances".
 - Use the role names in the header row as the keys of "casting".
+- Some boards instead show a cast legend once (actor photo/name paired with a role name, e.g. "김지훈 - 빅터 프랑켄슈타인") separate from the schedule rows, and each row just lists actor names in a fixed order with no role labels. In that case, match each name in a row to a role by its position in the legend's order, and use the legend's role names as the keys of "casting".
 - Omit a cell from "casting" when it is empty or a placeholder such as "-".
 - If no casting table exists, return an empty performances array.
 - If multiple tables exist, use only the largest and most complete one.
-- Make your best guess for ambiguous text, but never invent a performance that is not visible.
-- If "performances" ends up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table found, header row missing).
+- Separately, scan every date in the table (not just a sample) for an inline badge next to or on the date, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and list each such date once in "dateTags" with the badge's verbatim text -- once per date, even when that date has multiple performance times. This is a distinct pass from building "performances": go date by date in order and check each one individually, since it is easy to skip one in a long list, especially when neighboring dates look visually identical. Do not skip a date just because nearby dates already got the same tag.
+
+Event rules:
+- An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
+- Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
+- If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
+
+Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
+If both "performances" and "events" end up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table or event notice found, header row missing).
 `;
 };
 
@@ -152,7 +220,10 @@ function normalizePerformances(
 
     const casting = Object.fromEntries(
       Object.entries(performance.casting ?? {})
-        .map(([role, actor]) => [normalizeName(role), normalizeActorName(actor)])
+        .map(([role, actor]) => [
+          normalizeName(role),
+          normalizeActorName(actor),
+        ])
         .filter(
           ([role, actor]) =>
             role && !PLACEHOLDER_NAMES.has(actor.toLowerCase()),
@@ -189,6 +260,82 @@ function normalizePerformances(
   }
 
   return { performances: valid, skippedCount };
+}
+
+// Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
+function normalizeDateTags(
+  dateTags: ParsedDateTag[],
+  show: ShowDetail,
+  imageCount: number,
+) {
+  const { from, to } = resolveRunWindow(show);
+
+  const seen = new Set<string>();
+  const valid: ParsedDateTag[] = [];
+
+  for (const dateTag of dateTags) {
+    const date = dateTag.date?.trim() ?? "";
+    const tag = dateTag.tag?.trim() ?? "";
+
+    const isValid =
+      tag.length > 0 &&
+      DATE_PATTERN.test(date) &&
+      date >= from &&
+      date <= to &&
+      !seen.has(date) &&
+      Number.isInteger(dateTag.imageIndex) &&
+      dateTag.imageIndex >= 0 &&
+      dateTag.imageIndex < imageCount;
+
+    if (!isValid) continue;
+
+    seen.add(date);
+    valid.push({ date, tag, imageIndex: dateTag.imageIndex });
+  }
+
+  return valid;
+}
+
+// Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
+function normalizeEvents(
+  events: ParsedEvent[],
+  show: ShowDetail,
+  imageCount: number,
+) {
+  const { from, to } = resolveRunWindow(show);
+
+  const valid: ParsedEvent[] = [];
+
+  for (const event of events) {
+    const title = event.title?.trim() ?? "";
+    const periodStart = event.periodStart?.trim() ?? "";
+    const periodEnd = event.periodEnd?.trim() ?? "";
+    const description = event.description?.trim() || undefined;
+
+    const isValid =
+      title.length > 0 &&
+      DATE_PATTERN.test(periodStart) &&
+      DATE_PATTERN.test(periodEnd) &&
+      periodStart <= periodEnd &&
+      // 공연 기간과 아예 안 겹치는 이벤트는 다른 공연 것으로 판단
+      periodStart <= to &&
+      periodEnd >= from &&
+      Number.isInteger(event.imageIndex) &&
+      event.imageIndex >= 0 &&
+      event.imageIndex < imageCount;
+
+    if (!isValid) continue;
+
+    valid.push({
+      title,
+      description,
+      periodStart,
+      periodEnd,
+      imageIndex: event.imageIndex,
+    });
+  }
+
+  return valid;
 }
 
 export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
@@ -228,11 +375,22 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
 
   const parsed = castingSchema.parse(raw) as {
     performances: ParsedPerformance[];
+    dateTags: ParsedDateTag[];
+    events: ParsedEvent[];
     reason?: string;
   };
 
+  const { performances, skippedCount } = normalizePerformances(
+    parsed.performances,
+    show,
+    imageBlocks.length,
+  );
+
   return {
-    ...normalizePerformances(parsed.performances, show, imageBlocks.length),
+    performances,
+    skippedCount,
+    dateTags: normalizeDateTags(parsed.dateTags, show, imageBlocks.length),
+    events: normalizeEvents(parsed.events, show, imageBlocks.length),
     reason: parsed.reason,
   };
 }
@@ -271,12 +429,16 @@ export async function saveCastingBoard({
   userId,
   storagePaths,
   performances,
+  dateTags,
+  events,
   skippedCount,
 }: {
   showId: string;
   userId: string;
   storagePaths: string[];
   performances: ParsedPerformance[];
+  dateTags: ParsedDateTag[];
+  events: ParsedEvent[];
   skippedCount: number;
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
@@ -307,80 +469,136 @@ export async function saveCastingBoard({
     uploadImages.map(({ id, position }) => [position, id]),
   );
 
-  const dates = performances.map(({ date }) => date).sort();
+  // 이벤트 안내만 있고 캐스팅표는 없는 업로드일 수 있다
+  let actorNames: string[] = [];
 
-  const { error: slotError } = await admin.from("slots").upsert(
-    performances.map(({ date, time }) => ({ show_id: showId, date, time })),
-    { onConflict: "show_id,date,time", ignoreDuplicates: true },
-  );
+  if (performances.length > 0) {
+    const dates = performances.map(({ date }) => date).sort();
 
-  if (slotError) throw slotError;
+    const { error: slotError } = await admin.from("slots").upsert(
+      performances.map(({ date, time }) => ({ show_id: showId, date, time })),
+      { onConflict: "show_id,date,time", ignoreDuplicates: true },
+    );
 
-  const { data: slots, error: slotSelectError } = await admin
-    .from("slots")
-    .select("id, date, time")
-    .eq("show_id", showId)
-    .gte("date", dates[0])
-    .lte("date", dates[dates.length - 1]);
+    if (slotError) throw slotError;
 
-  if (slotSelectError) throw slotSelectError;
+    const { data: slots, error: slotSelectError } = await admin
+      .from("slots")
+      .select("id, date, time")
+      .eq("show_id", showId)
+      .gte("date", dates[0])
+      .lte("date", dates[dates.length - 1]);
 
-  const slotIdByKey = new Map(
-    // time -> HH:mm:ss
-    slots.map(({ id, date, time }) => [`${date} ${time.slice(0, 5)}`, id]),
-  );
+    if (slotSelectError) throw slotSelectError;
 
-  const actorNames = [
-    ...new Set(performances.flatMap(({ casting }) => Object.values(casting))),
-  ];
+    const slotIdByKey = new Map(
+      // time -> HH:mm:ss
+      slots.map(({ id, date, time }) => [`${date} ${time.slice(0, 5)}`, id]),
+    );
 
-  const { error: actorError } = await admin.from("actors").upsert(
-    actorNames.map((name) => ({ name })),
-    { onConflict: "name", ignoreDuplicates: true },
-  );
+    actorNames = [
+      ...new Set(performances.flatMap(({ casting }) => Object.values(casting))),
+    ];
 
-  if (actorError) throw actorError;
+    const { error: actorError } = await admin.from("actors").upsert(
+      actorNames.map((name) => ({ name })),
+      { onConflict: "name", ignoreDuplicates: true },
+    );
 
-  const { data: actors, error: actorSelectError } = await admin
-    .from("actors")
-    .select("id, name")
-    .in("name", actorNames);
+    if (actorError) throw actorError;
 
-  if (actorSelectError) throw actorSelectError;
+    const { data: actors, error: actorSelectError } = await admin
+      .from("actors")
+      .select("id, name")
+      .in("name", actorNames);
 
-  const actorIdByName = new Map(actors.map(({ id, name }) => [name, id]));
+    if (actorSelectError) throw actorSelectError;
 
-  const assignments = performances.flatMap(
-    ({ date, time, casting, imageIndex }) => {
-      const slotId = slotIdByKey.get(`${date} ${time}`);
+    const actorIdByName = new Map(actors.map(({ id, name }) => [name, id]));
+
+    const assignments = performances.flatMap(
+      ({ date, time, casting, imageIndex }) => {
+        const slotId = slotIdByKey.get(`${date} ${time}`);
+        const uploadImageId = uploadImageIdByPosition.get(imageIndex);
+
+        if (!slotId || uploadImageId === undefined) return [];
+
+        return Object.entries(casting).map(([role, actor]) => ({
+          upload_id: upload.id,
+          slot_id: slotId,
+          role_name_raw: role,
+          actor_name_raw: actor,
+          actor_id: actorIdByName.get(actor) ?? null,
+          upload_image_id: uploadImageId,
+        }));
+      },
+    );
+
+    const { error: assignmentError } = await admin
+      .from("assignments")
+      .upsert(assignments, {
+        onConflict: "upload_id,slot_id,role_name_raw",
+        ignoreDuplicates: true,
+      });
+
+    if (assignmentError) throw assignmentError;
+  }
+
+  // 캐스팅표 안 날짜별 배지는 그 날짜 하루짜리 이벤트로 파생시킨다.
+  const derivedEvents = dateTags.flatMap(({ date, tag, imageIndex }) => {
+    const uploadImageId = uploadImageIdByPosition.get(imageIndex);
+
+    if (uploadImageId === undefined) return [];
+
+    return [
+      {
+        show_id: showId,
+        upload_id: upload.id,
+        upload_image_id: uploadImageId,
+        slot_id: null,
+        title: tag,
+        description: null,
+        period_start: date,
+        period_end: date,
+      },
+    ];
+  });
+
+  // 이미지 전체가 이벤트 안내로 분류된 경우
+  const standaloneEvents = events.flatMap(
+    ({ title, description, periodStart, periodEnd, imageIndex }) => {
       const uploadImageId = uploadImageIdByPosition.get(imageIndex);
 
-      if (!slotId || uploadImageId === undefined) return [];
+      if (uploadImageId === undefined) return [];
 
-      return Object.entries(casting).map(([role, actor]) => ({
-        upload_id: upload.id,
-        slot_id: slotId,
-        role_name_raw: role,
-        actor_name_raw: actor,
-        actor_id: actorIdByName.get(actor) ?? null,
-        upload_image_id: uploadImageId,
-      }));
+      return [
+        {
+          show_id: showId,
+          upload_id: upload.id,
+          upload_image_id: uploadImageId,
+          slot_id: null,
+          title,
+          description: description ?? null,
+          period_start: periodStart,
+          period_end: periodEnd,
+        },
+      ];
     },
   );
 
-  const { error: assignmentError } = await admin
-    .from("assignments")
-    .upsert(assignments, {
-      onConflict: "upload_id,slot_id,role_name_raw",
-      ignoreDuplicates: true,
-    });
+  const eventRows = [...derivedEvents, ...standaloneEvents];
 
-  if (assignmentError) throw assignmentError;
+  if (eventRows.length > 0) {
+    const { error: eventError } = await admin.from("events").insert(eventRows);
+
+    if (eventError) throw eventError;
+  }
 
   return {
     uploadId: upload.id,
     slotCount: performances.length,
     actorCount: actorNames.length,
+    eventCount: eventRows.length,
     skippedCount,
   };
 }

@@ -1,16 +1,16 @@
 // 페어 별로 배당받을 색 조합
 const COLORS = [
-  "bg-rose-100 text-rose-900",
   "bg-amber-100 text-amber-900",
   "bg-teal-100 text-teal-900",
   "bg-indigo-100 text-indigo-900",
   "bg-orange-100 text-orange-900",
   "bg-sky-100 text-sky-900",
-  "bg-fuchsia-100 text-fuchsia-900",
+  "bg-blue-100 text-blue-900",
   "bg-lime-100 text-lime-900",
   "bg-violet-100 text-violet-900",
   "bg-emerald-100 text-emerald-900",
-  "bg-red-100 text-red-900",
+  "bg-yellow-100 text-yellow-900",
+  "bg-slate-100 text-slate-900",
   "bg-cyan-100 text-cyan-900",
 ] as const;
 
