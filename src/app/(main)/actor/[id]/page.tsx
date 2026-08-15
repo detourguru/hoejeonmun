@@ -13,6 +13,7 @@ import {
   parseMonth,
   toMonth,
 } from "@/lib/date";
+import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getActor,
   getActorSchedule,
@@ -117,7 +118,7 @@ export default async function Page({ params, searchParams }: Props) {
             date: slot.date,
             time: slot.time,
             label: slot.showName,
-            colorClass: "bg-point text-text",
+            colorClass: SLOT_COLOR,
           }))}
           panels={Object.fromEntries(
             slots.map((slot) => [
