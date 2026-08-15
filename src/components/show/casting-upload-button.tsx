@@ -17,7 +17,7 @@ const STATUS_LABEL: Record<Status, string> = {
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
   saving: "저장하는 중…",
-  done: "다시 제보하기",
+  done: "추가 제보하기",
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -161,6 +161,14 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
       >
         {STATUS_LABEL[status]}
       </button>
+
+      {status === "idle" && !error && !result && (
+        <ul className="list-inside list-disc text-xs text-text-muted">
+          <li>또렷한 사진일수록 좋아요</li>
+          <li>이름, 배역이 잘 보이게 찍어주세요</li>
+          <li>캡처보다 원본 이미지가 더 빨리 읽혀요</li>
+        </ul>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
