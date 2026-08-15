@@ -49,6 +49,11 @@ const castingJsonSchema = {
         required: ["date", "weekday", "time", "casting"],
       },
     },
+    reason: {
+      type: "string",
+      description:
+        "Korean explanation for why performances is empty or clearly incomplete (e.g. image too blurry to read, no table found, header row missing). Omit when parsing succeeded normally.",
+    },
   },
   required: ["performances"],
 } satisfies z.core.JSONSchema.JSONSchema;
@@ -77,6 +82,7 @@ Rules:
 - If no casting table exists, return an empty performances array.
 - If multiple tables exist, use only the largest and most complete one.
 - Make your best guess for ambiguous text, but never invent a performance that is not visible.
+- If "performances" ends up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table found, header row missing).
 `;
 };
 
@@ -112,6 +118,9 @@ export function hasKnownCastOverlap(
   performances: ParsedPerformance[],
   show: ShowDetail,
 ) {
+  // 오픈런은 prfcast가 개막 당시 캐스팅이라 수년 지나면 지금 캐스팅과 안 겹칠 수 있어 대조 자체를 건너뛴다
+  if (show.openrun === "Y") return true;
+
   const known = parseCastNames(show.prfcast);
 
   // 겹치는 이름이 하나도 없을 때 다른 공연의 캐스트로 판단
@@ -210,9 +219,10 @@ export async function parseCastingBoard(image: Blob, show: ShowDetail) {
 
   const parsed = castingSchema.parse(raw) as {
     performances: ParsedPerformance[];
+    reason?: string;
   };
 
-  return normalizePerformances(parsed.performances, show);
+  return { ...normalizePerformances(parsed.performances, show), reason: parsed.reason };
 }
 
 export async function saveCastingBoard({
