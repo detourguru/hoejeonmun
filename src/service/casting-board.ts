@@ -91,6 +91,11 @@ const castingJsonSchema = {
             type: "string",
             description: "Korean event/perk name, e.g. 폴라로이드 증정.",
           },
+          rawTitle: {
+            type: "string",
+            description:
+              'The show/production title exactly as printed on this poster (Korean and/or English), used to confirm the poster is for this show. Required even if it duplicates text already used for "title".',
+          },
           description: {
             type: "string",
             description: "Extra details about the event, if any.",
@@ -110,7 +115,13 @@ const castingJsonSchema = {
               "0-based index of which image (in the order provided) this event was read from.",
           },
         },
-        required: ["title", "periodStart", "periodEnd", "imageIndex"],
+        required: [
+          "title",
+          "rawTitle",
+          "periodStart",
+          "periodEnd",
+          "imageIndex",
+        ],
       },
     },
     reason: {
@@ -132,9 +143,9 @@ Extract information from the given image(s) for:
 - Title: ${show.prfnm}
 - Run: ${from} ~ ${to}
 
-Each image is either a casting board or an event/perk notice. Classify each image using exactly one rule: does it pair actor names with role names?
+Each image is either a casting board or an event/perk notice. Classify each image using exactly one rule: does it pair actor names with role/character names (e.g. "엘리자벳", "토드" -- names from the show's own story), the way a cast list does?
 - Yes -> it is a casting board. Follow "Casting board rules" below and extract into "performances" and "dateTags". This stays true even if some dates also carry an inline badge — a badge never changes the classification.
-- No -> check whether it instead announces an event: does it mention a date or date range together with promotional wording (e.g. 증정, 이벤트, 데이, 오프닝, 커튼콜)? If so, follow "Event rules" below and extract into "events". If neither condition holds, leave both arrays empty and explain why in "reason".
+- No -> it is an event/perk notice. This covers anything tied to a date or date range that is not a role-labeled cast -- a giveaway, a discount, a signing/high-touch session, a special curtain call, a farewell greeting, a schedule/scene change notice, etc. Do not require specific keywords; judge by what the image is actually about. This also covers tables that list actor names grouped by something other than a role (e.g. by song/scene title, like a "special curtain call" lineup) -- treat those as an event tied to that date/range and capture only the title and dates, not a per-actor breakdown. Follow "Event rules" below and extract into "events". Only leave both arrays empty (and explain why in "reason") when the image is unreadable or has no date information at all.
 
 Casting board rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
@@ -150,10 +161,13 @@ Casting board rules:
 - If no casting table exists, return an empty performances array.
 - If multiple tables exist, use only the largest and most complete one.
 - Separately, scan every date in the table (not just a sample) for an inline badge next to or on the date, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and list each such date once in "dateTags" with the badge's verbatim text -- once per date, even when that date has multiple performance times. This is a distinct pass from building "performances": go date by date in order and check each one individually, since it is easy to skip one in a long list, especially when neighboring dates look visually identical. Do not skip a date just because nearby dates already got the same tag.
+- Some boards instead mark a whole range of dates at once, e.g. a colored label in the margin spanning several rows (such as "더블적립위크" or "장면시연위크" covering a week). Treat that the same way: add one "dateTags" entry for every individual date inside that range, all sharing the same tag text -- not just the first or last date of the range.
+- A single date can carry more than one badge at once (e.g. a closing performance that is also a curtain-call day). In that case, add a separate "dateTags" entry for each badge on that date, rather than picking just one.
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
+- Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle" -- this is used afterward to confirm the poster is actually for "${show.prfnm}", so read it exactly as shown rather than guessing or normalizing it to match.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 
 Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
@@ -167,6 +181,9 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
+
+const normalizeTitle = (title: string) =>
+  title.toLowerCase().replace(/[\s·・:,.\-()[\]{}'"!?]/g, "");
 
 function resolveRunWindow(show: ShowDetail) {
   if (show.openrun !== "Y")
@@ -199,6 +216,23 @@ export function hasKnownCastOverlap(
   );
 
   return extracted.some((name) => known.has(normalizeName(name)));
+}
+
+export function hasMatchingRawTitle(events: ParsedEvent[], show: ShowDetail) {
+  if (events.length === 0) return true;
+
+  const known = normalizeTitle(show.prfnm);
+
+  if (!known) return true;
+
+  return events.some(({ rawTitle }) => {
+    const extracted = normalizeTitle(rawTitle);
+
+    return (
+      extracted.length > 0 &&
+      (extracted.includes(known) || known.includes(extracted))
+    );
+  });
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -276,20 +310,21 @@ function normalizeDateTags(
   for (const dateTag of dateTags) {
     const date = dateTag.date?.trim() ?? "";
     const tag = dateTag.tag?.trim() ?? "";
+    const key = `${date}::${tag}`;
 
     const isValid =
       tag.length > 0 &&
       DATE_PATTERN.test(date) &&
       date >= from &&
       date <= to &&
-      !seen.has(date) &&
+      !seen.has(key) &&
       Number.isInteger(dateTag.imageIndex) &&
       dateTag.imageIndex >= 0 &&
       dateTag.imageIndex < imageCount;
 
     if (!isValid) continue;
 
-    seen.add(date);
+    seen.add(key);
     valid.push({ date, tag, imageIndex: dateTag.imageIndex });
   }
 
@@ -308,6 +343,7 @@ function normalizeEvents(
 
   for (const event of events) {
     const title = event.title?.trim() ?? "";
+    const rawTitle = event.rawTitle?.trim() ?? "";
     const periodStart = event.periodStart?.trim() ?? "";
     const periodEnd = event.periodEnd?.trim() ?? "";
     const description = event.description?.trim() || undefined;
@@ -328,6 +364,7 @@ function normalizeEvents(
 
     valid.push({
       title,
+      rawTitle,
       description,
       periodStart,
       periodEnd,
@@ -408,7 +445,7 @@ export async function logParseFailure({
   showId: string;
   userId: string;
   storagePaths: string[];
-  type: "no_table_found" | "cast_mismatch" | "exception";
+  type: "no_table_found" | "cast_mismatch" | "show_mismatch" | "exception";
   reason?: string;
 }) {
   const { error } = await admin.from("parse_failures").insert(

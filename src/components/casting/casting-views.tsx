@@ -7,11 +7,11 @@ import { Calendar } from "@/components/casting/calendar";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import type { ShowEvent } from "@/service/casting";
 import {
   ACTORS_PARAM,
   ACTORS_SEPARATOR,
   CASTING_VIEW,
-  CalendarEventSummary,
   CalendarSlot,
   CastingView,
 } from "@/type/casting";
@@ -68,7 +68,7 @@ export const CastingViews = ({
   initialView: CastingView;
   cells: (string | null)[];
   slots: CalendarSlot[];
-  events?: CalendarEventSummary[];
+  events?: ShowEvent[];
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
   filterOptions?: string[];

@@ -20,6 +20,7 @@ const dateTagSchema = z.object({
 
 const eventSchema = z.object({
   title: z.string(),
+  rawTitle: z.string(),
   description: z.string().optional(),
   periodStart: z.string(),
   periodEnd: z.string(),

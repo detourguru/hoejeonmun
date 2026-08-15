@@ -9,6 +9,8 @@ create table events (
   slot_id bigint references slots(id) on delete cascade,
   title text not null,
   description text,
+  -- 이벤트를 확인할 수 있는 외부 링크(선택)
+  url text check (url is null or url ~ '^https?://'),
   period_start date not null,
   period_end date not null,
   created_at timestamptz not null default now(),
@@ -55,3 +57,12 @@ alter table events enable row level security;
 alter table event_reports enable row level security;
 
 create policy "events are public" on events for select using (true);
+
+create policy "authenticated users can set event url" on events
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+revoke update on events from authenticated;
+grant update (url) on events to authenticated;

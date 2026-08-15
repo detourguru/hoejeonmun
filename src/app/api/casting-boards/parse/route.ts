@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   hasKnownCastOverlap,
+  hasMatchingRawTitle,
   logParseFailure,
   parseCastingBoard,
 } from "@/service/casting-board";
@@ -86,6 +87,18 @@ export async function POST(request: Request) {
       });
 
       return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
+    }
+
+    if (!hasMatchingRawTitle(events, show)) {
+      await logParseFailure({
+        admin,
+        showId,
+        userId,
+        storagePaths,
+        type: "show_mismatch",
+      });
+
+      return fail(422, "이 공연의 이벤트가 맞는지 확인해 주세요.");
     }
 
     return Response.json({ performances, dateTags, events, skippedCount });

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { CalendarEventSummary } from "@/type/casting";
 
 export type CastingRole = {
   role: string;
@@ -89,28 +88,14 @@ export async function getShowFilterData(showId: string) {
 
   const { data, error } = await supabase
     .from("slot_castings")
-    .select("slot_id, actor_name_raw, assignment_id")
-    .eq("show_id", showId)
-    .order("assignment_id");
+    .select("actor_name_raw")
+    .eq("show_id", showId);
 
   if (error) throw error;
 
-  const rows = data as Pick<
-    SlotCastingRow,
-    "slot_id" | "actor_name_raw" | "assignment_id"
-  >[];
-
-  const bySlot = new Map<number, string[]>();
-
-  for (const row of rows) {
-    bySlot.set(row.slot_id, [
-      ...(bySlot.get(row.slot_id) ?? []),
-      row.actor_name_raw,
-    ]);
-  }
+  const rows = data as Pick<SlotCastingRow, "actor_name_raw">[];
 
   return {
-    pairKeys: [...bySlot.values()].map(getPairKey),
     actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
   };
 }
@@ -118,6 +103,9 @@ export async function getShowFilterData(showId: string) {
 export type ShowEvent = {
   id: number;
   title: string;
+  description: string | null;
+  // 이벤트를 확인할 수 있는 외부 링크 (선택)
+  url: string | null;
   // YYYY-MM-DD
   periodStart: string;
   periodEnd: string;
@@ -127,6 +115,8 @@ export type ShowEvent = {
 type EventRow = {
   id: number;
   title: string;
+  description: string | null;
+  url: string | null;
   period_start: string;
   period_end: string;
   slot_id: number | null;
@@ -142,7 +132,7 @@ export async function getShowEvents(
 
   const { data, error } = await supabase
     .from("visible_events")
-    .select("id, title, period_start, period_end, slot_id")
+    .select("id, title, description, url, period_start, period_end, slot_id")
     .eq("show_id", showId)
     .lte("period_start", end)
     .gte("period_end", start)
@@ -153,31 +143,12 @@ export async function getShowEvents(
   return (data as EventRow[]).map((row) => ({
     id: row.id,
     title: row.title,
+    description: row.description,
+    url: row.url,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
   }));
-}
-
-export function summarizeEventsByDate(
-  events: ShowEvent[],
-  cells: (string | null)[],
-): Map<string, CalendarEventSummary> {
-  const summaries = new Map<string, CalendarEventSummary>();
-
-  for (const date of cells) {
-    if (!date) continue;
-
-    const active = events.filter(
-      (event) => event.periodStart <= date && date <= event.periodEnd,
-    );
-
-    if (active.length === 0) continue;
-
-    summaries.set(date, { date, title: active[0].title, count: active.length });
-  }
-
-  return summaries;
 }
 
 export function groupByDate<T extends { date: string }>(items: T[]) {
