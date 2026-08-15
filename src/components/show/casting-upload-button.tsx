@@ -120,7 +120,8 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
       return;
     }
 
-    const { performances, skippedCount } = await parseResponse.json();
+    const { performances, dateTags, events, skippedCount } =
+      await parseResponse.json();
 
     setStatus("saving");
 
@@ -131,6 +132,8 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
         showId,
         storagePaths,
         performances,
+        dateTags,
+        events,
         skippedCount,
       }),
     });
@@ -187,7 +190,11 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
 
       {result && (
         <p className="text-xs text-text-muted">
-          회차 {result.slotCount}개, 배우 {result.actorCount}명을 저장했어요.
+          {result.slotCount > 0 &&
+            `회차 ${result.slotCount}개, 배우 ${result.actorCount}명`}
+          {result.slotCount > 0 && result.eventCount > 0 && ", "}
+          {result.eventCount > 0 && `이벤트 ${result.eventCount}건`}을
+          저장했어요.
           {result.skippedCount > 0 &&
             ` (읽지 못한 행 ${result.skippedCount}개는 건너뛰었어요.)`}
         </p>

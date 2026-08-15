@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { CalendarEventSummary } from "@/type/casting";
 
 export type CastingRole = {
   role: string;
@@ -112,6 +113,71 @@ export async function getShowFilterData(showId: string) {
     pairKeys: [...bySlot.values()].map(getPairKey),
     actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
   };
+}
+
+export type ShowEvent = {
+  id: number;
+  title: string;
+  // YYYY-MM-DD
+  periodStart: string;
+  periodEnd: string;
+  slotId: number | null;
+};
+
+type EventRow = {
+  id: number;
+  title: string;
+  period_start: string;
+  period_end: string;
+  slot_id: number | null;
+};
+
+// getShowEvents는 보고 있는 달과 기간이 겹치는 이벤트만 조회
+export async function getShowEvents(
+  showId: string,
+  start: string,
+  end: string,
+): Promise<ShowEvent[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("visible_events")
+    .select("id, title, period_start, period_end, slot_id")
+    .eq("show_id", showId)
+    .lte("period_start", end)
+    .gte("period_end", start)
+    .order("period_start");
+
+  if (error) throw error;
+
+  return (data as EventRow[]).map((row) => ({
+    id: row.id,
+    title: row.title,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    slotId: row.slot_id,
+  }));
+}
+
+export function summarizeEventsByDate(
+  events: ShowEvent[],
+  cells: (string | null)[],
+): Map<string, CalendarEventSummary> {
+  const summaries = new Map<string, CalendarEventSummary>();
+
+  for (const date of cells) {
+    if (!date) continue;
+
+    const active = events.filter(
+      (event) => event.periodStart <= date && date <= event.periodEnd,
+    );
+
+    if (active.length === 0) continue;
+
+    summaries.set(date, { date, title: active[0].title, count: active.length });
+  }
+
+  return summaries;
 }
 
 export function groupByDate<T extends { date: string }>(items: T[]) {
