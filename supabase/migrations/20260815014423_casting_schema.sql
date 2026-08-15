@@ -76,6 +76,22 @@ create table favorites (
 
 create index favorites_actor_id_idx on favorites (actor_id);
 
+-- Gemini 파싱 실패 사례 적재 (프롬프트 개선용, 내부 분석 전용이라 공개 정책 없음)
+create table parse_failures (
+  id bigint generated always as identity primary key,
+  show_id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text not null,
+  -- no_table_found: 표를 못 찾음 / cast_mismatch: 캐스팅이 안 겹침 / exception: 그 외 오류
+  type text not null,
+  reason text,
+  created_at timestamptz not null default now()
+);
+
+create index parse_failures_show_id_idx on parse_failures (show_id);
+
+alter table parse_failures enable row level security;
+
 -- 신고 5건이 쌓여 목록에서 내려간 업로드 + 회차
 create view hidden_castings
 with (security_invoker = false) as
