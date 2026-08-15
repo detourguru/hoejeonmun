@@ -79,6 +79,11 @@ export default async function Page({ params, searchParams }: Props) {
         <FavoriteButton actorId={actorId} favorited={favorited} />
       </div>
 
+      <p className="text-xs text-text-muted">
+        캐스팅 정보는 사용자 제보 기반이라 제보 시점 이후 변경된 내용은 반영이
+        안 됐을 수 있어요.
+      </p>
+
       {shows.length > 0 && (
         <ul className="flex flex-wrap gap-1">
           {shows.map(({ showId, showName }) => (
