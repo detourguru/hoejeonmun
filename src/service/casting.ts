@@ -156,6 +156,76 @@ export async function getShowEvents(
   }));
 }
 
+export type RecentUploadedShow = {
+  showId: string;
+  uploadedAt: string;
+};
+
+const RECENT_UPLOADS_FETCH_LIMIT = 100;
+
+// 최근 캐스팅보드가 올라온 공연
+export async function getRecentUploadedShows(
+  limit: number,
+): Promise<RecentUploadedShow[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("uploads")
+    .select("show_id, created_at")
+    .order("created_at", { ascending: false })
+    .limit(RECENT_UPLOADS_FETCH_LIMIT);
+
+  if (error) throw error;
+
+  const seen = new Set<string>();
+  const recent: RecentUploadedShow[] = [];
+
+  for (const row of data as { show_id: string; created_at: string }[]) {
+    if (seen.has(row.show_id)) continue;
+
+    seen.add(row.show_id);
+    recent.push({ showId: row.show_id, uploadedAt: row.created_at });
+
+    if (recent.length >= limit) break;
+  }
+
+  return recent;
+}
+
+export type RecentEvent = ShowEvent & {
+  showId: string;
+  createdAt: string;
+};
+
+type RecentEventRow = EventRow & { show_id: string; created_at: string };
+
+export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("visible_events")
+    .select(
+      "id, show_id, title, description, url, period_start, period_end, slot_id, edited, created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data as RecentEventRow[]).map((row) => ({
+    id: row.id,
+    showId: row.show_id,
+    title: row.title,
+    description: row.description,
+    url: row.url,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    slotId: row.slot_id,
+    edited: row.edited,
+    createdAt: row.created_at,
+  }));
+}
+
 export function groupByDate<T extends { date: string }>(items: T[]) {
   const grouped = new Map<string, T[]>();
 

@@ -56,6 +56,7 @@ export const MonthNav = ({ month }: { month: string }) => {
 export const CastingViews = ({
   month,
   initialView,
+  initialDate,
   cells,
   slots,
   events = [],
@@ -66,6 +67,8 @@ export const CastingViews = ({
 }: {
   month: string;
   initialView: CastingView;
+  // 특정 날짜(YYYY-MM-DD)를 펴서 보여주고 싶을 때 (예: 이벤트 피드에서 진입)
+  initialDate?: string;
   cells: (string | null)[];
   slots: CalendarSlot[];
   events?: ShowEvent[];
@@ -144,7 +147,13 @@ export const CastingViews = ({
           {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
         </p>
       ) : view === "calendar" ? (
-        <Calendar cells={cells} slots={visible} events={events} panels={panels} />
+        <Calendar
+          cells={cells}
+          slots={visible}
+          events={events}
+          panels={panels}
+          initialDate={initialDate}
+        />
       ) : visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-text-muted">
           이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.

@@ -10,6 +10,7 @@ import {
   getCalendarCells,
   getMonthRange,
   getToday,
+  isIsoDate,
   parseMonth,
   toInputDate,
   toIsoDate,
@@ -33,7 +34,12 @@ import { ShowDetail } from "@/type/show";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ view?: string; month?: string; actors?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    month?: string;
+    actors?: string;
+    date?: string;
+  }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -65,6 +71,7 @@ export default async function Page({ params, searchParams }: Props) {
     view: rawView,
     month: rawMonth,
     actors: rawActors,
+    date: rawDate,
   } = await searchParams;
 
   const show = await getShow(id);
@@ -74,6 +81,7 @@ export default async function Page({ params, searchParams }: Props) {
   const monthDate = parseMonth(rawMonth ?? "") ?? getDefaultMonth(show);
   const month = toMonth(monthDate);
   const view = CASTING_VIEW.isCode(rawView) ? rawView : DEFAULT_CASTING_VIEW;
+  const initialDate = rawDate && isIsoDate(rawDate) ? rawDate : undefined;
 
   const { start, end } = getMonthRange(monthDate);
   const cells = getCalendarCells(monthDate);
@@ -125,6 +133,7 @@ export default async function Page({ params, searchParams }: Props) {
         <CastingViews
           month={month}
           initialView={view}
+          initialDate={initialDate}
           cells={cells}
           events={events}
           slots={slots.map((slot) => ({

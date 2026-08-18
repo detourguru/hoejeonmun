@@ -12,6 +12,16 @@ export type CastingView = CodeOf<typeof CASTING_VIEW>;
 
 export const DEFAULT_CASTING_VIEW: CastingView = "calendar";
 
+// /show 최근 피드 탭
+export const FEED_TAB = createCodeTable([
+  { value: "casting", label: "캐스팅" },
+  { value: "event", label: "이벤트" },
+]);
+
+export type FeedTab = CodeOf<typeof FEED_TAB>;
+
+export const DEFAULT_FEED_TAB: FeedTab = "casting";
+
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 // 배우 필터 규칙
