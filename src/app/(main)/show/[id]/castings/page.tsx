@@ -23,6 +23,7 @@ import {
   getSlotPairKey,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
+import { createClient } from "@/lib/supabase/server";
 import {
   CASTING_VIEW,
   DEFAULT_CASTING_VIEW,
@@ -76,9 +77,12 @@ export default async function Page({ params, searchParams }: Props) {
 
   const { start, end } = getMonthRange(monthDate);
   const cells = getCalendarCells(monthDate);
-  const [slots, events] = await Promise.all([
+  const supabase = await createClient();
+
+  const [slots, events, auth] = await Promise.all([
     getShowCastings(id, start, end),
     getShowEvents(id, start, end),
+    supabase.auth.getClaims(),
   ]);
 
   const { actors } = await getShowFilterData(id);
@@ -146,7 +150,10 @@ export default async function Page({ params, searchParams }: Props) {
       )}
 
       <div className="border-t border-border pt-4">
-        <CastingUploadButton showId={id} />
+        <CastingUploadButton
+          showId={id}
+          isLoggedIn={Boolean(auth.data?.claims)}
+        />
       </div>
     </div>
   );

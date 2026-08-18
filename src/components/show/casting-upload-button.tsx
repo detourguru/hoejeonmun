@@ -26,7 +26,13 @@ const EXTENSIONS: Record<string, string> = {
   "image/webp": "webp",
 };
 
-export const CastingUploadButton = ({ showId }: { showId: string }) => {
+export const CastingUploadButton = ({
+  showId,
+  isLoggedIn,
+}: {
+  showId: string;
+  isLoggedIn: boolean;
+}) => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,12 +47,8 @@ export const CastingUploadButton = ({ showId }: { showId: string }) => {
     };
   }, [previewUrls]);
 
-  const handleClick = async () => {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getClaims();
-    const userId = data?.claims?.sub;
-
-    if (!userId) {
+  const handleClick = () => {
+    if (!isLoggedIn) {
       router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
       return;
     }
