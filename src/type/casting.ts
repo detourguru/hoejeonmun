@@ -46,10 +46,13 @@ export type ParsedPerformance = {
   imageIndex: number;
 };
 
-// 캐스팅표의 특정 날짜에 붙은 인라인 배지(프리뷰/막공/커튼콜데이 등).
+// 캐스팅표에 붙은 배지(프리뷰/막공/커튼콜데이/더블적립위크 등).
 export type ParsedDateTag = {
-  date: string;
   tag: string;
+  startDate: string;
+  endDate: string;
+  printedStartWeekday: string;
+  printedEndWeekday: string;
   imageIndex: number;
 };
 
@@ -61,6 +64,8 @@ export type ParsedEvent = {
   description?: string;
   periodStart: string;
   periodEnd: string;
+  printedStartWeekday: string;
+  printedEndWeekday: string;
   imageIndex: number;
 };
 
