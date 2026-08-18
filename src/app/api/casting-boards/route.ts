@@ -43,6 +43,7 @@ const eventSchema = z
       z.enum(["range_badge", "no_printed_weekday", "overlaps_existing"]),
     ),
     overlapping: z.array(existingEventSchema),
+    suggestedSameAsId: z.number().optional(),
     confirmed: z.boolean(),
     edited: z.boolean(),
     replacesEventId: z.number().optional(),

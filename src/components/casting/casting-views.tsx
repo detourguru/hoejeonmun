@@ -139,12 +139,16 @@ export const CastingViews = ({
         />
       )}
 
-      {visible.length === 0 ? (
+      {actors.length > 0 && visible.length === 0 ? (
         <p className="py-16 text-center text-sm text-text-muted">
           {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
         </p>
       ) : view === "calendar" ? (
         <Calendar cells={cells} slots={visible} events={events} panels={panels} />
+      ) : visible.length === 0 ? (
+        <p className="py-16 text-center text-sm text-text-muted">
+          이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map((slot) => (
