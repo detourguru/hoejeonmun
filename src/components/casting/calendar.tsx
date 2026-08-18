@@ -150,6 +150,11 @@ export const Calendar = ({
                       {event.description}
                     </p>
                   )}
+                  <p className="mt-1 text-[10px] text-text-muted">
+                    {event.edited
+                      ? "제보자가 확인하고 고친 일정이에요"
+                      : "제보 이미지에서 AI가 읽은 일정이에요"}
+                  </p>
                   <EventUrlField eventId={event.id} url={event.url} />
                 </li>
               ))}
