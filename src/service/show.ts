@@ -1,9 +1,4 @@
-import {
-  addMonths,
-  getToday,
-  normalizeDate,
-  toKopisDate,
-} from "@/lib/date";
+import { addMonths, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
 import {
   AREA,
@@ -48,7 +43,6 @@ export type ShowFilters = {
   from: string;
   to: string;
 };
-
 
 // 오늘 + SEARCHABLE_MONTHS 개월
 function getPeriod() {
@@ -95,7 +89,6 @@ const getFirstFromArray = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
 const pickCode = <T extends string>(
-
   value: string | string[] | undefined,
   isCode: (value: unknown) => value is T,
 ): T | undefined => {
@@ -106,7 +99,7 @@ const pickCode = <T extends string>(
 
 function pickPeriod(params: Record<string, string | string[] | undefined>) {
   const pickDate = (value: string | string[] | undefined) => {
-    const digits = normalizeDate(getFirstFromArray(value) ?? "");
+    const digits = normalizeDate(getFirstFromArray(value) ?? "", "");
 
     return digits.length === 8 ? digits : "";
   };
@@ -158,8 +151,8 @@ export function filterShows(shows: Show[], filters: ShowFilters): Show[] {
     if (keyword && !normalizeText(show.prfnm).includes(keyword)) return false;
 
     // Kopis는 이날 공연 회차가 있는지 여부가 아닌 공연 기간을 기준으로 반환한다
-    if (normalizeDate(show.prfpdfrom) > filters.to) return false;
-    if (normalizeDate(show.prfpdto) < filters.from) return false;
+    if (normalizeDate(show.prfpdfrom, "") > filters.to) return false;
+    if (normalizeDate(show.prfpdto, "") < filters.from) return false;
 
     return true;
   });
