@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import sharp from "sharp";
 import * as z from "zod";
 
 import {
@@ -539,7 +540,8 @@ const eventMatchJsonSchema = {
           },
           savedId: {
             type: "integer",
-            description: "The #id of the saved entry it names the same event as.",
+            description:
+              "The #id of the saved entry it names the same event as.",
           },
         },
         required: ["incomingIndex", "savedId"],
@@ -577,7 +579,10 @@ For each incoming entry, decide whether it names the same real-world event as on
 - List only the pairs you judge to be the same event, and leave an incoming entry out when none of the saved entries matches it.
 `;
 
-async function suggestSameEvents(incoming: PendingEvent[], saved: ExistingEvent[]) {
+async function suggestSameEvents(
+  incoming: PendingEvent[],
+  saved: ExistingEvent[],
+) {
   const client = new GoogleGenAI({});
 
   const interaction = await client.interactions.create({
@@ -690,13 +695,15 @@ export function toPendingEvents(
     }),
   );
 
-  const fromBadges = dateTags.map(({ tag, startDate, endDate, ...dateTag }) => ({
-    ...dateTag,
-    title: tag,
-    periodStart: startDate,
-    periodEnd: endDate,
-    source: "badge" as const,
-  }));
+  const fromBadges = dateTags.map(
+    ({ tag, startDate, endDate, ...dateTag }) => ({
+      ...dateTag,
+      title: tag,
+      periodStart: startDate,
+      periodEnd: endDate,
+      source: "badge" as const,
+    }),
+  );
 
   return [...fromNotices, ...fromBadges].map((event) => ({
     ...event,
@@ -728,7 +735,10 @@ export async function attachOverlappingEvents(
   if (pending.length === 0) return pending;
 
   const from = pending.map(({ periodStart }) => periodStart).sort()[0];
-  const to = pending.map(({ periodEnd }) => periodEnd).sort().at(-1)!;
+  const to = pending
+    .map(({ periodEnd }) => periodEnd)
+    .sort()
+    .at(-1)!;
 
   const admin = createAdminClient();
 
@@ -811,11 +821,19 @@ function normalizeEvents(
 
 export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const imageBlocks = await Promise.all(
-    images.map(async (image) => ({
-      type: "image" as const,
-      data: Buffer.from(await image.arrayBuffer()).toString("base64"),
-      mime_type: image.type || "image/jpeg",
-    })),
+    images.map(async (image) => {
+      const buffer = Buffer.from(await image.arrayBuffer());
+      const resized = await sharp(buffer)
+        .resize({ width: 1600, height: 3000, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+
+      return {
+        type: "image" as const,
+        data: resized.toString("base64"),
+        mime_type: "image/jpeg",
+      };
+    }),
   );
 
   const client = new GoogleGenAI({});
