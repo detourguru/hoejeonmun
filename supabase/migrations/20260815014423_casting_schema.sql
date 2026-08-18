@@ -66,6 +66,66 @@ create table vandal_reports (
   unique (user_id, upload_id, slot_id)
 );
 
+create table events (
+  id bigint generated always as identity primary key,
+  show_id text not null,
+  upload_id bigint not null references uploads(id) on delete cascade,
+  upload_image_id bigint not null references upload_images(id) on delete cascade,
+  slot_id bigint references slots(id) on delete cascade,
+  title text not null,
+  -- 제목의 공백/문장부호를 지운 중복 판정용 키 ("스페셜커튼콜위크" = "스페셜 커튼콜 위크")
+  title_key text generated always as (
+    lower(
+      regexp_replace(
+        regexp_replace(title, '[[:space:]]+', '', 'g'),
+        '[[:punct:]·・]+', '', 'g'
+      )
+    )
+  ) stored,
+  description text,
+  -- 이벤트를 확인할 수 있는 외부 링크 (선택)
+  url text check (url is null or url ~ '^https?://'),
+  period_start date not null,
+  period_end date not null,
+  created_at timestamptz not null default now(),
+  check (period_start <= period_end)
+);
+
+create index events_show_id_idx on events (show_id);
+create index events_slot_id_idx on events (slot_id);
+create index events_upload_image_id_idx on events (upload_image_id);
+
+-- 같은 이벤트가 들어오는 경로가 둘이다
+--   (a) 한 업로드 안: 캐스팅표 배지와 안내 이미지가 같은 이벤트를 가리킴
+--   (b) 업로드 간: 다른 사용자가 같은 안내 이미지를 다시 제보
+create unique index events_dedupe_idx
+  on events (show_id, title_key, period_start, period_end);
+
+-- 신고 단위는 이벤트 1건 
+create table event_reports (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  event_id bigint not null references events(id) on delete cascade,
+  type text not null,
+  context text,
+  created_at timestamptz not null default now(),
+  unique (user_id, event_id)
+);
+
+create index event_reports_event_id_idx on event_reports (event_id);
+
+-- 포스터에 인쇄된 제목과 KOPIS 공연명이 같은 공연을 가리키는지 한 번 판정한 결과
+-- ("BROKEBACK MOUNTAIN" = "브로크백 마운틴"). 재연이나 타지역 공연에서도 재사용되도록
+-- 키를 show_id가 아니라 정규화한 공연명으로 잡는다
+create table show_title_aliases (
+  show_title_key text not null,
+  printed_title_key text not null,
+  printed_title text not null,
+  is_same boolean not null,
+  created_at timestamptz not null default now(),
+  primary key (show_title_key, printed_title_key)
+);
+
 -- 애정 배우
 create table favorites (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -82,7 +142,8 @@ create table parse_failures (
   show_id text not null,
   user_id uuid not null references auth.users(id) on delete cascade,
   storage_path text not null,
-  -- no_table_found: 표를 못 찾음 / cast_mismatch: 캐스팅이 안 겹침 / exception: 그 외 오류
+  -- no_table_found: 표를 못 찾음 / cast_mismatch: 캐스팅이 안 겹침
+  -- show_mismatch: 포스터 공연명이 다름 / exception: 그 외 오류
   type text not null,
   reason text,
   created_at timestamptz not null default now()
@@ -132,6 +193,25 @@ from slots s
 join current_castings c on c.slot_id = s.id
 join assignments a on a.slot_id = s.id and a.upload_id = c.upload_id;
 
+-- 신고 5건이 쌓여 목록에서 내려간 이벤트 (hidden_castings와 동일한 임계치, ADR-008)
+create view hidden_events
+with (security_invoker = false) as
+select event_id
+from event_reports
+group by event_id
+having count(*) >= 5;
+
+-- 화면에서 읽는 최종 이벤트 목록
+create view visible_events
+with (security_invoker = true) as
+select e.*
+from events e
+where not exists (
+  select 1
+  from hidden_events h
+  where h.event_id = e.id
+);
+
 alter table actors enable row level security;
 alter table uploads enable row level security;
 alter table upload_images enable row level security;
@@ -139,12 +219,25 @@ alter table slots enable row level security;
 alter table assignments enable row level security;
 alter table vandal_reports enable row level security;
 alter table favorites enable row level security;
+alter table events enable row level security;
+alter table event_reports enable row level security;
+alter table show_title_aliases enable row level security;
 
 create policy "actors are public" on actors for select using (true);
 create policy "uploads are public" on uploads for select using (true);
 create policy "upload_images are public" on upload_images for select using (true);
 create policy "slots are public" on slots for select using (true);
 create policy "assignments are public" on assignments for select using (true);
+create policy "events are public" on events for select using (true);
+
+create policy "authenticated users can set event url" on events
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+revoke update on events from authenticated;
+grant update (url) on events to authenticated;
 
 create policy "read own favorites" on favorites
   for select to authenticated using (user_id = auth.uid());
