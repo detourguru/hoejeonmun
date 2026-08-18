@@ -14,6 +14,7 @@ export const Calendar = ({
   slots,
   events = [],
   panels,
+  initialDate,
 }: {
   // null이면 1일 앞의 빈칸
   cells: (string | null)[];
@@ -21,6 +22,8 @@ export const Calendar = ({
   events?: ShowEvent[];
   // 날짜를 폈을 때 보여줄 회차 카드
   panels: Record<number, ReactNode>;
+  // 진입 시 보여줄 날짜
+  initialDate?: string;
 }) => {
   const byDate = new Map<string, CalendarSlot[]>();
 
@@ -70,7 +73,9 @@ export const Calendar = ({
 
   const firstFilled = cells.find((date) => date && hasContent(date)) ?? null;
 
-  const [selected, setSelected] = useState<string | null>(firstFilled);
+  const [selected, setSelected] = useState<string | null>(
+    initialDate && hasContent(initialDate) ? initialDate : firstFilled,
+  );
 
   // 필터를 걸면 원래 보던 날짜가 사라질 수 있다
   const openDate = selected && hasContent(selected) ? selected : firstFilled;

@@ -49,16 +49,20 @@ export function toInputDate(date: Date): string {
   return toParts(date).join("-");
 }
 
-// 여러 날짜 타입을 YYYYMMDD로 정규화
-export function normalizeDate(value: string): string {
-  return value.replace(/\D/g, "");
+// 여러 날짜 타입을 정규화
+export function normalizeDate(value: string, option: "." | ""): string {
+  return value.replace(/\D/g, option);
 }
 
 // KOPIS의 YYYY.MM.DD -> YYYY-MM-DD
 export function toIsoDate(value: string): string {
-  const digits = normalizeDate(value);
+  const digits = normalizeDate(value, "");
 
   return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+}
+
+export function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 // YYYY-MM
