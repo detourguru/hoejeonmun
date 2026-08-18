@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   attachOverlappingEvents,
+  attachSuggestedDuplicates,
   hasKnownCastOverlap,
   isEventForShow,
   logParseFailure,
@@ -106,9 +107,8 @@ export async function POST(request: Request) {
       return fail(422, "이 공연의 이벤트가 맞는지 확인해 주세요.");
     }
 
-    const pendingEvents = await attachOverlappingEvents(
-      showId,
-      toPendingEvents(dateTags, events),
+    const pendingEvents = await attachSuggestedDuplicates(
+      await attachOverlappingEvents(showId, toPendingEvents(dateTags, events)),
     );
 
     return Response.json({

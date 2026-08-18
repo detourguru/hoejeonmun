@@ -525,6 +525,121 @@ function normalizeDateTags(
   return valid;
 }
 
+const eventMatchJsonSchema = {
+  type: "object",
+  properties: {
+    matches: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          incomingIndex: {
+            type: "integer",
+            description: "0-based index into the incoming list.",
+          },
+          savedId: {
+            type: "integer",
+            description: "The #id of the saved entry it names the same event as.",
+          },
+        },
+        required: ["incomingIndex", "savedId"],
+      },
+    },
+  },
+  required: ["matches"],
+} satisfies z.core.JSONSchema.JSONSchema;
+
+const eventMatchSchema = z.fromJSONSchema(eventMatchJsonSchema);
+
+const describeEvent = ({
+  title,
+  periodStart,
+  periodEnd,
+}: {
+  title: string;
+  periodStart: string;
+  periodEnd: string;
+}) => `"${title}" ${periodStart} ~ ${periodEnd}`;
+
+const buildEventMatchPrompt = (incoming: string[], saved: string[]) => `
+Two lists of perks/events from one stage production are given.
+
+Incoming (just read from an uploaded image):
+${incoming.join("\n")}
+
+Already saved:
+${saved.join("\n")}
+
+For each incoming entry, decide whether it names the same real-world event as one of the saved entries.
+- One event is often worded differently depending on where it was printed -- a casting board margin label, an event calendar, a schedule notice. "스페셜커튼콜위크", "스페셜 커튼콜 위크" and "스페셜 커튼콜 주차" are one event.
+- The two sources often disagree on the exact dates by a day or two. That alone does not make them different events.
+- Unrelated events frequently run in overlapping periods (e.g. a giveaway week and a signing session inside it). Do not match those.
+- List only the pairs you judge to be the same event, and leave an incoming entry out when none of the saved entries matches it.
+`;
+
+async function suggestSameEvents(incoming: PendingEvent[], saved: ExistingEvent[]) {
+  const client = new GoogleGenAI({});
+
+  const interaction = await client.interactions.create({
+    model: MODEL,
+    input: [
+      {
+        type: "text",
+        text: buildEventMatchPrompt(
+          incoming.map((event, index) => `${index}. ${describeEvent(event)}`),
+          saved.map((event) => `#${event.id} ${describeEvent(event)}`),
+        ),
+      },
+    ],
+    response_format: {
+      type: "text",
+      mime_type: "application/json",
+      schema: eventMatchJsonSchema,
+    },
+  });
+
+  if (!interaction.output_text) throw new Error("Gemini가 응답하지 않았습니다");
+
+  const { matches } = eventMatchSchema.parse(
+    JSON.parse(interaction.output_text),
+  ) as { matches: { incomingIndex: number; savedId: number }[] };
+
+  return new Map(
+    matches.map(({ incomingIndex, savedId }) => [incomingIndex, savedId]),
+  );
+}
+
+export async function attachSuggestedDuplicates(pending: PendingEvent[]) {
+  const saved = [
+    ...new Map(
+      pending.flatMap(({ overlapping }) =>
+        overlapping.map((event) => [event.id, event] as const),
+      ),
+    ).values(),
+  ];
+
+  if (saved.length === 0) return pending;
+
+  let suggested: Map<number, number>;
+
+  try {
+    suggested = await suggestSameEvents(pending, saved);
+  } catch (error) {
+    console.error("이벤트 중복 판정 실패", error);
+
+    return pending;
+  }
+
+  return pending.map((event, index) => {
+    const savedId = suggested.get(index);
+
+    // 겹치지도 않는 이벤트를 지목했으면 버린다
+    if (!event.overlapping.some(({ id }) => id === savedId)) return event;
+
+    return { ...event, suggestedSameAsId: savedId };
+  });
+}
+
 const EVENT_PRIORITY: Record<EventSource, number> = { badge: 0, notice: 1 };
 
 const priorityOf = (source: EventSource, edited: boolean) =>
