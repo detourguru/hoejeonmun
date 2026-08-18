@@ -110,6 +110,7 @@ export type ShowEvent = {
   periodStart: string;
   periodEnd: string;
   slotId: number | null;
+  edited: boolean;
 };
 
 type EventRow = {
@@ -120,6 +121,7 @@ type EventRow = {
   period_start: string;
   period_end: string;
   slot_id: number | null;
+  edited: boolean;
 };
 
 // getShowEvents는 보고 있는 달과 기간이 겹치는 이벤트만 조회
@@ -132,7 +134,9 @@ export async function getShowEvents(
 
   const { data, error } = await supabase
     .from("visible_events")
-    .select("id, title, description, url, period_start, period_end, slot_id")
+    .select(
+      "id, title, description, url, period_start, period_end, slot_id, edited",
+    )
     .eq("show_id", showId)
     .lte("period_start", end)
     .gte("period_end", start)
@@ -148,6 +152,7 @@ export async function getShowEvents(
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
+    edited: row.edited,
   }));
 }
 

@@ -2,7 +2,13 @@ import * as z from "zod";
 
 import { fail } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
-import { saveCastingBoard } from "@/service/casting-board";
+import {
+  attachOverlappingEvents,
+  saveCastingBoard,
+  unverifiedPoints,
+} from "@/service/casting-board";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const performanceSchema = z.object({
   date: z.string(),
@@ -12,32 +18,44 @@ const performanceSchema = z.object({
   imageIndex: z.number(),
 });
 
-const dateTagSchema = z.object({
-  tag: z.string(),
-  startDate: z.string(),
-  endDate: z.string(),
-  printedStartWeekday: z.string(),
-  printedEndWeekday: z.string(),
-  imageIndex: z.number(),
-});
+const eventSourceSchema = z.enum(["badge", "notice"]);
 
-const eventSchema = z.object({
+const existingEventSchema = z.object({
+  id: z.number(),
   title: z.string(),
-  rawTitle: z.string(),
-  description: z.string().optional(),
   periodStart: z.string(),
   periodEnd: z.string(),
-  printedStartWeekday: z.string(),
-  printedEndWeekday: z.string(),
-  imageIndex: z.number(),
+  source: eventSourceSchema,
+  edited: z.boolean(),
 });
+
+const eventSchema = z
+  .object({
+    title: z.string().trim().min(1),
+    description: z.string().optional(),
+    periodStart: z.string().regex(ISO_DATE),
+    periodEnd: z.string().regex(ISO_DATE),
+    printedStartWeekday: z.string(),
+    printedEndWeekday: z.string(),
+    source: eventSourceSchema,
+    imageIndex: z.number(),
+    confirmReasons: z.array(
+      z.enum(["range_badge", "no_printed_weekday", "overlaps_existing"]),
+    ),
+    overlapping: z.array(existingEventSchema),
+    confirmed: z.boolean(),
+    edited: z.boolean(),
+    replacesEventId: z.number().optional(),
+  })
+  .refine(({ periodStart, periodEnd }) => periodStart <= periodEnd, {
+    message: "이벤트 시작일이 종료일보다 늦어요.",
+  });
 
 const bodySchema = z
   .object({
     showId: z.string().min(1),
     storagePaths: z.array(z.string().min(1)).min(1),
     performances: z.array(performanceSchema),
-    dateTags: z.array(dateTagSchema),
     events: z.array(eventSchema),
     skippedCount: z.number(),
   })
@@ -58,21 +76,33 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePaths, performances, dateTags, events, skippedCount } =
-    body.data;
+  const { showId, storagePaths, performances, events, skippedCount } = body.data;
 
   if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
   }
 
   try {
+    const checked = await attachOverlappingEvents(
+      showId,
+      events.map((event) => ({
+        ...event,
+        confirmReasons: unverifiedPoints(event),
+        overlapping: [],
+      })),
+    );
+
     const result = await saveCastingBoard({
       showId,
       userId,
       storagePaths,
       performances,
-      dateTags,
-      events,
+      events: events
+        .map((event, index) => ({ ...event, ...checked[index] }))
+        .filter(
+          ({ confirmReasons, confirmed }) =>
+            confirmReasons.length === 0 || confirmed,
+        ),
       skippedCount,
     });
 

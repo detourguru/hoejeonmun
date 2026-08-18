@@ -87,6 +87,10 @@ create table events (
   url text check (url is null or url ~ '^https?://'),
   period_start date not null,
   period_end date not null,
+  -- badge: 캐스팅표 여백 라벨에서 파생 / notice: 이벤트 안내 이미지에서 읽음
+  source text not null check (source in ('badge', 'notice')),
+  -- 제보 확인 화면에서 기간이나 제목을 고친 사용자. 값은 화면에 노출하지 않는다
+  edited_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   check (period_start <= period_end)
 );
@@ -95,9 +99,8 @@ create index events_show_id_idx on events (show_id);
 create index events_slot_id_idx on events (slot_id);
 create index events_upload_image_id_idx on events (upload_image_id);
 
--- 같은 이벤트가 들어오는 경로가 둘이다
---   (a) 한 업로드 안: 캐스팅표 배지와 안내 이미지가 같은 이벤트를 가리킴
---   (b) 업로드 간: 다른 사용자가 같은 안내 이미지를 다시 제보
+-- 같은 이미지를 다시 제보한 경우. 제목과 기간이 완전히 같으면 물어볼 것도 없다.
+-- 기간이 하루만 어긋나는 경우는 제보 확인 화면에서 사용자가 판단한다
 create unique index events_dedupe_idx
   on events (show_id, title_key, period_start, period_end);
 
@@ -201,10 +204,26 @@ from event_reports
 group by event_id
 having count(*) >= 5;
 
--- 화면에서 읽는 최종 이벤트 목록
+-- 화면에서 읽는 최종 이벤트 목록.
+-- edited_by를 읽어야 edited를 만들 수 있는데 그 열은 아래에서 막으므로 정의자 권한으로 돈다
 create view visible_events
-with (security_invoker = true) as
-select e.*
+with (security_invoker = false) as
+select
+  e.id,
+  e.show_id,
+  e.upload_id,
+  e.upload_image_id,
+  e.slot_id,
+  e.title,
+  e.title_key,
+  e.description,
+  e.url,
+  e.period_start,
+  e.period_end,
+  e.source,
+  -- 누가 고쳤는지는 내보내지 않고 고쳐졌다는 사실만 내보낸다
+  e.edited_by is not null as edited,
+  e.created_at
 from events e
 where not exists (
   select 1
@@ -238,6 +257,13 @@ create policy "authenticated users can set event url" on events
 
 revoke update on events from authenticated;
 grant update (url) on events to authenticated;
+
+-- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 visible_events.edited만 나간다
+revoke select on events from anon, authenticated;
+grant select (
+  id, show_id, upload_id, upload_image_id, slot_id, title, title_key,
+  description, url, period_start, period_end, source, created_at
+) on events to anon, authenticated;
 
 create policy "read own favorites" on favorites
   for select to authenticated using (user_id = auth.uid());

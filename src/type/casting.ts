@@ -69,6 +69,49 @@ export type ParsedEvent = {
   imageIndex: number;
 };
 
+export type EventSource = "badge" | "notice";
+
+// 코드 대조에 하나라도 실패했을 시 사용자 확인을 받는다
+export type EventConfirmReason =
+  | "range_badge"
+  | "no_printed_weekday"
+  | "overlaps_existing";
+
+export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
+  range_badge: "캐스팅표 여백 라벨에서 읽어서 기간이 어긋날 수 있어요.",
+  no_printed_weekday: "이미지에 요일이 없어 날짜를 다시 확인하지 못했어요.",
+  overlaps_existing: "이미 등록된 이벤트와 기간이 겹쳐요.",
+};
+
+export type ExistingEvent = {
+  id: number;
+  title: string;
+  periodStart: string;
+  periodEnd: string;
+  source: EventSource;
+  edited: boolean;
+};
+
+export type PendingEvent = {
+  title: string;
+  description?: string;
+  periodStart: string;
+  periodEnd: string;
+  printedStartWeekday: string;
+  printedEndWeekday: string;
+  source: EventSource;
+  imageIndex: number;
+  confirmReasons: EventConfirmReason[];
+  overlapping: ExistingEvent[];
+};
+
+export type ConfirmedEvent = PendingEvent & {
+  // confirmReasons가 있으면 이게 참이어야 저장된다
+  confirmed: boolean;
+  edited: boolean;
+  replacesEventId?: number;
+};
+
 export type CastingBoardResult = {
   uploadId: number;
   slotCount: number;

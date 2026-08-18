@@ -4,10 +4,12 @@ import { errorMessage, fail } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
+  attachOverlappingEvents,
   hasKnownCastOverlap,
   isEventForShow,
   logParseFailure,
   parseCastingBoard,
+  toPendingEvents,
 } from "@/service/casting-board";
 import { getShow } from "@/service/show";
 import { CASTING_BOARD_BUCKET } from "@/type/casting";
@@ -104,7 +106,16 @@ export async function POST(request: Request) {
       return fail(422, "이 공연의 이벤트가 맞는지 확인해 주세요.");
     }
 
-    return Response.json({ performances, dateTags, events, skippedCount });
+    const pendingEvents = await attachOverlappingEvents(
+      showId,
+      toPendingEvents(dateTags, events),
+    );
+
+    return Response.json({
+      performances,
+      events: pendingEvents,
+      skippedCount,
+    });
   } catch (error) {
     console.error(error);
 

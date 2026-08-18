@@ -13,9 +13,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
+  ConfirmedEvent,
+  EventConfirmReason,
+  EventSource,
+  ExistingEvent,
   ParsedDateTag,
   ParsedEvent,
   ParsedPerformance,
+  PendingEvent,
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
@@ -201,6 +206,8 @@ Casting board rules:
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
+- A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range.
+- A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
 - Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle". Copy what is printed -- do not translate it, expand it, or adjust it toward any other title you have been given.
@@ -518,6 +525,125 @@ function normalizeDateTags(
   return valid;
 }
 
+const EVENT_PRIORITY: Record<EventSource, number> = { badge: 0, notice: 1 };
+
+const priorityOf = (source: EventSource, edited: boolean) =>
+  edited ? EVENT_PRIORITY.notice + 1 : EVENT_PRIORITY[source];
+
+export function unverifiedPoints(event: {
+  source: EventSource;
+  periodStart: string;
+  periodEnd: string;
+  printedStartWeekday: string;
+  printedEndWeekday: string;
+}): EventConfirmReason[] {
+  const reasons: EventConfirmReason[] = [];
+
+  if (event.source === "badge" && event.periodStart !== event.periodEnd) {
+    reasons.push("range_badge");
+  }
+
+  if (!event.printedStartWeekday || !event.printedEndWeekday) {
+    reasons.push("no_printed_weekday");
+  }
+
+  return reasons;
+}
+
+export function toPendingEvents(
+  dateTags: ParsedDateTag[],
+  events: ParsedEvent[],
+): PendingEvent[] {
+  const fromNotices = events.map(
+    ({
+      title,
+      description,
+      periodStart,
+      periodEnd,
+      printedStartWeekday,
+      printedEndWeekday,
+      imageIndex,
+    }) => ({
+      title,
+      description,
+      periodStart,
+      periodEnd,
+      printedStartWeekday,
+      printedEndWeekday,
+      imageIndex,
+      source: "notice" as const,
+    }),
+  );
+
+  const fromBadges = dateTags.map(({ tag, startDate, endDate, ...dateTag }) => ({
+    ...dateTag,
+    title: tag,
+    periodStart: startDate,
+    periodEnd: endDate,
+    source: "badge" as const,
+  }));
+
+  return [...fromNotices, ...fromBadges].map((event) => ({
+    ...event,
+    confirmReasons: unverifiedPoints(event),
+    overlapping: [],
+  }));
+}
+
+const toExistingEvent = (row: {
+  id: number;
+  title: string;
+  period_start: string;
+  period_end: string;
+  source: EventSource;
+  edited: boolean;
+}): ExistingEvent => ({
+  id: row.id,
+  title: row.title,
+  periodStart: row.period_start,
+  periodEnd: row.period_end,
+  source: row.source,
+  edited: row.edited,
+});
+
+export async function attachOverlappingEvents(
+  showId: string,
+  pending: PendingEvent[],
+): Promise<PendingEvent[]> {
+  if (pending.length === 0) return pending;
+
+  const from = pending.map(({ periodStart }) => periodStart).sort()[0];
+  const to = pending.map(({ periodEnd }) => periodEnd).sort().at(-1)!;
+
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("visible_events")
+    .select("id, title, period_start, period_end, source, edited")
+    .eq("show_id", showId)
+    .lte("period_start", to)
+    .gte("period_end", from);
+
+  if (error) throw error;
+
+  const existing = data.map(toExistingEvent);
+
+  return pending.map((event) => {
+    const overlapping = existing.filter(
+      ({ periodStart, periodEnd }) =>
+        periodStart <= event.periodEnd && event.periodStart <= periodEnd,
+    );
+
+    if (overlapping.length === 0) return event;
+
+    return {
+      ...event,
+      overlapping,
+      confirmReasons: [...event.confirmReasons, "overlaps_existing" as const],
+    };
+  });
+}
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizeEvents(
   events: ParsedEvent[],
@@ -659,12 +785,70 @@ export async function logParseFailure({
   if (error) console.error("parse_failures insert 실패", error);
 }
 
+type EventRow = {
+  show_id: string;
+  upload_id: number;
+  upload_image_id: number;
+  slot_id: null;
+  title: string;
+  description: string | null;
+  period_start: string;
+  period_end: string;
+  source: EventSource;
+  edited_by: string | null;
+};
+
+// PostgreSQL 에러 코드: unique_violation
+const DUPLICATE_KEY = "23505";
+
+async function insertEvent(
+  admin: ReturnType<typeof createAdminClient>,
+  row: EventRow,
+) {
+  const { error } = await admin.from("events").insert(row);
+
+  if (error && error.code !== DUPLICATE_KEY) throw error;
+
+  return !error;
+}
+
+async function replaceEvent(
+  admin: ReturnType<typeof createAdminClient>,
+  eventId: number,
+  row: EventRow,
+) {
+  const { data: current, error } = await admin
+    .from("events")
+    .select("source, edited_by")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  // 신고로 내려갔거나 그 사이 지워졌으면 새로 넣는다
+  if (!current) return insertEvent(admin, row);
+
+  const incoming = priorityOf(row.source, row.edited_by !== null);
+
+  if (incoming < priorityOf(current.source, current.edited_by !== null)) {
+    return false;
+  }
+
+  const { error: updateError } = await admin
+    .from("events")
+    .update(row)
+    .eq("id", eventId);
+
+  if (updateError && updateError.code !== DUPLICATE_KEY) throw updateError;
+
+  return !updateError;
+}
+
 export async function saveCastingBoard({
   showId,
   userId,
   storagePaths,
   performances,
-  dateTags,
   events,
   skippedCount,
 }: {
@@ -672,8 +856,7 @@ export async function saveCastingBoard({
   userId: string;
   storagePaths: string[];
   performances: ParsedPerformance[];
-  dateTags: ParsedDateTag[];
-  events: ParsedEvent[];
+  events: ConfirmedEvent[];
   skippedCount: number;
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
@@ -779,65 +962,32 @@ export async function saveCastingBoard({
     if (assignmentError) throw assignmentError;
   }
 
-  const derivedEvents = dateTags.flatMap(
-    ({ tag, startDate, endDate, imageIndex }) => {
-      const uploadImageId = uploadImageIdByPosition.get(imageIndex);
-
-      if (uploadImageId === undefined) return [];
-
-      return [
-        {
-          show_id: showId,
-          upload_id: upload.id,
-          upload_image_id: uploadImageId,
-          slot_id: null,
-          title: tag,
-          description: null,
-          period_start: startDate,
-          period_end: endDate,
-        },
-      ];
-    },
-  );
-
-  // 이미지 전체가 이벤트 안내로 분류된 경우
-  const standaloneEvents = events.flatMap(
-    ({ title, description, periodStart, periodEnd, imageIndex }) => {
-      const uploadImageId = uploadImageIdByPosition.get(imageIndex);
-
-      if (uploadImageId === undefined) return [];
-
-      return [
-        {
-          show_id: showId,
-          upload_id: upload.id,
-          upload_image_id: uploadImageId,
-          slot_id: null,
-          title,
-          description: description ?? null,
-          period_start: periodStart,
-          period_end: periodEnd,
-        },
-      ];
-    },
-  );
-
-  const eventRows = [...derivedEvents, ...standaloneEvents];
-
   let eventCount = 0;
 
-  if (eventRows.length > 0) {
-    const { data: insertedEvents, error: eventError } = await admin
-      .from("events")
-      .upsert(eventRows, {
-        onConflict: "show_id,title_key,period_start,period_end",
-        ignoreDuplicates: true,
-      })
-      .select("id");
+  for (const event of events) {
+    const uploadImageId = uploadImageIdByPosition.get(event.imageIndex);
 
-    if (eventError) throw eventError;
+    if (uploadImageId === undefined) continue;
 
-    eventCount = insertedEvents.length;
+    const row = {
+      show_id: showId,
+      upload_id: upload.id,
+      upload_image_id: uploadImageId,
+      slot_id: null,
+      title: event.title,
+      description: event.description ?? null,
+      period_start: event.periodStart,
+      period_end: event.periodEnd,
+      source: event.source,
+      edited_by: event.edited ? userId : null,
+    };
+
+    const saved =
+      event.replacesEventId === undefined
+        ? await insertEvent(admin, row)
+        : await replaceEvent(admin, event.replacesEventId, row);
+
+    if (saved) eventCount += 1;
   }
 
   return {

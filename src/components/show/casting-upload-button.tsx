@@ -3,21 +3,43 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  EventConfirmList,
+  EventDraft,
+  toConfirmedEvents,
+  toEventDrafts,
+} from "@/components/show/event-confirm-list";
 import { createClient } from "@/lib/supabase/client";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
+  ConfirmedEvent,
   MAX_IMAGE_BYTES,
+  ParsedPerformance,
+  PendingEvent,
 } from "@/type/casting";
 
-type Status = "idle" | "uploading" | "analyzing" | "saving" | "done";
+type Status =
+  | "idle"
+  | "uploading"
+  | "analyzing"
+  | "confirming"
+  | "saving"
+  | "done";
 
 const STATUS_LABEL: Record<Status, string> = {
   idle: "캐스팅보드/이벤트 제보하기",
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
+  confirming: "이벤트 확인 중…",
   saving: "저장하는 중…",
   done: "추가 제보하기",
+};
+
+type ParsedUpload = {
+  storagePaths: string[];
+  performances: ParsedPerformance[];
+  skippedCount: number;
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -40,6 +62,8 @@ export const CastingUploadButton = ({
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CastingBoardResult | null>(null);
+  const [parsed, setParsed] = useState<ParsedUpload | null>(null);
+  const [drafts, setDrafts] = useState<EventDraft[]>([]);
 
   useEffect(() => {
     return () => {
@@ -122,22 +146,31 @@ export const CastingUploadButton = ({
       return;
     }
 
-    const { performances, dateTags, events, skippedCount } =
-      await parseResponse.json();
+    const { performances, events, skippedCount } = (await parseResponse.json()) as {
+      performances: ParsedPerformance[];
+      events: PendingEvent[];
+      skippedCount: number;
+    };
 
+    const upload = { storagePaths, performances, skippedCount };
+
+    if (events.length > 0) {
+      setParsed(upload);
+      setDrafts(toEventDrafts(events));
+      setStatus("confirming");
+      return;
+    }
+
+    await save(upload, []);
+  };
+
+  const save = async (upload: ParsedUpload, events: ConfirmedEvent[]) => {
     setStatus("saving");
 
     const saveResponse = await fetch("/api/casting-boards", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        showId,
-        storagePaths,
-        performances,
-        dateTags,
-        events,
-        skippedCount,
-      }),
+      body: JSON.stringify({ showId, ...upload, events }),
     });
 
     if (!saveResponse.ok) {
@@ -145,16 +178,40 @@ export const CastingUploadButton = ({
         .json()
         .catch(() => ({ message: "저장에 실패했어요." }));
 
-      setStatus("idle");
+      setStatus(parsed ? "confirming" : "idle");
       setError(message);
       return;
     }
 
     setResult(await saveResponse.json());
     setStatus("done");
+    setParsed(null);
+    setDrafts([]);
 
     // 저장된 회차가 캐스팅보드 영역에 바로 보이도록
     router.refresh();
+  };
+
+  const handleConfirm = async () => {
+    if (!parsed) return;
+
+    const events = toConfirmedEvents(drafts);
+
+    if (events.some(({ periodStart, periodEnd }) => periodStart > periodEnd)) {
+      setError("시작일이 종료일보다 늦은 이벤트가 있어요.");
+      return;
+    }
+
+    if (parsed.performances.length === 0 && events.length === 0) {
+      setStatus("idle");
+      setParsed(null);
+      setDrafts([]);
+      return;
+    }
+
+    setError(null);
+
+    await save(parsed, events);
   };
 
   const pending =
@@ -174,11 +231,42 @@ export const CastingUploadButton = ({
       <button
         type="button"
         onClick={handleClick}
-        disabled={pending}
+        disabled={pending || status === "confirming"}
         className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point disabled:opacity-60"
       >
         {STATUS_LABEL[status]}
       </button>
+
+      {status === "confirming" && (
+        <div className="flex flex-col gap-3 rounded-lg bg-point/10 p-3">
+          <p className="text-xs text-text">
+            읽어낸 이벤트예요. 날짜가 맞는지 봐주시면 그대로 올라가요.
+          </p>
+
+          <EventConfirmList drafts={drafts} onChange={setDrafts} />
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="inline-flex rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
+            >
+              이대로 저장하기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatus("idle");
+                setParsed(null);
+                setDrafts([]);
+              }}
+              className="inline-flex rounded-4xl px-3 py-1 text-xs text-text-muted underline underline-offset-2"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {status === "idle" && !error && !result && (
         <ul className="list-inside list-disc text-xs text-text-muted">
