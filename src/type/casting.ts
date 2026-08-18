@@ -103,6 +103,7 @@ export type PendingEvent = {
   imageIndex: number;
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
+  suggestedSameAsId?: number;
 };
 
 export type ConfirmedEvent = PendingEvent & {

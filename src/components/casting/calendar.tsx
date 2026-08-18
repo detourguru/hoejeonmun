@@ -28,12 +28,14 @@ export const Calendar = ({
     byDate.set(slot.date, [...(byDate.get(slot.date) ?? []), slot]);
   }
 
-  // 기간 안이어도 그날 공연이 없으면 이벤트도 적용 안됨
+  // 회차가 하나도 없는 건 공연이 없는 게 아니라 제보가 아직 없는 것이다
+  const knowsSchedule = slots.length > 0;
+
   const eventsByDate = new Map<string, ShowEvent[]>();
 
   for (const date of cells) {
     if (!date) continue;
-    if (!byDate.has(date)) continue;
+    if (knowsSchedule && !byDate.has(date)) continue;
 
     const active = events.filter(
       (event) => event.periodStart <= date && date <= event.periodEnd,

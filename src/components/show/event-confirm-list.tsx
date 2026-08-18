@@ -15,7 +15,12 @@ export type EventDraft = {
 };
 
 export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
-  events.map((event) => ({ event, original: event, include: true }));
+  events.map((event) => ({
+    event,
+    original: event,
+    include: true,
+    replacesEventId: event.suggestedSameAsId,
+  }));
 
 export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
   drafts
