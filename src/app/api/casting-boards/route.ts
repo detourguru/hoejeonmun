@@ -13,8 +13,11 @@ const performanceSchema = z.object({
 });
 
 const dateTagSchema = z.object({
-  date: z.string(),
   tag: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  printedStartWeekday: z.string(),
+  printedEndWeekday: z.string(),
   imageIndex: z.number(),
 });
 
@@ -24,6 +27,8 @@ const eventSchema = z.object({
   description: z.string().optional(),
   periodStart: z.string(),
   periodEnd: z.string(),
+  printedStartWeekday: z.string(),
+  printedEndWeekday: z.string(),
   imageIndex: z.number(),
 });
 

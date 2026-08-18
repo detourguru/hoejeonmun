@@ -60,18 +60,33 @@ const castingJsonSchema = {
     dateTags: {
       type: "array",
       description:
-        "Every date that carries a special inline badge on the casting board (e.g. Preview/프리뷰, 막공, a curtain-call marker), listed once per date -- not once per performance row, even if that date has multiple times.",
+        "Every badge printed on the casting board that marks a date or a run of dates (e.g. Preview/프리뷰, 막공, a curtain-call marker, or a side label spanning several rows such as 더블적립위크). One entry per badge, covering the whole run it marks.",
       items: {
         type: "object",
         properties: {
-          date: {
-            type: "string",
-            description: 'YYYY-MM-DD, matching a date in "performances".',
-          },
           tag: {
             type: "string",
             description:
               "The badge's text, verbatim (e.g. 프리뷰, 막공, 커튼콜데이).",
+          },
+          startDate: {
+            type: "string",
+            description: "YYYY-MM-DD, the first date this badge marks.",
+          },
+          endDate: {
+            type: "string",
+            description:
+              "YYYY-MM-DD, the last date this badge marks. Same as startDate when the badge sits on a single date.",
+          },
+          printedStartWeekday: {
+            type: "string",
+            description:
+              'The weekday printed on the board next to startDate, copied as-is (월, 화, 수, 목, 금, 토, 일). Return "" when the board prints no weekday there. Never derive this from startDate.',
+          },
+          printedEndWeekday: {
+            type: "string",
+            description:
+              'The weekday printed on the board next to endDate, copied as-is. Return "" when the board prints no weekday there. Never derive this from endDate.',
           },
           imageIndex: {
             type: "integer",
@@ -79,7 +94,14 @@ const castingJsonSchema = {
               "0-based index of which image (in the order provided) this badge was read from.",
           },
         },
-        required: ["date", "tag", "imageIndex"],
+        required: [
+          "tag",
+          "startDate",
+          "endDate",
+          "printedStartWeekday",
+          "printedEndWeekday",
+          "imageIndex",
+        ],
       },
     },
     events: {
@@ -94,7 +116,7 @@ const castingJsonSchema = {
           rawTitle: {
             type: "string",
             description:
-              'The show/production title exactly as printed on this poster (Korean and/or English), used to confirm the poster is for this show. Required even if it duplicates text already used for "title".',
+              'The show/production title as printed on this poster, usually near the logo (Korean and/or English). Copy it exactly as shown. Required even if it duplicates text already used for "title".',
           },
           description: {
             type: "string",
@@ -109,6 +131,16 @@ const castingJsonSchema = {
             description:
               "Event end date in YYYY-MM-DD format. Same as periodStart for a single-day event.",
           },
+          printedStartWeekday: {
+            type: "string",
+            description:
+              'The weekday printed on the notice next to the start date, copied as-is (e.g. "8/19(수)" -> "수"). Return "" when the notice prints no weekday there. Never derive this from periodStart.',
+          },
+          printedEndWeekday: {
+            type: "string",
+            description:
+              'The weekday printed on the notice next to the end date, copied as-is. Return "" when the notice prints no weekday there. Never derive this from periodEnd.',
+          },
           imageIndex: {
             type: "integer",
             description:
@@ -120,6 +152,8 @@ const castingJsonSchema = {
           "rawTitle",
           "periodStart",
           "periodEnd",
+          "printedStartWeekday",
+          "printedEndWeekday",
           "imageIndex",
         ],
       },
@@ -160,20 +194,72 @@ Casting board rules:
 - Omit a cell from "casting" when it is empty or a placeholder such as "-".
 - If no casting table exists, return an empty performances array.
 - If multiple tables exist, use only the largest and most complete one.
-- Separately, scan every date in the table (not just a sample) for an inline badge next to or on the date, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and list each such date once in "dateTags" with the badge's verbatim text -- once per date, even when that date has multiple performance times. This is a distinct pass from building "performances": go date by date in order and check each one individually, since it is easy to skip one in a long list, especially when neighboring dates look visually identical. Do not skip a date just because nearby dates already got the same tag.
-- Some boards instead mark a whole range of dates at once, e.g. a colored label in the margin spanning several rows (such as "더블적립위크" or "장면시연위크" covering a week). Treat that the same way: add one "dateTags" entry for every individual date inside that range, all sharing the same tag text -- not just the first or last date of the range.
+- Separately, scan every date in the table (not just a sample) for an inline badge next to or on the date, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and add one "dateTags" entry per badge with "startDate" and "endDate" both set to that date -- once per date, even when that date has multiple performance times. This is a distinct pass from building "performances": go date by date in order and check each one individually, since it is easy to skip one in a long list, especially when neighboring dates look visually identical. Do not skip a date just because nearby dates already got the same tag.
+- Some boards instead mark a whole run of dates at once, e.g. a colored label in the margin spanning several rows (such as "더블적립위크" or "장면시연위크" covering a week). Add a single "dateTags" entry for the whole run: "startDate" is the first date the label covers and "endDate" is the last. Do not expand a run into one entry per day.
 - A single date can carry more than one badge at once (e.g. a closing performance that is also a curtain-call day). In that case, add a separate "dateTags" entry for each badge on that date, rather than picking just one.
+- Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the board prints next to that date. Never derive a weekday from the date; return "" when the board prints none there.
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
-- Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle" -- this is used afterward to confirm the poster is actually for "${show.prfnm}", so read it exactly as shown rather than guessing or normalizing it to match.
+- Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
+- Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle". Copy what is printed -- do not translate it, expand it, or adjust it toward any other title you have been given.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 
 Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
 If both "performances" and "events" end up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table or event notice found, header row missing).
 `;
 };
+
+const sameShowJsonSchema = {
+  type: "object",
+  properties: {
+    isSame: {
+      type: "boolean",
+      description: "true when A and B name the same production.",
+    },
+  },
+  required: ["isSame"],
+} satisfies z.core.JSONSchema.JSONSchema;
+
+const sameShowSchema = z.fromJSONSchema(sameShowJsonSchema);
+
+const buildSameShowPrompt = (titleA: string, titleB: string) => `
+Two strings are given, each taken from the material of a stage production.
+
+A: ${titleA}
+B: ${titleB}
+
+Decide whether A and B name the same production.
+- Same when one is a transliteration or translation of the other (e.g. "BROKEBACK MOUNTAIN" and "브로크백 마운틴").
+- Same when one carries a genre, region, venue, season, or edition marker the other omits (e.g. "MUSICAL", "뮤지컬", "[대학로]", "2026", "내한").
+- Different when the underlying work differs, even if the genre or wording is similar.
+`;
+
+// 로마자 로고와 한글 공연명은 문자가 겹치지 않아 문자열 대조로는 판정할 수 없다
+async function namesSameShow(prfnm: string, printedTitle: string) {
+  const client = new GoogleGenAI({});
+
+  const interaction = await client.interactions.create({
+    model: MODEL,
+    input: [{ type: "text", text: buildSameShowPrompt(prfnm, printedTitle) }],
+    response_format: {
+      type: "text",
+      mime_type: "application/json",
+      schema: sameShowJsonSchema,
+    },
+  });
+
+  if (!interaction.output_text) {
+    throw new Error("Gemini가 응답하지 않았습니다");
+  }
+
+  const { isSame } = sameShowSchema.parse(
+    JSON.parse(interaction.output_text),
+  ) as { isSame: boolean };
+
+  return isSame;
+}
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -182,8 +268,19 @@ const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
 
+// KOPIS는 공연명 뒤에 "[대학로]" 같은 지역 표기를 붙여 주는 경우가 있으므로 정규화
+const stripKopisRegionTag = (title: string) => title.replace(/\[[^\]]*\]/g, "");
+
 const normalizeTitle = (title: string) =>
-  title.toLowerCase().replace(/[\s·・:,.\-()[\]{}'"!?]/g, "");
+  stripKopisRegionTag(title)
+    .toLowerCase()
+    .replace(/[\s·・:,.\-()[\]{}'"!?]/g, "");
+
+const titlesOverlap = (a: string, b: string) =>
+  a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a));
+
+const agreesWithPrintedWeekday = (isoDate: string, printed: string) =>
+  printed.length === 0 || getWeekday(isoDate) === printed;
 
 function resolveRunWindow(show: ShowDetail) {
   if (show.openrun !== "Y")
@@ -218,21 +315,93 @@ export function hasKnownCastOverlap(
   return extracted.some((name) => known.has(normalizeName(name)));
 }
 
-export function hasMatchingRawTitle(events: ParsedEvent[], show: ShowDetail) {
+async function lookupTitleAliases(showTitleKey: string, printedKeys: string[]) {
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("show_title_aliases")
+    .select("printed_title_key, is_same")
+    .eq("show_title_key", showTitleKey)
+    .in("printed_title_key", printedKeys);
+
+  if (error) {
+    console.error("공연명 별칭 조회 실패", error);
+
+    return new Map<string, boolean>();
+  }
+
+  return new Map<string, boolean>(
+    data.map(({ printed_title_key, is_same }) => [printed_title_key, is_same]),
+  );
+}
+
+async function rememberTitleAlias(alias: {
+  showTitleKey: string;
+  printedTitleKey: string;
+  printedTitle: string;
+  isSame: boolean;
+}) {
+  const admin = createAdminClient();
+
+  const { error } = await admin.from("show_title_aliases").upsert(
+    {
+      show_title_key: alias.showTitleKey,
+      printed_title_key: alias.printedTitleKey,
+      printed_title: alias.printedTitle,
+      is_same: alias.isSame,
+    },
+    { onConflict: "show_title_key,printed_title_key", ignoreDuplicates: true },
+  );
+
+  if (error) console.error("공연명 별칭 저장 실패", error);
+}
+
+export async function isEventForShow(events: ParsedEvent[], show: ShowDetail) {
   if (events.length === 0) return true;
 
-  const known = normalizeTitle(show.prfnm);
+  const showTitleKey = normalizeTitle(show.prfnm);
 
-  if (!known) return true;
+  if (!showTitleKey) return true;
 
-  return events.some(({ rawTitle }) => {
-    const extracted = normalizeTitle(rawTitle);
+  const printed = [...new Set(events.map(({ rawTitle }) => rawTitle.trim()))]
+    .map((title) => ({ title, key: normalizeTitle(title) }))
+    .filter(({ key }) => key.length > 0);
 
-    return (
-      extracted.length > 0 &&
-      (extracted.includes(known) || known.includes(extracted))
-    );
-  });
+  if (printed.length === 0) return true;
+
+  if (printed.some(({ key }) => titlesOverlap(showTitleKey, key))) return true;
+
+  const decided = await lookupTitleAliases(
+    showTitleKey,
+    printed.map(({ key }) => key),
+  );
+
+  if ([...decided.values()].some(Boolean)) return true;
+
+  for (const { title, key } of printed) {
+    if (decided.has(key)) continue;
+
+    let isSame: boolean;
+
+    try {
+      isSame = await namesSameShow(show.prfnm, title);
+    } catch (error) {
+      console.error("공연명 대조 실패", error);
+
+      return true;
+    }
+
+    await rememberTitleAlias({
+      showTitleKey,
+      printedTitleKey: key,
+      printedTitle: title,
+      isSame,
+    });
+
+    if (isSame) return true;
+  }
+
+  return false;
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -301,6 +470,7 @@ function normalizeDateTags(
   dateTags: ParsedDateTag[],
   show: ShowDetail,
   imageCount: number,
+  performances: ParsedPerformance[],
 ) {
   const { from, to } = resolveRunWindow(show);
 
@@ -308,15 +478,25 @@ function normalizeDateTags(
   const valid: ParsedDateTag[] = [];
 
   for (const dateTag of dateTags) {
-    const date = dateTag.date?.trim() ?? "";
     const tag = dateTag.tag?.trim() ?? "";
-    const key = `${date}::${tag}`;
+    const startDate = dateTag.startDate?.trim() ?? "";
+    const endDate = dateTag.endDate?.trim() ?? "";
+    const printedStartWeekday = dateTag.printedStartWeekday?.trim() ?? "";
+    const printedEndWeekday = dateTag.printedEndWeekday?.trim() ?? "";
+
+    const key = `${startDate}~${endDate}::${tag}`;
 
     const isValid =
       tag.length > 0 &&
-      DATE_PATTERN.test(date) &&
-      date >= from &&
-      date <= to &&
+      DATE_PATTERN.test(startDate) &&
+      DATE_PATTERN.test(endDate) &&
+      startDate <= endDate &&
+      startDate >= from &&
+      endDate <= to &&
+      agreesWithPrintedWeekday(startDate, printedStartWeekday) &&
+      agreesWithPrintedWeekday(endDate, printedEndWeekday) &&
+      // 표의 행에 붙은 배지이므로 그 구간에 회차가 하나도 없으면 잘못 읽은 것이다
+      performances.some(({ date }) => date >= startDate && date <= endDate) &&
       !seen.has(key) &&
       Number.isInteger(dateTag.imageIndex) &&
       dateTag.imageIndex >= 0 &&
@@ -325,7 +505,14 @@ function normalizeDateTags(
     if (!isValid) continue;
 
     seen.add(key);
-    valid.push({ date, tag, imageIndex: dateTag.imageIndex });
+    valid.push({
+      tag,
+      startDate,
+      endDate,
+      printedStartWeekday,
+      printedEndWeekday,
+      imageIndex: dateTag.imageIndex,
+    });
   }
 
   return valid;
@@ -346,6 +533,8 @@ function normalizeEvents(
     const rawTitle = event.rawTitle?.trim() ?? "";
     const periodStart = event.periodStart?.trim() ?? "";
     const periodEnd = event.periodEnd?.trim() ?? "";
+    const printedStartWeekday = event.printedStartWeekday?.trim() ?? "";
+    const printedEndWeekday = event.printedEndWeekday?.trim() ?? "";
     const description = event.description?.trim() || undefined;
 
     const isValid =
@@ -356,6 +545,8 @@ function normalizeEvents(
       // 공연 기간과 아예 안 겹치는 이벤트는 다른 공연 것으로 판단
       periodStart <= to &&
       periodEnd >= from &&
+      agreesWithPrintedWeekday(periodStart, printedStartWeekday) &&
+      agreesWithPrintedWeekday(periodEnd, printedEndWeekday) &&
       Number.isInteger(event.imageIndex) &&
       event.imageIndex >= 0 &&
       event.imageIndex < imageCount;
@@ -368,6 +559,8 @@ function normalizeEvents(
       description,
       periodStart,
       periodEnd,
+      printedStartWeekday,
+      printedEndWeekday,
       imageIndex: event.imageIndex,
     });
   }
@@ -426,7 +619,12 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   return {
     performances,
     skippedCount,
-    dateTags: normalizeDateTags(parsed.dateTags, show, imageBlocks.length),
+    dateTags: normalizeDateTags(
+      parsed.dateTags,
+      show,
+      imageBlocks.length,
+      performances,
+    ),
     events: normalizeEvents(parsed.events, show, imageBlocks.length),
     reason: parsed.reason,
   };
@@ -581,25 +779,26 @@ export async function saveCastingBoard({
     if (assignmentError) throw assignmentError;
   }
 
-  // 캐스팅표 안 날짜별 배지는 그 날짜 하루짜리 이벤트로 파생시킨다.
-  const derivedEvents = dateTags.flatMap(({ date, tag, imageIndex }) => {
-    const uploadImageId = uploadImageIdByPosition.get(imageIndex);
+  const derivedEvents = dateTags.flatMap(
+    ({ tag, startDate, endDate, imageIndex }) => {
+      const uploadImageId = uploadImageIdByPosition.get(imageIndex);
 
-    if (uploadImageId === undefined) return [];
+      if (uploadImageId === undefined) return [];
 
-    return [
-      {
-        show_id: showId,
-        upload_id: upload.id,
-        upload_image_id: uploadImageId,
-        slot_id: null,
-        title: tag,
-        description: null,
-        period_start: date,
-        period_end: date,
-      },
-    ];
-  });
+      return [
+        {
+          show_id: showId,
+          upload_id: upload.id,
+          upload_image_id: uploadImageId,
+          slot_id: null,
+          title: tag,
+          description: null,
+          period_start: startDate,
+          period_end: endDate,
+        },
+      ];
+    },
+  );
 
   // 이미지 전체가 이벤트 안내로 분류된 경우
   const standaloneEvents = events.flatMap(
@@ -625,17 +824,27 @@ export async function saveCastingBoard({
 
   const eventRows = [...derivedEvents, ...standaloneEvents];
 
+  let eventCount = 0;
+
   if (eventRows.length > 0) {
-    const { error: eventError } = await admin.from("events").insert(eventRows);
+    const { data: insertedEvents, error: eventError } = await admin
+      .from("events")
+      .upsert(eventRows, {
+        onConflict: "show_id,title_key,period_start,period_end",
+        ignoreDuplicates: true,
+      })
+      .select("id");
 
     if (eventError) throw eventError;
+
+    eventCount = insertedEvents.length;
   }
 
   return {
     uploadId: upload.id,
     slotCount: performances.length,
     actorCount: actorNames.length,
-    eventCount: eventRows.length,
+    eventCount,
     skippedCount,
   };
 }
