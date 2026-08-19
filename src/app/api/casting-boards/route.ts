@@ -38,6 +38,7 @@ const eventSchema = z
     printedStartWeekday: z.string(),
     printedEndWeekday: z.string(),
     source: eventSourceSchema,
+    session: z.enum(["matinee", "evening"]).optional(),
     imageIndex: z.number(),
     confirmReasons: z.array(
       z.enum(["range_badge", "no_printed_weekday", "overlaps_existing"]),
@@ -46,7 +47,7 @@ const eventSchema = z
     suggestedSameAsId: z.number().optional(),
     confirmed: z.boolean(),
     edited: z.boolean(),
-    replacesEventId: z.number().optional(),
+    replacesGroupId: z.number().optional(),
   })
   .refine(({ periodStart, periodEnd }) => periodStart <= periodEnd, {
     message: "이벤트 시작일이 종료일보다 늦어요.",

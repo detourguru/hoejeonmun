@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { ImageZoom } from "@/components/image-zoom";
 import {
-  EventConfirmList,
+  EventConfirmSheet,
   EventDraft,
   toConfirmedEvents,
   toEventDrafts,
-} from "@/components/show/event-confirm-list";
+} from "@/components/show/event-confirm-sheet";
+import { UploadProgress } from "@/components/show/upload-progress";
 import { createClient } from "@/lib/supabase/client";
 import {
   CASTING_BOARD_BUCKET,
@@ -17,18 +19,12 @@ import {
   MAX_IMAGE_BYTES,
   ParsedPerformance,
   PendingEvent,
+  UploadStatus,
 } from "@/type/casting";
 
-type Status =
-  | "idle"
-  | "uploading"
-  | "analyzing"
-  | "confirming"
-  | "saving"
-  | "done";
-
-const STATUS_LABEL: Record<Status, string> = {
+const STATUS_LABEL: Record<UploadStatus, string> = {
   idle: "캐스팅보드/이벤트 제보하기",
+  selecting: "이미지 고르는 중…",
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
   confirming: "이벤트 확인 중…",
@@ -57,19 +53,35 @@ export const CastingUploadButton = ({
 }) => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrlsRef = useRef<string[]>([]);
 
+  const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [status, setStatus] = useState<Status>("idle");
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CastingBoardResult | null>(null);
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
 
   useEffect(() => {
-    return () => {
-      previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
+    previewUrlsRef.current = previewUrls;
   }, [previewUrls]);
+
+  useEffect(
+    () => () => previewUrlsRef.current.forEach(URL.revokeObjectURL),
+    [],
+  );
+
+  const reset = () => {
+    previewUrls.forEach(URL.revokeObjectURL);
+    setFiles([]);
+    setPreviewUrls([]);
+    setUploadedCount(0);
+    setParsed(null);
+    setDrafts([]);
+    setStatus("idle");
+  };
 
   const handleClick = () => {
     if (!isLoggedIn) {
@@ -77,26 +89,42 @@ export const CastingUploadButton = ({
       return;
     }
 
+    if (status === "done") {
+      reset();
+      setResult(null);
+    }
+
     inputRef.current?.click();
   };
 
-  const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
+  const handleChange = (change: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(change.target.files ?? []);
 
-    event.target.value = "";
+    change.target.value = "";
 
-    if (files.length === 0) return;
+    if (picked.length === 0) return;
 
-    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    const accepted = picked.filter(({ size }) => size <= MAX_IMAGE_BYTES);
 
-    setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
+    setError(
+      accepted.length < picked.length
+        ? "10MB가 넘는 이미지는 빼고 담았어요."
+        : null,
+    );
     setResult(null);
-    setError(null);
+    setFiles([...files, ...accepted]);
+    setPreviewUrls([...previewUrls, ...accepted.map(URL.createObjectURL)]);
+    setStatus("selecting");
+  };
 
-    if (files.some((file) => file.size > MAX_IMAGE_BYTES)) {
-      setError("이미지 1장당 10MB 이하만 올릴 수 있어요.");
-      return;
-    }
+  const removeFile = (index: number) => {
+    URL.revokeObjectURL(previewUrls[index]);
+    setFiles(files.filter((_, at) => at !== index));
+    setPreviewUrls(previewUrls.filter((_, at) => at !== index));
+  };
+
+  const handleUpload = async () => {
+    if (files.length === 0) return;
 
     const supabase = createClient();
     const { data } = await supabase.auth.getClaims();
@@ -107,6 +135,8 @@ export const CastingUploadButton = ({
       return;
     }
 
+    setError(null);
+    setUploadedCount(0);
     setStatus("uploading");
 
     const storagePaths: string[] = [];
@@ -120,12 +150,13 @@ export const CastingUploadButton = ({
         .upload(storagePath, file, { contentType: file.type });
 
       if (uploadError) {
-        setStatus("idle");
+        setStatus("selecting");
         setError("이미지를 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
         return;
       }
 
       storagePaths.push(storagePath);
+      setUploadedCount(storagePaths.length);
     }
 
     setStatus("analyzing");
@@ -141,16 +172,17 @@ export const CastingUploadButton = ({
         .json()
         .catch(() => ({ message: "분석에 실패했어요." }));
 
-      setStatus("idle");
+      setStatus("selecting");
       setError(message);
       return;
     }
 
-    const { performances, events, skippedCount } = (await parseResponse.json()) as {
-      performances: ParsedPerformance[];
-      events: PendingEvent[];
-      skippedCount: number;
-    };
+    const { performances, events, skippedCount } =
+      (await parseResponse.json()) as {
+        performances: ParsedPerformance[];
+        events: PendingEvent[];
+        skippedCount: number;
+      };
 
     const upload = { storagePaths, performances, skippedCount };
 
@@ -178,15 +210,15 @@ export const CastingUploadButton = ({
         .json()
         .catch(() => ({ message: "저장에 실패했어요." }));
 
-      setStatus(parsed ? "confirming" : "idle");
+      setStatus(parsed ? "confirming" : "selecting");
       setError(message);
       return;
     }
 
     setResult(await saveResponse.json());
-    setStatus("done");
     setParsed(null);
     setDrafts([]);
+    setStatus("done");
 
     // 저장된 회차가 캐스팅보드 영역에 바로 보이도록
     router.refresh();
@@ -203,9 +235,7 @@ export const CastingUploadButton = ({
     }
 
     if (parsed.performances.length === 0 && events.length === 0) {
-      setStatus("idle");
-      setParsed(null);
-      setDrafts([]);
+      reset();
       return;
     }
 
@@ -228,38 +258,65 @@ export const CastingUploadButton = ({
         className="hidden"
       />
 
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending || status === "confirming"}
-        className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point disabled:opacity-60"
-      >
-        {STATUS_LABEL[status]}
-      </button>
+      {status !== "selecting" && (
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={pending || status === "confirming"}
+          className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point disabled:opacity-60"
+        >
+          {STATUS_LABEL[status]}
+        </button>
+      )}
 
-      {status === "confirming" && (
+      <UploadProgress
+        status={status}
+        uploadedCount={uploadedCount}
+        totalCount={files.length}
+      />
+
+      {status === "selecting" && (
         <div className="flex flex-col gap-3 rounded-lg bg-point/10 p-3">
-          <p className="text-xs text-text">
-            읽어낸 이벤트예요. 날짜가 맞는지 봐주시면 그대로 올라가요.
-          </p>
+          <p className="text-xs text-text">빼고 싶은 이미지가 있으면 지워주세요.</p>
 
-          <EventConfirmList drafts={drafts} onChange={setDrafts} />
+          <ul className="flex flex-wrap gap-2">
+            {previewUrls.map((url, index) => (
+              <li key={url} className="flex w-24 flex-col gap-1">
+                <ImageZoom
+                  src={url}
+                  alt={`${index + 1}번째로 고른 이미지`}
+                  className="h-24 w-24 rounded object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="text-xs text-text-muted underline underline-offset-2"
+                >
+                  빼기
+                </button>
+              </li>
+            ))}
+          </ul>
 
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={handleConfirm}
-              className="inline-flex rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
+              onClick={handleUpload}
+              disabled={files.length === 0}
+              className="inline-flex rounded-4xl border border-border bg-point px-3 py-1 text-xs font-bold text-text disabled:opacity-40"
             >
-              이대로 저장하기
+              {files.length}장 올리기
             </button>
             <button
               type="button"
-              onClick={() => {
-                setStatus("idle");
-                setParsed(null);
-                setDrafts([]);
-              }}
+              onClick={() => inputRef.current?.click()}
+              className="inline-flex rounded-4xl border border-border px-3 py-1 text-xs text-text"
+            >
+              더 고르기
+            </button>
+            <button
+              type="button"
+              onClick={reset}
               className="inline-flex rounded-4xl px-3 py-1 text-xs text-text-muted underline underline-offset-2"
             >
               취소
@@ -267,6 +324,16 @@ export const CastingUploadButton = ({
           </div>
         </div>
       )}
+
+      <EventConfirmSheet
+        open={status === "confirming" || (status === "saving" && !!parsed)}
+        drafts={drafts}
+        previewUrls={previewUrls}
+        saving={status === "saving"}
+        onChange={setDrafts}
+        onConfirm={handleConfirm}
+        onCancel={reset}
+      />
 
       {status === "idle" && !error && !result && (
         <ul className="list-inside list-disc text-xs text-text-muted">
@@ -288,21 +355,6 @@ export const CastingUploadButton = ({
           {result.skippedCount > 0 &&
             ` (읽지 못한 행 ${result.skippedCount}개는 건너뛰었어요.)`}
         </p>
-      )}
-
-      {previewUrls.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {previewUrls.map((url) => (
-            // blob: URL은 최적화 대상이 아니고 업로드 후 휘발되므로 next/image를 쓰지 않는다
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={url}
-              src={url}
-              alt="선택한 캐스팅보드 미리보기"
-              className="h-auto w-full max-w-40 rounded"
-            />
-          ))}
-        </div>
       )}
     </div>
   );

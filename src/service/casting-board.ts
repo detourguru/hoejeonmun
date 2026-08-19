@@ -15,8 +15,10 @@ import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
   ConfirmedEvent,
+  EVENT_SESSION,
   EventConfirmReason,
   EventSource,
+  EventSession,
   ExistingEvent,
   ParsedDateTag,
   ParsedEvent,
@@ -146,6 +148,12 @@ const castingJsonSchema = {
             type: "string",
             description:
               'The weekday printed on the notice next to the end date, copied as-is. Return "" when the notice prints no weekday there. Never derive this from periodEnd.',
+          },
+          session: {
+            type: "string",
+            enum: ["matinee", "evening"],
+            description:
+              'Set only when the notice explicitly limits the event to matinee or evening performances (e.g. "낮공 한정", "밤공만", "저녁 공연 대상"). Omit when the notice says nothing about which performance of the day it applies to. Never infer this from the dates.',
           },
           imageIndex: {
             type: "integer",
@@ -645,11 +653,6 @@ export async function attachSuggestedDuplicates(pending: PendingEvent[]) {
   });
 }
 
-const EVENT_PRIORITY: Record<EventSource, number> = { badge: 0, notice: 1 };
-
-const priorityOf = (source: EventSource, edited: boolean) =>
-  edited ? EVENT_PRIORITY.notice + 1 : EVENT_PRIORITY[source];
-
 export function unverifiedPoints(event: {
   source: EventSource;
   periodStart: string;
@@ -682,6 +685,7 @@ export function toPendingEvents(
       periodEnd,
       printedStartWeekday,
       printedEndWeekday,
+      session,
       imageIndex,
     }) => ({
       title,
@@ -690,17 +694,20 @@ export function toPendingEvents(
       periodEnd,
       printedStartWeekday,
       printedEndWeekday,
+      session,
       imageIndex,
       source: "notice" as const,
     }),
   );
 
+  // 캐스팅표 여백 라벨에는 낮공/밤공 표기가 붙지 않는다
   const fromBadges = dateTags.map(
     ({ tag, startDate, endDate, ...dateTag }) => ({
       ...dateTag,
       title: tag,
       periodStart: startDate,
       periodEnd: endDate,
+      session: undefined,
       source: "badge" as const,
     }),
   );
@@ -713,18 +720,20 @@ export function toPendingEvents(
 }
 
 const toExistingEvent = (row: {
-  id: number;
+  group_id: number;
   title: string;
   period_start: string;
   period_end: string;
   source: EventSource;
+  session: EventSession | null;
   edited: boolean;
 }): ExistingEvent => ({
-  id: row.id,
+  id: row.group_id,
   title: row.title,
   periodStart: row.period_start,
   periodEnd: row.period_end,
   source: row.source,
+  session: row.session,
   edited: row.edited,
 });
 
@@ -743,8 +752,8 @@ export async function attachOverlappingEvents(
   const admin = createAdminClient();
 
   const { data, error } = await admin
-    .from("visible_events")
-    .select("id, title, period_start, period_end, source, edited")
+    .from("current_events")
+    .select("group_id, title, period_start, period_end, source, session, edited")
     .eq("show_id", showId)
     .lte("period_start", to)
     .gte("period_end", from);
@@ -755,8 +764,11 @@ export async function attachOverlappingEvents(
 
   return pending.map((event) => {
     const overlapping = existing.filter(
-      ({ periodStart, periodEnd }) =>
-        periodStart <= event.periodEnd && event.periodStart <= periodEnd,
+      ({ periodStart, periodEnd, session }) =>
+        periodStart <= event.periodEnd &&
+        event.periodStart <= periodEnd &&
+        // 낮공 한정과 밤공 한정은 기간이 같아도 다른 이벤트다
+        !(session && event.session && session !== event.session),
     );
 
     if (overlapping.length === 0) return event;
@@ -812,6 +824,7 @@ function normalizeEvents(
       periodEnd,
       printedStartWeekday,
       printedEndWeekday,
+      session: EVENT_SESSION.isCode(event.session) ? event.session : undefined,
       imageIndex: event.imageIndex,
     });
   }
@@ -919,22 +932,25 @@ export async function logParseFailure({
 }
 
 type EventRow = {
+  group_id: number;
   show_id: string;
   upload_id: number;
   upload_image_id: number;
   slot_id: null;
   title: string;
   description: string | null;
+  url: string | null;
   period_start: string;
   period_end: string;
   source: EventSource;
+  session: EventSession | null;
   edited_by: string | null;
 };
 
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
-async function insertEvent(
+async function insertEventVersion(
   admin: ReturnType<typeof createAdminClient>,
   row: EventRow,
 ) {
@@ -945,36 +961,35 @@ async function insertEvent(
   return !error;
 }
 
-async function replaceEvent(
+async function createEventGroup(
   admin: ReturnType<typeof createAdminClient>,
-  eventId: number,
-  row: EventRow,
+  showId: string,
 ) {
-  const { data: current, error } = await admin
-    .from("events")
-    .select("source, edited_by")
-    .eq("id", eventId)
+  const { data, error } = await admin
+    .from("event_groups")
+    .insert({ show_id: showId })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  return data.id as number;
+}
+
+// 링크는 파싱이 아니라 사용자가 따로 단 값이라 새 버전에도 물려준다
+async function urlOfCurrentVersion(
+  admin: ReturnType<typeof createAdminClient>,
+  groupId: number,
+) {
+  const { data, error } = await admin
+    .from("current_events")
+    .select("url")
+    .eq("group_id", groupId)
     .maybeSingle();
 
   if (error) throw error;
 
-  // 신고로 내려갔거나 그 사이 지워졌으면 새로 넣는다
-  if (!current) return insertEvent(admin, row);
-
-  const incoming = priorityOf(row.source, row.edited_by !== null);
-
-  if (incoming < priorityOf(current.source, current.edited_by !== null)) {
-    return false;
-  }
-
-  const { error: updateError } = await admin
-    .from("events")
-    .update(row)
-    .eq("id", eventId);
-
-  if (updateError && updateError.code !== DUPLICATE_KEY) throw updateError;
-
-  return !updateError;
+  return (data?.url as string | null) ?? null;
 }
 
 export async function saveCastingBoard({
@@ -1102,23 +1117,27 @@ export async function saveCastingBoard({
 
     if (uploadImageId === undefined) continue;
 
-    const row = {
+    const groupId =
+      event.replacesGroupId ?? (await createEventGroup(admin, showId));
+
+    const saved = await insertEventVersion(admin, {
+      group_id: groupId,
       show_id: showId,
       upload_id: upload.id,
       upload_image_id: uploadImageId,
       slot_id: null,
       title: event.title,
       description: event.description ?? null,
+      url:
+        event.replacesGroupId === undefined
+          ? null
+          : await urlOfCurrentVersion(admin, groupId),
       period_start: event.periodStart,
       period_end: event.periodEnd,
       source: event.source,
+      session: event.session ?? null,
       edited_by: event.edited ? userId : null,
-    };
-
-    const saved =
-      event.replacesEventId === undefined
-        ? await insertEvent(admin, row)
-        : await replaceEvent(admin, event.replacesEventId, row);
+    });
 
     if (saved) eventCount += 1;
   }

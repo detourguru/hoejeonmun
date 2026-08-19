@@ -66,6 +66,14 @@ export type ParsedDateTag = {
   imageIndex: number;
 };
 
+// KOPIS 제공 코드 아님. 이미지에 "낮공 한정" 같은 표기가 있을 때만 붙는다
+export const EVENT_SESSION = createCodeTable([
+  { value: "matinee", label: "낮공" },
+  { value: "evening", label: "밤공" },
+]);
+
+export type EventSession = CodeOf<typeof EVENT_SESSION>;
+
 // 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우
 export type ParsedEvent = {
   title: string;
@@ -76,6 +84,7 @@ export type ParsedEvent = {
   periodEnd: string;
   printedStartWeekday: string;
   printedEndWeekday: string;
+  session?: EventSession;
   imageIndex: number;
 };
 
@@ -94,11 +103,13 @@ export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
 };
 
 export type ExistingEvent = {
+  // 이벤트 행이 아니라 자리(event_groups)의 id
   id: number;
   title: string;
   periodStart: string;
   periodEnd: string;
   source: EventSource;
+  session: EventSession | null;
   edited: boolean;
 };
 
@@ -110,6 +121,7 @@ export type PendingEvent = {
   printedStartWeekday: string;
   printedEndWeekday: string;
   source: EventSource;
+  session?: EventSession;
   imageIndex: number;
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
@@ -120,7 +132,7 @@ export type ConfirmedEvent = PendingEvent & {
   // confirmReasons가 있으면 이게 참이어야 저장된다
   confirmed: boolean;
   edited: boolean;
-  replacesEventId?: number;
+  replacesGroupId?: number;
 };
 
 export type CastingBoardResult = {
@@ -130,3 +142,19 @@ export type CastingBoardResult = {
   eventCount: number;
   skippedCount: number;
 };
+
+// KOPIS 제공 코드 아님
+export const UPLOAD_STEP = createCodeTable([
+  { value: "selecting", label: "선택" },
+  { value: "uploading", label: "업로드" },
+  { value: "analyzing", label: "분석" },
+  { value: "confirming", label: "확인" },
+  { value: "saving", label: "저장" },
+]);
+
+export type UploadStep = CodeOf<typeof UPLOAD_STEP>;
+
+export type UploadStatus = "idle" | UploadStep | "done";
+
+// 파싱 API의 함수 실행 상한. 대기 화면이 같은 값을 안내한다
+export const PARSE_TIMEOUT_SECONDS = 60;

@@ -13,9 +13,9 @@ import {
   toPendingEvents,
 } from "@/service/casting-board";
 import { getShow } from "@/service/show";
-import { CASTING_BOARD_BUCKET } from "@/type/casting";
+import { CASTING_BOARD_BUCKET, PARSE_TIMEOUT_SECONDS } from "@/type/casting";
 
-export const maxDuration = 60;
+export const maxDuration: typeof PARSE_TIMEOUT_SECONDS = 60;
 
 const bodySchema = z.object({
   showId: z.string().min(1),

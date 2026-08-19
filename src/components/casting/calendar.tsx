@@ -4,15 +4,21 @@ import { Fragment, ReactNode, useState } from "react";
 
 import { EventUrlField } from "@/components/casting/event-url-field";
 import { WEEKDAYS } from "@/lib/date";
-import { getEventColorMap } from "@/lib/event-color";
+import { appliesToSession } from "@/lib/event-session";
 import { cn } from "@/lib/utils";
 import type { ShowEvent } from "@/service/casting";
-import { CalendarSlot } from "@/type/casting";
+import { CalendarSlot, EVENT_SESSION, EventSession } from "@/type/casting";
+
+const DAYS_IN_WEEK = 7;
+
+const sessionPrefix = (event: ShowEvent) =>
+  event.session ? `[${EVENT_SESSION.nameByCode[event.session]}] ` : "";
 
 export const Calendar = ({
   cells,
   slots,
   events = [],
+  sessionBySlotId,
   panels,
   initialDate,
 }: {
@@ -20,6 +26,8 @@ export const Calendar = ({
   cells: (string | null)[];
   slots: CalendarSlot[];
   events?: ShowEvent[];
+  // 낮공/밤공
+  sessionBySlotId: Map<number, EventSession>;
   // 날짜를 폈을 때 보여줄 회차 카드
   panels: Record<number, ReactNode>;
   // 진입 시 보여줄 날짜
@@ -47,26 +55,44 @@ export const Calendar = ({
     if (active.length > 0) eventsByDate.set(date, active);
   }
 
-  const eventColors = getEventColorMap(events.map((event) => event.id));
+  const isActiveAt = (index: number, eventId: number) => {
+    const date = cells[index];
 
-  const showTitleFor = new Map<string, Set<number>>();
-  let prevDate: string | null = null;
-  let prevEventIds = new Set<number>();
+    return (
+      !!date && (eventsByDate.get(date) ?? []).some(({ id }) => id === eventId)
+    );
+  };
 
-  for (const date of cells) {
-    if (!date) continue;
+  // 띠는 주 단위로 끊어 그린다
+  type Band = { start: boolean; end: boolean; length: number };
 
-    const dayEvents = eventsByDate.get(date) ?? [];
-    const shown = new Set<number>();
+  const bandsByDate = new Map<string, Map<number, Band>>();
 
-    for (const event of dayEvents) {
-      if (!(prevDate && prevEventIds.has(event.id))) shown.add(event.id);
+  cells.forEach((date, index) => {
+    if (!date) return;
+
+    const bands = new Map<number, Band>();
+
+    for (const { id } of eventsByDate.get(date) ?? []) {
+      const start = index % DAYS_IN_WEEK === 0 || !isActiveAt(index - 1, id);
+      const end =
+        index % DAYS_IN_WEEK === DAYS_IN_WEEK - 1 || !isActiveAt(index + 1, id);
+
+      let length = 1;
+
+      while (
+        start &&
+        (index + length) % DAYS_IN_WEEK !== 0 &&
+        isActiveAt(index + length, id)
+      ) {
+        length += 1;
+      }
+
+      bands.set(id, { start, end, length });
     }
 
-    showTitleFor.set(date, shown);
-    prevDate = date;
-    prevEventIds = new Set(dayEvents.map((event) => event.id));
-  }
+    bandsByDate.set(date, bands);
+  });
 
   const hasContent = (date: string) =>
     byDate.has(date) || eventsByDate.has(date);
@@ -79,6 +105,28 @@ export const Calendar = ({
 
   // 필터를 걸면 원래 보던 날짜가 사라질 수 있다
   const openDate = selected && hasContent(selected) ? selected : firstFilled;
+
+  const openSlots = openDate ? (byDate.get(openDate) ?? []) : [];
+  const openEvents = openDate ? (eventsByDate.get(openDate) ?? []) : [];
+
+  const bySession = EVENT_SESSION.codes
+    .map((session) => ({
+      session,
+      slots: openSlots.filter((slot) => sessionBySlotId.get(slot.id) === session),
+    }))
+    .filter(({ slots: sessionSlots }) => sessionSlots.length > 0);
+
+  // 낮공과 밤공이 함께 있는 날만 나눈다. 한쪽뿐이면 나눌 것이 없다
+  const groupOpenDate =
+    bySession.length > 1
+      ? bySession.map(({ session, slots: sessionSlots }) => ({
+          session: session as EventSession | undefined,
+          events: openEvents.filter((event) =>
+            appliesToSession(event.session, session),
+          ),
+          slots: sessionSlots,
+        }))
+      : [{ session: undefined, events: openEvents, slots: openSlots }];
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,17 +163,30 @@ export const Calendar = ({
                 {Number(date.slice(8))}
               </span>
               <div className="flex flex-col">
-                {dayEvents.map((event) => (
-                  <span
-                    key={event.id}
-                    className={cn(
-                      "truncate px-1 py-px text-[8px] font-bold leading-tight",
-                      eventColors.get(event.id),
-                    )}
-                  >
-                    {showTitleFor.get(date)?.has(event.id) ? event.title : " "}
-                  </span>
-                ))}
+                {dayEvents.map((event) => {
+                  const band = bandsByDate.get(date)?.get(event.id);
+
+                  return (
+                    <span
+                      key={event.id}
+                      className={cn(
+                        "relative h-3 bg-point/50",
+                        band?.start && "ml-px rounded-l-sm",
+                        band?.end && "mr-px rounded-r-sm",
+                      )}
+                    >
+                      {band?.start && (
+                        <span
+                          className="absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] font-bold leading-3 text-text"
+                          style={{ width: `${band.length * 100}%` }}
+                        >
+                          {sessionPrefix(event)}
+                          {event.title}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
 
                 {daySlots.map((slot) => (
                   <span
@@ -146,33 +207,45 @@ export const Calendar = ({
       </div>
 
       {openDate && (
-        <div className="flex flex-col gap-3 border-t border-border pt-4">
-          {(eventsByDate.get(openDate) ?? []).length > 0 && (
-            <ul className="flex flex-col gap-2">
-              {(eventsByDate.get(openDate) ?? []).map((event) => (
-                <li key={event.id} className="rounded bg-point/10 p-2">
-                  <p className="text-sm font-bold text-text">{event.title}</p>
-                  {event.description && (
-                    <p className="mt-1 text-xs text-text-muted">
-                      {event.description}
-                    </p>
-                  )}
-                  <p className="mt-1 text-[10px] text-text-muted">
-                    {event.edited
-                      ? "제보자가 확인하고 고친 일정이에요"
-                      : "제보 이미지에서 AI가 읽은 일정이에요"}
-                  </p>
-                  <EventUrlField eventId={event.id} url={event.url} />
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="flex flex-col gap-4 border-t border-border pt-4">
+          {groupOpenDate.map(({ session, events: sessionEvents, slots: sessionSlots }) => (
+            <div key={session ?? "all"} className="flex flex-col gap-2">
+              {session && (
+                <p className="text-xs font-bold text-text-muted">
+                  {EVENT_SESSION.nameByCode[session]}
+                </p>
+              )}
 
-          <ul className="flex flex-col gap-2">
-            {(byDate.get(openDate) ?? []).map((slot) => (
-              <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
-            ))}
-          </ul>
+              {sessionEvents.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {sessionEvents.map((event) => (
+                    <li key={event.id} className="rounded bg-point/10 p-2">
+                      <p className="text-sm font-bold text-text">
+                        {event.title}
+                      </p>
+                      {event.description && (
+                        <p className="mt-1 text-xs text-text-muted">
+                          {event.description}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[10px] text-text-muted">
+                        {event.edited
+                          ? "제보자가 확인하고 고친 일정이에요"
+                          : "제보 이미지에서 AI가 읽은 일정이에요"}
+                      </p>
+                      <EventUrlField eventId={event.id} url={event.url} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <ul className="flex flex-col gap-2">
+                {sessionSlots.map((slot) => (
+                  <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
     </div>

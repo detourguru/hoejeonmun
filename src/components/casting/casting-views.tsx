@@ -6,6 +6,7 @@ import { ActorFilter } from "@/components/casting/actor-filter";
 import { Calendar } from "@/components/casting/calendar";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
+import { appliesToSession, getSessionBySlotId } from "@/lib/event-session";
 import { cn } from "@/lib/utils";
 import type { ShowEvent } from "@/service/casting";
 import {
@@ -14,6 +15,7 @@ import {
   CASTING_VIEW,
   CalendarSlot,
   CastingView,
+  EVENT_SESSION,
 } from "@/type/casting";
 
 // 조회해오지 않은 달로 넘어갔을때 DB에서 조회가 필요하므로 별도로 분리
@@ -107,6 +109,17 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
+  // 배우 필터를 걸면 그날 마지막 회차가 달라져 낮/밤 판정이 뒤집힌다. 필터 전 전체로 판정한다
+  const sessionBySlotId = getSessionBySlotId(slots);
+
+  const eventsForSlot = (slot: CalendarSlot) =>
+    events.filter(
+      (event) =>
+        event.periodStart <= slot.date &&
+        slot.date <= event.periodEnd &&
+        appliesToSession(event.session, sessionBySlotId.get(slot.id)),
+    );
+
   // and 조건 조회
   const visible = slots.filter((slot) =>
     actors.every((name) => slot.filterKeys?.includes(name)),
@@ -151,6 +164,8 @@ export const CastingViews = ({
           cells={cells}
           slots={visible}
           events={events}
+
+          sessionBySlotId={sessionBySlotId}
           panels={panels}
           initialDate={initialDate}
         />
@@ -160,9 +175,30 @@ export const CastingViews = ({
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {visible.map((slot) => (
-            <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
-          ))}
+          {visible.map((slot) => {
+            const slotEvents = eventsForSlot(slot);
+
+            return (
+              <Fragment key={slot.id}>
+                {slotEvents.length > 0 && (
+                  <li className="flex flex-wrap gap-1">
+                    {slotEvents.map((event) => (
+                      <span
+                        key={event.id}
+                        className="rounded-sm bg-point/50 px-1.5 py-0.5 text-[10px] font-bold text-text"
+                      >
+                        {event.session
+                          ? `[${EVENT_SESSION.nameByCode[event.session]}] `
+                          : ""}
+                        {event.title}
+                      </span>
+                    ))}
+                  </li>
+                )}
+                {listItems[slot.id]}
+              </Fragment>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { EventSession } from "@/type/casting";
 import { createClient } from "@/lib/supabase/server";
 
 export type CastingRole = {
@@ -110,6 +111,7 @@ export type ShowEvent = {
   periodStart: string;
   periodEnd: string;
   slotId: number | null;
+  session: EventSession | null;
   edited: boolean;
 };
 
@@ -121,6 +123,7 @@ type EventRow = {
   period_start: string;
   period_end: string;
   slot_id: number | null;
+  session: EventSession | null;
   edited: boolean;
 };
 
@@ -133,9 +136,9 @@ export async function getShowEvents(
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("visible_events")
+    .from("current_events")
     .select(
-      "id, title, description, url, period_start, period_end, slot_id, edited",
+      "id, title, description, url, period_start, period_end, slot_id, session, edited",
     )
     .eq("show_id", showId)
     .lte("period_start", end)
@@ -152,6 +155,7 @@ export async function getShowEvents(
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
+    session: row.session,
     edited: row.edited,
   }));
 }
@@ -203,9 +207,9 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("visible_events")
+    .from("current_events")
     .select(
-      "id, show_id, title, description, url, period_start, period_end, slot_id, edited, created_at",
+      "id, show_id, title, description, url, period_start, period_end, slot_id, session, edited, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -221,6 +225,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
+    session: row.session,
     edited: row.edited,
     createdAt: row.created_at,
   }));
