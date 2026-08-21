@@ -6,6 +6,38 @@ const parser = new XMLParser({ parseTagValue: false });
 // Kopis 조회 시 100건이 최대치
 export const KOPIS_MAX_ROWS = 100;
 
+const KOPIS_MAX_CONCURRENCY = 4;
+
+let inFlight = 0;
+const pending: (() => void)[] = [];
+
+function acquireSlot(): Promise<void> {
+  if (inFlight < KOPIS_MAX_CONCURRENCY) {
+    inFlight++;
+
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => pending.push(resolve));
+}
+
+function releaseSlot() {
+  const next = pending.shift();
+
+  if (next) next();
+  else inFlight--;
+}
+
+async function withSlot<T>(task: () => Promise<T>): Promise<T> {
+  await acquireSlot();
+
+  try {
+    return await task();
+  } finally {
+    releaseSlot();
+  }
+}
+
 export type KopisCacheOptions = {
   revalidate?: number | false; // 초 단위 / false 면 캐시하지 않는다
   tags?: string[];
@@ -32,20 +64,25 @@ export async function fetchKopis<T>(
     );
   }
 
-  const response = await fetch(
-    `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
-    revalidate === false
-      ? { cache: "no-store" }
-      : { next: { revalidate, tags } },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch data from KOPIS API: ${response.statusText}`,
+  const body = await withSlot(async () => {
+    const response = await fetch(
+      `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
+      revalidate === false
+        ? { cache: "no-store" }
+        : { next: { revalidate, tags } },
     );
-  }
 
-  const body = await response.text();
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch data from KOPIS API: ${response.statusText}`,
+      );
+    }
+
+    return text;
+  });
+
   const parsed = parser.parse(body);
 
   // dbs가 없으면 200 응답이어도 에러응답임 (쿼터 초과, 키 만료 등)
