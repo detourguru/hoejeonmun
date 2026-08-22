@@ -8,6 +8,7 @@ export type CastingRole = {
 
 export type CastingSlot = {
   id: number;
+  uploadId: number;
   // YYYY-MM-DD
   date: string;
   // HH:mm
@@ -17,12 +18,19 @@ export type CastingSlot = {
 
 type SlotCastingRow = {
   slot_id: number;
+  upload_id: number;
   date: string;
   time: string;
   role_name_raw: string;
   actor_name_raw: string;
   actor_id: number | null;
   assignment_id: number;
+};
+
+type UploadImageRow = {
+  upload_id: number;
+  url: string;
+  position: number;
 };
 
 // 원본 표의 앞 두 열을 주연 페어로 본다
@@ -42,6 +50,7 @@ function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
       id: row.slot_id,
       date: row.date,
       time: row.time.slice(0, 5),
+      uploadId: row.upload_id,
       casting: [],
     };
 
@@ -68,7 +77,7 @@ export async function getShowCastings(
   const { data, error } = await supabase
     .from("slot_castings")
     .select(
-      "slot_id, date, time, role_name_raw, actor_name_raw, actor_id, assignment_id",
+      "slot_id, date, upload_id, time, role_name_raw, actor_name_raw, actor_id, assignment_id",
     )
     .eq("show_id", showId)
     .gte("date", start)
@@ -227,4 +236,34 @@ export function groupByDate<T extends { date: string }>(items: T[]) {
   }
 
   return grouped;
+}
+
+export async function getUploadImages(
+  uploadId: number | null,
+): Promise<string[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("upload_images")
+    .select("url")
+    .eq("upload_id", uploadId)
+    .order("position");
+
+  if (error) throw error;
+
+  const rows = data as Pick<UploadImageRow, "url">[];
+  return rows.flatMap((row) => row.url);
+}
+
+export async function isReported(uploadId: number, slotId: number | null) {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("vandal_reports")
+    .select("slot_id")
+    .eq("slot_id", slotId)
+    .eq("upload_id", uploadId)
+    .maybeSingle();
+
+  return Boolean(data);
 }
