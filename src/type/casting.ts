@@ -23,6 +23,7 @@ export type FeedTab = CodeOf<typeof FEED_TAB>;
 export const DEFAULT_FEED_TAB: FeedTab = "casting";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_IMAGE_COUNT = 5;
 
 // 배우 필터 규칙
 export const ACTORS_PARAM = "actors";

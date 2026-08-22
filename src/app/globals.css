@@ -48,14 +48,14 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* 커스텀 컬러토큰 */
-  --color-primary: #23285e;
-  --color-point: #ffd76a;
-  --color-sub: #f4f5fa;
-  --color-bg: #ffffff;
-  --color-surface: #ffffff;
-  --color-text: #14152b;
-  --color-text-muted: #686b82;
-  --color-border: #e3e4ef;
+  --color-primary: var(--brand-primary);
+  --color-point: var(--brand-point);
+  --color-sub: var(--brand-sub);
+  --color-bg: var(--brand-bg);
+  --color-surface: var(--brand-surface);
+  --color-text: var(--brand-text);
+  --color-text-muted: var(--brand-text-muted);
+  --color-border: var(--brand-border);
 }
 
 :root {
@@ -93,14 +93,14 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   /* 커스텀 컬러토큰 */
-  --color-primary: #23285e;
-  --color-point: #ffd76a;
-  --color-sub: #f4f5fa;
-  --color-bg: #ffffff;
-  --color-surface: #ffffff;
-  --color-text: #14152b;
-  --color-text-muted: #686b82;
-  --color-border: #e3e4ef;
+  --brand-primary: #23285e;
+  --brand-point: #ffd76a;
+  --brand-sub: #f4f5fa;
+  --brand-bg: #ffffff;
+  --brand-surface: #ffffff;
+  --brand-text: #14152b;
+  --brand-text-muted: #686b82;
+  --brand-border: #e3e4ef;
 }
 
 .dark {
@@ -137,14 +137,14 @@
   --sidebar-ring: oklch(0.556 0 0);
 
   /* 커스텀 컬러토큰 */
-  --color-primary: #4d5bd9;
-  --color-point: #ffd76a;
-  --color-sub: #1a1c3c;
-  --color-bg: #101126;
-  --color-surface: #191b3a;
-  --color-text: #f5f5fa;
-  --color-text-muted: #9698ad;
-  --color-border: #2a2c4d;
+  --brand-primary: #4d5bd9;
+  --brand-point: #ffd76a;
+  --brand-sub: #1a1c3c;
+  --brand-bg: #101126;
+  --brand-surface: #191b3a;
+  --brand-text: #f5f5fa;
+  --brand-text-muted: #9698ad;
+  --brand-border: #2a2c4d;
 }
 
 @layer base {
