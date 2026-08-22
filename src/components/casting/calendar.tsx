@@ -1,18 +1,25 @@
 "use client";
 
-import { Fragment, ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 
 import { WEEKDAYS } from "@/lib/date";
-import { getEventColorMap } from "@/lib/event-color";
 import { cn } from "@/lib/utils";
 import type { ShowEvent } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
+
+type Band = {
+  start: boolean;
+  end: boolean;
+  length: number;
+  isFirstAppearance: boolean;
+};
+
+const DAYS_IN_WEEK = 7;
 
 export const Calendar = ({
   cells,
   slots,
   events = [],
-  panels,
   initialDate,
 }: {
   // null이면 1일 앞의 빈칸
@@ -46,26 +53,46 @@ export const Calendar = ({
     if (active.length > 0) eventsByDate.set(date, active);
   }
 
-  const eventColors = getEventColorMap(events.map((event) => event.id));
+  const isActiveAt = (index: number, eventId: number) => {
+    const date = cells[index];
 
-  const showTitleFor = new Map<string, Set<number>>();
-  let prevDate: string | null = null;
-  let prevEventIds = new Set<number>();
+    return (
+      !!date && (eventsByDate.get(date) ?? []).some(({ id }) => id === eventId)
+    );
+  };
 
-  for (const date of cells) {
-    if (!date) continue;
+  const bandsByDate = new Map<string, Map<number, Band>>();
+  const shownEventIds = new Set<number>();
 
-    const dayEvents = eventsByDate.get(date) ?? [];
-    const shown = new Set<number>();
+  cells.forEach((date, index) => {
+    if (!date) return;
 
-    for (const event of dayEvents) {
-      if (!(prevDate && prevEventIds.has(event.id))) shown.add(event.id);
+    const bands = new Map<number, Band>();
+
+    for (const { id } of eventsByDate.get(date) ?? []) {
+      const start = index % DAYS_IN_WEEK === 0 || !isActiveAt(index - 1, id);
+      const end =
+        index % DAYS_IN_WEEK === DAYS_IN_WEEK - 1 || !isActiveAt(index + 1, id);
+
+      let length = 1;
+
+      while (
+        start &&
+        (index + length) % DAYS_IN_WEEK !== 0 &&
+        isActiveAt(index + length, id)
+      ) {
+        length += 1;
+      }
+
+      const isFirstAppearance = start && !shownEventIds.has(id);
+
+      if (start) shownEventIds.add(id);
+
+      bands.set(id, { start, end, length, isFirstAppearance });
     }
 
-    showTitleFor.set(date, shown);
-    prevDate = date;
-    prevEventIds = new Set(dayEvents.map((event) => event.id));
-  }
+    bandsByDate.set(date, bands);
+  });
 
   const hasContent = (date: string) =>
     byDate.has(date) || eventsByDate.has(date);
@@ -114,17 +141,29 @@ export const Calendar = ({
                 {Number(date.slice(8))}
               </span>
               <div className="flex flex-col">
-                {dayEvents.map((event) => (
-                  <span
-                    key={event.id}
-                    className={cn(
-                      "truncate px-1 py-px text-[8px] font-bold leading-tight",
-                      eventColors.get(event.id),
-                    )}
-                  >
-                    {showTitleFor.get(date)?.has(event.id) ? event.title : " "}
-                  </span>
-                ))}
+                {dayEvents.map((event) => {
+                  const band = bandsByDate.get(date)?.get(event.id);
+
+                  return (
+                    <span
+                      key={event.id}
+                      className={cn(
+                        "relative h-3 bg-point/50 border-b border-white",
+                        band?.start && "ml-px rounded-l-sm",
+                        band?.end && "mr-px rounded-r-sm",
+                      )}
+                    >
+                      {band?.start && (
+                        <span
+                          className="absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] font-bold leading-3 text-text"
+                          style={{ width: `${band.length * 100}%` }}
+                        >
+                          {band.isFirstAppearance ? event.title : " "}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
 
                 {daySlots.map((slot) => (
                   <span
@@ -143,36 +182,6 @@ export const Calendar = ({
           );
         })}
       </div>
-
-      {openDate && (
-        <div className="flex flex-col gap-3 border-t border-border pt-4">
-          {(eventsByDate.get(openDate) ?? []).length > 0 && (
-            <ul className="flex flex-col gap-2">
-              {(eventsByDate.get(openDate) ?? []).map((event) => (
-                <li key={event.id} className="rounded bg-point/10 p-2">
-                  <p className="text-sm font-bold text-text">{event.title}</p>
-                  {event.description && (
-                    <p className="mt-1 text-xs text-text-muted">
-                      {event.description}
-                    </p>
-                  )}
-                  <p className="mt-1 text-[10px] text-text-muted">
-                    {event.edited
-                      ? "제보자가 확인하고 고친 일정이에요"
-                      : "제보 이미지에서 AI가 읽은 일정이에요"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <ul className="flex flex-col gap-2">
-            {(byDate.get(openDate) ?? []).map((slot) => (
-              <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 };
