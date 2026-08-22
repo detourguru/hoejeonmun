@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const supabaseHostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname;
+
 const nextConfig: NextConfig = {
   images: {
     // KOPIS 가 www 없이 주거나 https 로 주는 경우가 있음
@@ -23,6 +25,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "kopis.or.kr",
         pathname: "/upload/**",
+      },
+      {
+        protocol: "https",
+        hostname: supabaseHostname,
+        pathname: "/storage/v1/object/public/casting-boards/**",
       },
     ],
   },

@@ -22,6 +22,7 @@ import {
   getShowEvents,
   getShowFilterData,
   getSlotPairKey,
+  getUploadImage,
   isEventReported,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
@@ -102,6 +103,7 @@ export default async function Page({ params, searchParams }: Props) {
     events.map(async (event) => ({
       ...event,
       reported: await isEventReported(event.id),
+      imageUrl: await getUploadImage(event.uploadImageId),
     })),
   );
 

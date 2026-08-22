@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+import { OriginalImages } from "@/components/casting/original-images";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
-import { CastingSlot, isReported } from "@/service/casting";
+import { CastingSlot, getUploadImages, isReported } from "@/service/casting";
 
 // 매칭 안 된 이름은 링크 없이 그대로 보여준다
 const ActorName = ({ actor, actorId }: { actor: string; actorId: number | null }) =>
@@ -26,7 +27,10 @@ export const SlotCard = async ({
   showId: string;
   showDate?: boolean;
 }) => {
-  const reported = await isReported(slot.uploadId, slot.id);
+  const [reported, images] = await Promise.all([
+    isReported(slot.uploadId, slot.id),
+    getUploadImages(slot.uploadId),
+  ]);
 
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
@@ -62,6 +66,8 @@ export const SlotCard = async ({
           </div>
         ))}
       </dl>
+
+      <OriginalImages images={images} />
     </li>
   );
 };

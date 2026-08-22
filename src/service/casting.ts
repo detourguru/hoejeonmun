@@ -117,6 +117,7 @@ export type ShowEvent = {
   periodStart: string;
   periodEnd: string;
   slotId: number | null;
+  uploadImageId: number;
   edited: boolean;
 };
 
@@ -127,6 +128,7 @@ type EventRow = {
   period_start: string;
   period_end: string;
   slot_id: number | null;
+  upload_image_id: number;
   edited: boolean;
 };
 
@@ -140,7 +142,9 @@ export async function getShowEvents(
 
   const { data, error } = await supabase
     .from("visible_events")
-    .select("id, title, description, period_start, period_end, slot_id, edited")
+    .select(
+      "id, title, description, period_start, period_end, slot_id, upload_image_id, edited",
+    )
     .eq("show_id", showId)
     .lte("period_start", end)
     .gte("period_end", start)
@@ -155,11 +159,15 @@ export async function getShowEvents(
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
+    uploadImageId: row.upload_image_id,
     edited: row.edited,
   }));
 }
 
-export type EventWithReportStatus = ShowEvent & { reported: boolean };
+export type EventWithReportStatus = ShowEvent & {
+  reported: boolean;
+  imageUrl: string | null;
+};
 
 export type RecentUploadedShow = {
   showId: string;
@@ -210,7 +218,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
   const { data, error } = await supabase
     .from("visible_events")
     .select(
-      "id, show_id, title, description, period_start, period_end, slot_id, edited, created_at",
+      "id, show_id, title, description, period_start, period_end, slot_id, upload_image_id, edited, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -225,6 +233,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
+    uploadImageId: row.upload_image_id,
     edited: row.edited,
     createdAt: row.created_at,
   }));
@@ -267,6 +276,22 @@ export async function getUploadImages(
 
   const rows = data as Pick<UploadImageRow, "url">[];
   return rows.flatMap((row) => row.url);
+}
+
+export async function getUploadImage(
+  uploadImageId: number,
+): Promise<string | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("upload_images")
+    .select("url")
+    .eq("id", uploadImageId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return (data as Pick<UploadImageRow, "url"> | null)?.url ?? null;
 }
 
 export async function isReported(uploadId: number, slotId: number | null) {
