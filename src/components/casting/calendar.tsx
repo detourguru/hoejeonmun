@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { Fragment, ReactNode, useState } from "react";
 
 import { WEEKDAYS } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ export const Calendar = ({
   cells,
   slots,
   events = [],
+  panels,
   initialDate,
 }: {
   // null이면 1일 앞의 빈칸
@@ -182,6 +183,36 @@ export const Calendar = ({
           );
         })}
       </div>
+
+      {openDate && (
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
+          {(eventsByDate.get(openDate) ?? []).length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {(eventsByDate.get(openDate) ?? []).map((event) => (
+                <li key={event.id} className="rounded bg-point/10 p-2">
+                  <p className="text-sm font-bold text-text">{event.title}</p>
+                  {event.description && (
+                    <p className="mt-1 text-xs text-text-muted">
+                      {event.description}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[10px] text-text-muted">
+                    {event.edited
+                      ? "제보자가 확인하고 고친 일정이에요"
+                      : "제보 이미지에서 AI가 읽은 일정이에요"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <ul className="flex flex-col gap-2">
+            {(byDate.get(openDate) ?? []).map((slot) => (
+              <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
