@@ -22,6 +22,7 @@ import {
   getShowEvents,
   getShowFilterData,
   getSlotPairKey,
+  isEventReported,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
 import { createClient } from "@/lib/supabase/server";
@@ -97,6 +98,13 @@ export default async function Page({ params, searchParams }: Props) {
 
   const initialActors = parseActorsParam(rawActors, actors);
 
+  const eventsWithReportStatus = await Promise.all(
+    events.map(async (event) => ({
+      ...event,
+      reported: await isEventReported(event.id),
+    })),
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <BackButton />
@@ -131,11 +139,12 @@ export default async function Page({ params, searchParams }: Props) {
         </>
       ) : (
         <CastingViews
+          showId={id}
           month={month}
           initialView={view}
           initialDate={initialDate}
           cells={cells}
-          events={events}
+          events={eventsWithReportStatus}
           slots={slots.map((slot) => ({
             id: slot.id,
             date: slot.date,
@@ -145,12 +154,15 @@ export default async function Page({ params, searchParams }: Props) {
             filterKeys: slot.casting.map(({ actor }) => actor),
           }))}
           panels={Object.fromEntries(
-            slots.map((slot) => [slot.id, <SlotCard key={slot.id} slot={slot} />]),
+            slots.map((slot) => [
+              slot.id,
+              <SlotCard key={slot.id} slot={slot} showId={id} />,
+            ]),
           )}
           listItems={Object.fromEntries(
             slots.map((slot) => [
               slot.id,
-              <SlotCard key={slot.id} slot={slot} showDate />,
+              <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
             ]),
           )}
           filterOptions={actors}
@@ -159,10 +171,7 @@ export default async function Page({ params, searchParams }: Props) {
       )}
 
       <div className="border-t border-border pt-4">
-        <CastingUploadButton
-          showId={id}
-          isLoggedIn={Boolean(auth.data?.claims)}
-        />
+        <CastingUploadButton showId={id} isLoggedIn={Boolean(auth.data?.claims)} />
       </div>
     </div>
   );

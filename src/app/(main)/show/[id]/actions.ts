@@ -4,19 +4,18 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 
-export type VandalReportType = "wrong_info" | "other";
+export type SlotReportType = "wrong_date" | "wrong_cast" | "wrong_show" | "other";
+export type EventReportType = "wrong_event" | "other";
 
-export type ReportSlotResult =
-  | { ok: true }
-  | { ok: false; message: string };
+export type ReportResult = { ok: true } | { ok: false; message: string };
 
 export async function reportSlot(
   showId: string,
   uploadId: number,
   slotId: number,
-  type: VandalReportType,
+  type: SlotReportType,
   context?: string,
-): Promise<ReportSlotResult> {
+): Promise<ReportResult> {
   if (type === "other" && !context?.trim()) {
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
@@ -56,7 +55,7 @@ export async function cancelReport(
   showId: string,
   uploadId: number,
   slotId: number,
-): Promise<ReportSlotResult> {
+): Promise<ReportResult> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
 
@@ -70,6 +69,74 @@ export async function cancelReport(
     .eq("user_id", userId)
     .eq("upload_id", uploadId)
     .eq("slot_id", slotId);
+
+  if (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/show/${showId}`);
+
+  return { ok: true };
+}
+
+export async function reportEvent(
+  showId: string,
+  eventId: number,
+  type: EventReportType,
+  context?: string,
+): Promise<ReportResult> {
+  if (type === "other" && !context?.trim()) {
+    return { ok: false, message: "신고 사유를 입력해 주세요." };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const { error } = await supabase.from("event_reports").insert({
+    user_id: userId,
+    event_id: eventId,
+    type,
+    context: context?.trim() || null,
+  });
+
+  if (error) {
+    // unique(user_id, event_id) 위반
+    if (error.code === "23505") {
+      return { ok: false, message: "이미 신고한 이벤트예요." };
+    }
+
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/show/${showId}`);
+
+  return { ok: true };
+}
+
+export async function cancelEventReport(
+  showId: string,
+  eventId: number,
+): Promise<ReportResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const { error } = await supabase
+    .from("event_reports")
+    .delete()
+    .eq("user_id", userId)
+    .eq("event_id", eventId);
 
   if (error) {
     console.error(error);

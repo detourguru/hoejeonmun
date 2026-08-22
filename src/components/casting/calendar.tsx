@@ -2,9 +2,10 @@
 
 import { Fragment, ReactNode, useState } from "react";
 
+import { ReportButton } from "@/components/report-button";
 import { WEEKDAYS } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import type { ShowEvent } from "@/service/casting";
+import type { EventWithReportStatus } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
 
 type Band = {
@@ -16,16 +17,18 @@ type Band = {
 const DAYS_IN_WEEK = 7;
 
 export const Calendar = ({
+  showId,
   cells,
   slots,
   events = [],
   panels,
   initialDate,
 }: {
+  showId?: string;
   // null이면 1일 앞의 빈칸
   cells: (string | null)[];
   slots: CalendarSlot[];
-  events?: ShowEvent[];
+  events?: EventWithReportStatus[];
   // 날짜를 폈을 때 보여줄 회차 카드
   panels: Record<number, ReactNode>;
   // 진입 시 보여줄 날짜
@@ -40,7 +43,7 @@ export const Calendar = ({
   // 회차가 하나도 없는 건 공연이 없는 게 아니라 제보가 아직 없는 것이다
   const knowsSchedule = slots.length > 0;
 
-  const eventsByDate = new Map<string, ShowEvent[]>();
+  const eventsByDate = new Map<string, EventWithReportStatus[]>();
 
   for (const date of cells) {
     if (!date) continue;
@@ -187,7 +190,20 @@ export const Calendar = ({
             <ul className="flex flex-col gap-2">
               {(eventsByDate.get(openDate) ?? []).map((event) => (
                 <li key={event.id} className="rounded bg-point/10 p-2">
-                  <p className="text-sm font-bold text-text">{event.title}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-bold text-text">
+                      {event.title}
+                    </p>
+
+                    {showId && (
+                      <ReportButton
+                        target={{ kind: "event", showId, eventId: event.id }}
+                        reported={event.reported}
+                        label={event.title}
+                      />
+                    )}
+                  </div>
+
                   {event.description && (
                     <p className="mt-1 text-xs text-text-muted">
                       {event.description}

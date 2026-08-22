@@ -7,7 +7,7 @@ import { Calendar } from "@/components/casting/calendar";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import type { ShowEvent } from "@/service/casting";
+import type { EventWithReportStatus } from "@/service/casting";
 import {
   ACTORS_PARAM,
   ACTORS_SEPARATOR,
@@ -54,6 +54,7 @@ export const MonthNav = ({ month }: { month: string }) => {
 };
 
 export const CastingViews = ({
+  showId,
   month,
   initialView,
   initialDate,
@@ -65,13 +66,14 @@ export const CastingViews = ({
   filterOptions = [],
   initialActors = [],
 }: {
+  showId?: string;
   month: string;
   initialView: CastingView;
   // 특정 날짜(YYYY-MM-DD)를 펴서 보여주고 싶을 때 (예: 이벤트 피드에서 진입)
   initialDate?: string;
   cells: (string | null)[];
   slots: CalendarSlot[];
-  events?: ShowEvent[];
+  events?: EventWithReportStatus[];
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
   filterOptions?: string[];
@@ -148,6 +150,7 @@ export const CastingViews = ({
         </p>
       ) : view === "calendar" ? (
         <Calendar
+          showId={showId}
           cells={cells}
           slots={visible}
           events={events}

@@ -159,6 +159,8 @@ export async function getShowEvents(
   }));
 }
 
+export type EventWithReportStatus = ShowEvent & { reported: boolean };
+
 export type RecentUploadedShow = {
   showId: string;
   uploadedAt: string;
@@ -236,6 +238,18 @@ export function groupByDate<T extends { date: string }>(items: T[]) {
   }
 
   return grouped;
+}
+
+export async function isEventReported(eventId: number) {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("event_reports")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  return Boolean(data);
 }
 
 export async function getUploadImages(
