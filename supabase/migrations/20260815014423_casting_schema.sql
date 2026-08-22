@@ -83,8 +83,6 @@ create table events (
     )
   ) stored,
   description text,
-  -- 이벤트를 확인할 수 있는 외부 링크 (선택)
-  url text check (url is null or url ~ '^https?://'),
   period_start date not null,
   period_end date not null,
   -- badge: 캐스팅표 여백 라벨에서 파생 / notice: 이벤트 안내 이미지에서 읽음
@@ -217,7 +215,6 @@ select
   e.title,
   e.title_key,
   e.description,
-  e.url,
   e.period_start,
   e.period_end,
   e.source,
@@ -249,20 +246,11 @@ create policy "slots are public" on slots for select using (true);
 create policy "assignments are public" on assignments for select using (true);
 create policy "events are public" on events for select using (true);
 
-create policy "authenticated users can set event url" on events
-  for update
-  to authenticated
-  using (true)
-  with check (true);
-
-revoke update on events from authenticated;
-grant update (url) on events to authenticated;
-
 -- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 visible_events.edited만 나간다
 revoke select on events from anon, authenticated;
 grant select (
   id, show_id, upload_id, upload_image_id, slot_id, title, title_key,
-  description, url, period_start, period_end, source, created_at
+  description, period_start, period_end, source, created_at
 ) on events to anon, authenticated;
 
 create policy "read own favorites" on favorites
