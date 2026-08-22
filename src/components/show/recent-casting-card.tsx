@@ -16,19 +16,19 @@ export const RecentCastingCard = ({
   return (
     <Link
       href={`/show/${show.mt20id}/castings`}
-      className="mb-4 flex gap-3 overflow-hidden rounded border p-4 transition-colors hover:bg-point/20"
+      className="group flex gap-3 rounded-xl border border-border bg-surface p-3 transition-all hover:border-primary/40 hover:shadow-md"
     >
-      {show.poster ? (
-        <Image
-          width="100"
-          height="150"
-          className="rounded object-cover w-24 h-32"
-          src={show.poster}
-          alt={show.prfnm}
-        />
-      ) : (
-        <div className="w-24 h-32 shrink-0 rounded bg-point/40" />
-      )}
+      <div className="w-24 h-32 shrink-0 overflow-hidden rounded-lg bg-point/40">
+        {show.poster && (
+          <Image
+            width="100"
+            height="150"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            src={show.poster}
+            alt={show.prfnm}
+          />
+        )}
+      </div>
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex gap-1 min-w-0">
           <Badge variant="outline">{show.genrenm}</Badge>
