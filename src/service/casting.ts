@@ -104,8 +104,6 @@ export type ShowEvent = {
   id: number;
   title: string;
   description: string | null;
-  // 이벤트를 확인할 수 있는 외부 링크 (선택)
-  url: string | null;
   // YYYY-MM-DD
   periodStart: string;
   periodEnd: string;
@@ -117,7 +115,6 @@ type EventRow = {
   id: number;
   title: string;
   description: string | null;
-  url: string | null;
   period_start: string;
   period_end: string;
   slot_id: number | null;
@@ -134,9 +131,7 @@ export async function getShowEvents(
 
   const { data, error } = await supabase
     .from("visible_events")
-    .select(
-      "id, title, description, url, period_start, period_end, slot_id, edited",
-    )
+    .select("id, title, description, period_start, period_end, slot_id, edited")
     .eq("show_id", showId)
     .lte("period_start", end)
     .gte("period_end", start)
@@ -148,7 +143,6 @@ export async function getShowEvents(
     id: row.id,
     title: row.title,
     description: row.description,
-    url: row.url,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
@@ -205,7 +199,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
   const { data, error } = await supabase
     .from("visible_events")
     .select(
-      "id, show_id, title, description, url, period_start, period_end, slot_id, edited, created_at",
+      "id, show_id, title, description, period_start, period_end, slot_id, edited, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -217,7 +211,6 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     showId: row.show_id,
     title: row.title,
     description: row.description,
-    url: row.url,
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotId: row.slot_id,
