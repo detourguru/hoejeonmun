@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { BackButton } from "@/components/back-button";
 import { ShowDetail } from "@/components/show/show-detail";
+import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { getShow } from "@/service/show";
 
 type Props = { params: Promise<{ id: string }> };
@@ -27,14 +28,8 @@ export default async function Page({ params }: Props) {
     <div className="flex flex-col gap-4">
       <BackButton />
 
-      {/* TODO: 로딩, 예외처리 추가 필요 */}
-      <Suspense
-        fallback={
-          <p className="py-16 text-center text-sm text-text-muted">
-            불러오는 중...
-          </p>
-        }
-      >
+      {/* TODO: 예외처리 추가 필요 */}
+      <Suspense fallback={<LoadingGhost />}>
         <ShowDetail id={id} />
       </Suspense>
     </div>

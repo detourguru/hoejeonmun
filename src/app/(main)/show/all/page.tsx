@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { FilterBar } from "@/components/show/filter-bar";
 import { ShowList } from "@/components/show/show-list";
+import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { parseShowFilters } from "@/service/show";
 
 export default async function Page({
@@ -15,14 +16,8 @@ export default async function Page({
     <div className="flex flex-col">
       <FilterBar />
 
-      {/* TODO: 로딩, 예외처리 추가 필요 */}
-      <Suspense
-        fallback={
-          <p className="py-16 text-center text-sm text-text-muted">
-            불러오는 중...
-          </p>
-        }
-      >
+      {/* TODO: 예외처리 추가 필요 */}
+      <Suspense fallback={<LoadingGhost />}>
         <ShowList filters={filters} />
       </Suspense>
     </div>
