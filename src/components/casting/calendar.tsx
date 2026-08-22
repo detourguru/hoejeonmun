@@ -11,7 +11,6 @@ type Band = {
   start: boolean;
   end: boolean;
   length: number;
-  isFirstAppearance: boolean;
 };
 
 const DAYS_IN_WEEK = 7;
@@ -85,11 +84,9 @@ export const Calendar = ({
         length += 1;
       }
 
-      const isFirstAppearance = start && !shownEventIds.has(id);
-
       if (start) shownEventIds.add(id);
 
-      bands.set(id, { start, end, length, isFirstAppearance });
+      bands.set(id, { start, end, length });
     }
 
     bandsByDate.set(date, bands);
@@ -159,7 +156,7 @@ export const Calendar = ({
                           className="absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] font-bold leading-3 text-text"
                           style={{ width: `${band.length * 100}%` }}
                         >
-                          {band.isFirstAppearance ? event.title : " "}
+                          {band.start ? event.title : " "}
                         </span>
                       )}
                     </span>
