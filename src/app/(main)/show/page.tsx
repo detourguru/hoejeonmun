@@ -19,16 +19,11 @@ export default async function Page({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="-mx-4 -mt-4 bg-primary px-4 pt-5 pb-6">
-        <p className="mb-1 font-mono text-[11px] uppercase tracking-widest text-point/70">
+      <div className="flex flex-col gap-0.5">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60">
           Latest Updates
         </p>
-        <h1 className="text-2xl leading-snug font-bold text-white">
-          새로 올라왔어요
-        </h1>
-        <p className="mt-1 text-sm text-white/60">
-          다른 사용자들이 올린 캐스팅보드와 이벤트를 확인해요
-        </p>
+        <h2 className="text-lg font-bold text-text">최근 소식</h2>
       </div>
 
       <div className="flex items-center justify-between gap-2">

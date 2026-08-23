@@ -316,11 +316,21 @@ export function hasKnownCastOverlap(
   // 겹치는 이름이 하나도 없을 때 다른 공연의 캐스트로 판단
   if (known.size === 0) return true;
 
-  const extracted = performances.flatMap(({ casting }) =>
-    Object.values(casting),
-  );
+  const byImage = new Map<number, ParsedPerformance[]>();
 
-  return extracted.some((name) => known.has(normalizeName(name)));
+  for (const performance of performances) {
+    byImage.set(performance.imageIndex, [
+      ...(byImage.get(performance.imageIndex) ?? []),
+      performance,
+    ]);
+  }
+
+  // 하나라도 다른 공연 사진이 섞여있다면 거부
+  return [...byImage.values()].every((group) => {
+    const names = group.flatMap(({ casting }) => Object.values(casting));
+
+    return names.some((name) => known.has(normalizeName(name)));
+  });
 }
 
 async function lookupTitleAliases(showTitleKey: string, printedKeys: string[]) {
@@ -377,17 +387,20 @@ export async function isEventForShow(events: ParsedEvent[], show: ShowDetail) {
 
   if (printed.length === 0) return true;
 
-  if (printed.some(({ key }) => titlesOverlap(showTitleKey, key))) return true;
-
   const decided = await lookupTitleAliases(
     showTitleKey,
     printed.map(({ key }) => key),
   );
 
-  if ([...decided.values()].some(Boolean)) return true;
-
+  // 인쇄된 공연명마다 개별로 판정한다 — 배치 중 하나라도 대상 공연이 아니면 전체를 거부
   for (const { title, key } of printed) {
-    if (decided.has(key)) continue;
+    if (titlesOverlap(showTitleKey, key)) continue;
+
+    if (decided.has(key)) {
+      if (decided.get(key)) continue;
+
+      return false;
+    }
 
     let isSame: boolean;
 
@@ -396,7 +409,7 @@ export async function isEventForShow(events: ParsedEvent[], show: ShowDetail) {
     } catch (error) {
       console.error("공연명 대조 실패", error);
 
-      return true;
+      continue;
     }
 
     await rememberTitleAlias({
@@ -406,10 +419,10 @@ export async function isEventForShow(events: ParsedEvent[], show: ShowDetail) {
       isSame,
     });
 
-    if (isSame) return true;
+    if (!isSame) return false;
   }
 
-  return false;
+  return true;
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -824,7 +837,12 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     images.map(async (image) => {
       const buffer = Buffer.from(await image.arrayBuffer());
       const resized = await sharp(buffer)
-        .resize({ width: 1600, height: 3000, fit: "inside", withoutEnlargement: true })
+        .resize({
+          width: 1600,
+          height: 3000,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
         .jpeg({ quality: 80 })
         .toBuffer();
 

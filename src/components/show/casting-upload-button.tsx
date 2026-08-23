@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader, Save, ScanText, Upload, X } from "lucide-react";
+import { Check, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -12,6 +12,7 @@ import {
   toConfirmedEvents,
   toEventDrafts,
 } from "@/components/show/event-confirm-list";
+import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -111,17 +112,11 @@ const UploadStepBar = ({ status }: { status: Status }) => {
   );
 };
 
-const LOADING_ICON = {
-  uploading: Upload,
-  analyzing: ScanText,
-  saving: Save,
-} as const;
-
-const LOADING_LABEL: Record<keyof typeof LOADING_ICON, string> = {
+const LOADING_LABEL = {
   uploading: "이미지 올리는 중…",
   analyzing: "표 읽는 중…",
   saving: "저장하는 중…",
-};
+} as const;
 
 const ANALYZE_TIMEOUT_SECONDS = 60;
 
@@ -129,28 +124,19 @@ const LoadingPanel = ({
   status,
   secondsLeft,
 }: {
-  status: keyof typeof LOADING_ICON;
+  status: keyof typeof LOADING_LABEL;
   secondsLeft: number;
-}) => {
-  const Icon = LOADING_ICON[status];
+}) => (
+  <div className="flex flex-col items-center gap-1">
+    <LoadingGhost className="py-4" label={LOADING_LABEL[status]} />
 
-  return (
-    <div className="flex flex-col items-center gap-3 py-8 text-center">
-      <div className="relative flex h-14 w-14 items-center justify-center">
-        <Loader className="absolute h-14 w-14 animate-spin text-primary/20" />
-        <Icon className="h-5 w-5 text-primary" />
-      </div>
-
-      <p className="text-sm font-bold text-text">{LOADING_LABEL[status]}</p>
-
-      {status === "analyzing" && (
-        <p className="text-xs text-text-muted">
-          최대 {ANALYZE_TIMEOUT_SECONDS}초 정도 걸려요 / 약 {secondsLeft}초 남음
-        </p>
-      )}
-    </div>
-  );
-};
+    {status === "analyzing" && (
+      <p className="text-xs text-text-muted">
+        최대 {ANALYZE_TIMEOUT_SECONDS}초 정도 걸려요 / 약 {secondsLeft}초 남음
+      </p>
+    )}
+  </div>
+);
 
 type ParsedUpload = {
   storagePaths: string[];
