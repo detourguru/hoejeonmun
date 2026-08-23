@@ -274,6 +274,18 @@ create policy "remove own vandal reports" on vandal_reports
 alter table vandal_reports add constraint vandal_reports_context_required_check
   check (type <> 'other' or context is not null);
 
+create policy "read own event reports" on event_reports
+  for select to authenticated using (user_id = auth.uid());
+
+create policy "add own event reports" on event_reports
+  for insert to authenticated with check (user_id = auth.uid());
+
+create policy "remove own event reports" on event_reports
+  for delete to authenticated using (user_id = auth.uid());
+
+alter table event_reports add constraint event_reports_context_required_check
+  check (type <> 'other' or context is not null);
+
 -- 원본 캡처는 회차 상세의 "원본 보기"로 누구나 봐야 하므로 공개
 --
 -- TODO: 실사용자 업로드가 시작되기 전에 private으로 전환할 것.
