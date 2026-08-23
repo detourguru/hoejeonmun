@@ -31,7 +31,9 @@ export default function MainLayout({
         </Suspense>
       </header>
 
-      <main className="w-full max-w-4xl p-4">{children}</main>
+      <main className="flex w-full max-w-4xl flex-1 flex-col p-4">
+        {children}
+      </main>
 
       <footer className="w-full bg-point p-4 text-text">
         <p>&copy; 2026 회전문 | Hoejeonmun. All rights reserved.</p>

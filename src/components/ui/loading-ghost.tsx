@@ -11,17 +11,17 @@ export const LoadingGhost = ({
 }) => (
   <div
     className={cn(
-      "flex flex-col items-center justify-center gap-2 py-16",
+      "flex flex-col items-center justify-center gap-3 py-16",
       className,
     )}
   >
     <Image
       src="/logo.png"
       alt=""
-      width={48}
-      height={48}
-      className="size-12 animate-spin"
+      width={64}
+      height={64}
+      className="size-16 animate-spin"
     />
-    <p className="text-sm text-text-muted">{label}</p>
+    <p className="text-base font-medium text-text-muted">{label}</p>
   </div>
 );
