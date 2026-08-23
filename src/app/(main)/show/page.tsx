@@ -68,8 +68,6 @@ export default async function Page({ searchParams }: Props) {
       <Suspense key={tab} fallback={<LoadingGhost />}>
         {tab === "casting" ? <CastingFeed /> : <EventFeed />}
       </Suspense>
-
-      <KopisNotice />
     </div>
   );
 }
@@ -137,19 +135,5 @@ const EmptyFeed = () => (
     >
       전체 공연 목록 둘러보기
     </Link>
-  </div>
-);
-
-const KopisNotice = () => (
-  <div className="flex items-start gap-2 rounded-xl border border-border bg-sub/60 p-3">
-    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-      </svg>
-    </div>
-    <p className="text-xs leading-relaxed text-text-muted">
-      캐스팅 및 이벤트 정보는 사용자 제보 기반이에요. 제보 시점 이후 변경 사항은
-      반영되지 않을 수 있어요.
-    </p>
   </div>
 );
