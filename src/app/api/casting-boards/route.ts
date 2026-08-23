@@ -1,12 +1,15 @@
+import { revalidateTag } from "next/cache";
 import * as z from "zod";
 
 import { fail } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
+import { ACTORS_CACHE_TAG } from "@/service/actor";
 import {
   attachOverlappingEvents,
   saveCastingBoard,
   unverifiedPoints,
 } from "@/service/casting-board";
+import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -77,7 +80,8 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePaths, performances, events, skippedCount } = body.data;
+  const { showId, storagePaths, performances, events, skippedCount } =
+    body.data;
 
   if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
@@ -106,6 +110,10 @@ export async function POST(request: Request) {
         ),
       skippedCount,
     });
+
+    revalidateTag(CASTING_FEED_CACHE_TAG, { expire: 0 });
+    revalidateTag(showCastTag(showId), { expire: 0 });
+    revalidateTag(ACTORS_CACHE_TAG, { expire: 0 });
 
     return Response.json(result);
   } catch (error) {

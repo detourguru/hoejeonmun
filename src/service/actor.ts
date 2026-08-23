@@ -1,5 +1,12 @@
+import { unstable_cache } from "next/cache";
+
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getShow } from "@/service/show";
+
+const REVALIDATE = 60 * 5;
+
+export const ACTORS_CACHE_TAG = "actors";
 
 export type Actor = {
   id: number;
@@ -108,17 +115,25 @@ export async function getActorShows(actorId: number) {
 export async function getActorIdsByNames(names: string[]) {
   if (names.length === 0) return new Map<string, number>();
 
-  const supabase = await createClient();
+  const entries = await unstable_cache(
+    async (names: string[]) => {
+      const supabase = createAdminClient();
 
-  // 캐스팅 보드 표기와 KOPIS 제공 이름이 항상 같지 않을 수 있으므로 in 조회
-  const { data, error } = await supabase
-    .from("actors")
-    .select("id, name")
-    .in("name", names);
+      // 캐스팅 보드 표기와 KOPIS 제공 이름이 항상 같지 않을 수 있으므로 in 조회
+      const { data, error } = await supabase
+        .from("actors")
+        .select("id, name")
+        .in("name", names);
 
-  if (error) throw error;
+      if (error) throw error;
 
-  return new Map(data.map(({ id, name }) => [name, id]));
+      return data.map(({ id, name }) => [name, id] as const);
+    },
+    ["actor-ids-by-names"],
+    { tags: [ACTORS_CACHE_TAG], revalidate: REVALIDATE },
+  )(names);
+
+  return new Map(entries);
 }
 
 const SEARCH_LIMIT = 20;

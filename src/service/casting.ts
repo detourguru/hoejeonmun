@@ -1,4 +1,12 @@
+import { unstable_cache } from "next/cache";
+
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+const REVALIDATE = 60 * 5;
+
+export const CASTING_FEED_CACHE_TAG = "casting-feed";
+export const showCastTag = (showId: string) => `show-cast:${showId}`;
 
 export type CastingRole = {
   role: string;
@@ -93,20 +101,26 @@ export async function getShowCastings(
 }
 
 export async function getShowFilterData(showId: string) {
-  const supabase = await createClient();
+  return unstable_cache(
+    async (id: string) => {
+      const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("slot_castings")
-    .select("actor_name_raw")
-    .eq("show_id", showId);
+      const { data, error } = await supabase
+        .from("slot_castings")
+        .select("actor_name_raw")
+        .eq("show_id", id);
 
-  if (error) throw error;
+      if (error) throw error;
 
-  const rows = data as Pick<SlotCastingRow, "actor_name_raw">[];
+      const rows = data as Pick<SlotCastingRow, "actor_name_raw">[];
 
-  return {
-    actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
-  };
+      return {
+        actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
+      };
+    },
+    ["show-filter-data"],
+    { tags: [showCastTag(showId)], revalidate: REVALIDATE },
+  )(showId);
 }
 
 export type ShowEvent = {
@@ -180,20 +194,28 @@ const RECENT_UPLOADS_FETCH_LIMIT = 100;
 export async function getRecentUploadedShows(
   limit: number,
 ): Promise<RecentUploadedShow[]> {
-  const supabase = await createClient();
+  const data = await unstable_cache(
+    async () => {
+      const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("uploads")
-    .select("show_id, created_at")
-    .order("created_at", { ascending: false })
-    .limit(RECENT_UPLOADS_FETCH_LIMIT);
+      const { data, error } = await supabase
+        .from("uploads")
+        .select("show_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(RECENT_UPLOADS_FETCH_LIMIT);
 
-  if (error) throw error;
+      if (error) throw error;
+
+      return data as { show_id: string; created_at: string }[];
+    },
+    ["recent-uploaded-shows"],
+    { tags: [CASTING_FEED_CACHE_TAG], revalidate: REVALIDATE },
+  )();
 
   const seen = new Set<string>();
   const recent: RecentUploadedShow[] = [];
 
-  for (const row of data as { show_id: string; created_at: string }[]) {
+  for (const row of data) {
     if (seen.has(row.show_id)) continue;
 
     seen.add(row.show_id);
@@ -213,19 +235,27 @@ export type RecentEvent = ShowEvent & {
 type RecentEventRow = EventRow & { show_id: string; created_at: string };
 
 export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
-  const supabase = await createClient();
+  const data = await unstable_cache(
+    async (limit: number) => {
+      const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("visible_events")
-    .select(
-      "id, show_id, title, description, period_start, period_end, slot_id, upload_image_id, edited, created_at",
-    )
-    .order("created_at", { ascending: false })
-    .limit(limit);
+      const { data, error } = await supabase
+        .from("visible_events")
+        .select(
+          "id, show_id, title, description, period_start, period_end, slot_id, upload_image_id, edited, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-  if (error) throw error;
+      if (error) throw error;
 
-  return (data as RecentEventRow[]).map((row) => ({
+      return data as RecentEventRow[];
+    },
+    ["recent-events"],
+    { tags: [CASTING_FEED_CACHE_TAG], revalidate: REVALIDATE },
+  )(limit);
+
+  return data.map((row) => ({
     id: row.id,
     showId: row.show_id,
     title: row.title,

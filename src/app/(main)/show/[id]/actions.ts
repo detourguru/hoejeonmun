@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 
 export type SlotReportType = "wrong_date" | "wrong_cast" | "wrong_show" | "other";
 export type EventReportType = "wrong_event" | "other";
@@ -56,6 +57,7 @@ export async function reportSlot(
     .maybeSingle();
 
   revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
 
   return { ok: true, hidden: !!hidden };
 }
@@ -86,6 +88,7 @@ export async function cancelReport(
   }
 
   revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
 
   return { ok: true, hidden: false };
 }
@@ -132,6 +135,7 @@ export async function reportEvent(
     .maybeSingle();
 
   revalidatePath(`/show/${showId}`);
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: !!hidden };
 }
@@ -160,6 +164,7 @@ export async function cancelEventReport(
   }
 
   revalidatePath(`/show/${showId}`);
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: false };
 }
