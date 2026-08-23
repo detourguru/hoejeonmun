@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import {
   cancelEventReport,
@@ -76,8 +77,14 @@ export const ReportButton = ({
           router.push(
             `/login?next=${encodeURIComponent(`/show/${target.showId}`)}`,
           );
+          return;
         }
+
+        toast.error(result.message);
+        return;
       }
+
+      toast.success("신고를 취소했어요.");
     });
   };
 
@@ -115,6 +122,12 @@ export const ReportButton = ({
 
       setReported(true);
       setOpen(false);
+
+      if (result.hidden) {
+        toast.success("신고가 누적되어 목록에서 자동으로 내려갔어요.");
+      } else {
+        toast.success("신고가 접수됐어요.");
+      }
     });
   };
 
