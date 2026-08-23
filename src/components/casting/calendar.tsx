@@ -114,7 +114,7 @@ export const Calendar = ({
         {WEEKDAYS.map((weekday) => (
           <p
             key={weekday}
-            className="py-1 text-center text-[10px] text-text-muted"
+            className="text-text-muted py-1 text-center text-[10px]"
           >
             {weekday}
           </p>
@@ -136,7 +136,7 @@ export const Calendar = ({
               className={cn(
                 "flex min-h-11 flex-col py-0.5",
                 isEmpty && "text-text-muted",
-                date === openDate && "border-2 border-primary",
+                date === openDate && "border-primary border-2",
               )}
             >
               <span className="self-center text-[10px] leading-none">
@@ -150,14 +150,14 @@ export const Calendar = ({
                     <span
                       key={event.id}
                       className={cn(
-                        "relative h-3 bg-point/50 border-b border-white",
+                        "bg-point/50 relative h-3 border-b border-white",
                         band?.start && "ml-px rounded-l-sm",
                         band?.end && "mr-px rounded-r-sm",
                       )}
                     >
                       {band?.start && (
                         <span
-                          className="absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] font-bold leading-3 text-text"
+                          className="text-text absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] leading-3 font-bold"
                           style={{ width: `${band.length * 100}%` }}
                         >
                           {band.start ? event.title : " "}
@@ -186,15 +186,13 @@ export const Calendar = ({
       </div>
 
       {openDate && (
-        <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <div className="border-border flex flex-col gap-3 border-t pt-4">
           {(eventsByDate.get(openDate) ?? []).length > 0 && (
             <ul className="flex flex-col gap-2">
               {(eventsByDate.get(openDate) ?? []).map((event) => (
-                <li key={event.id} className="rounded bg-point/10 p-2">
+                <li key={event.id} className="bg-point/10 rounded p-2">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-bold text-text">
-                      {event.title}
-                    </p>
+                    <p className="text-text text-sm font-bold">{event.title}</p>
 
                     {showId && (
                       <ReportButton
@@ -206,11 +204,11 @@ export const Calendar = ({
                   </div>
 
                   {event.description && (
-                    <p className="mt-1 text-xs text-text-muted">
+                    <p className="text-text-muted mt-1 text-xs">
                       {event.description}
                     </p>
                   )}
-                  <p className="mt-1 text-[10px] text-text-muted">
+                  <p className="text-text-muted mt-1 text-[10px]">
                     {event.edited
                       ? "제보자가 확인하고 고친 일정이에요"
                       : "제보 이미지에서 AI가 읽은 일정이에요"}

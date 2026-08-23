@@ -67,7 +67,7 @@ const UploadStepBar = ({ status }: { status: Status }) => {
   );
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto rounded-lg bg-sub px-3 py-2">
+    <div className="bg-sub flex items-center gap-1 overflow-x-auto rounded-lg px-3 py-2">
       {UPLOAD_STEPS.map((step, index) => {
         const isPast = currentIndex > index;
         const isActive = currentIndex === index;
@@ -88,7 +88,7 @@ const UploadStepBar = ({ status }: { status: Status }) => {
               <span
                 className={cn(
                   "text-[10px]",
-                  isActive && "font-bold text-primary",
+                  isActive && "text-primary font-bold",
                   isPast && "text-primary",
                   !isPast && !isActive && "text-text-muted",
                 )}
@@ -131,7 +131,7 @@ const LoadingPanel = ({
     <LoadingGhost className="py-4" label={LOADING_LABEL[status]} />
 
     {status === "analyzing" && (
-      <p className="text-xs text-text-muted">
+      <p className="text-text-muted text-xs">
         최대 {ANALYZE_TIMEOUT_SECONDS}초 정도 걸려요 / 약 {secondsLeft}초 남음
       </p>
     )}
@@ -397,13 +397,13 @@ export const CastingUploadButton = ({
       <button
         type="button"
         onClick={handleOpen}
-        className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
+        className="border-border text-text hover:bg-point inline-flex w-fit rounded-4xl border px-3 py-1 text-xs transition-colors"
       >
         {status === "done" ? "추가 제보하기" : "캐스팅보드/이벤트 제보하기"}
       </button>
 
       {status === "idle" && (
-        <ul className="list-inside list-disc text-xs text-text-muted">
+        <ul className="text-text-muted list-inside list-disc text-xs">
           <li>또렷한 사진일수록 좋아요</li>
           <li>이름, 배역이나 이벤트 내용과 날짜가 잘 보이게 찍어주세요</li>
           <li>캡처보다 원본 이미지가 더 빨리 읽혀요</li>
@@ -438,13 +438,13 @@ export const CastingUploadButton = ({
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={previewUrls.length >= MAX_IMAGE_COUNT}
-                className="rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary/40 hover:bg-point/10 disabled:pointer-events-none disabled:opacity-40"
+                className="border-border hover:border-primary/40 hover:bg-point/10 rounded-lg border-2 border-dashed p-6 text-center transition-colors disabled:pointer-events-none disabled:opacity-40"
               >
-                <Upload className="mx-auto mb-2 h-6 w-6 text-text-muted" />
-                <p className="text-sm font-bold text-text">
+                <Upload className="text-text-muted mx-auto mb-2 h-6 w-6" />
+                <p className="text-text text-sm font-bold">
                   이미지를 선택해 주세요
                 </p>
-                <p className="mt-0.5 text-xs text-text-muted">
+                <p className="text-text-muted mt-0.5 text-xs">
                   캐스팅표/이벤트 안내 이미지 최대 {MAX_IMAGE_COUNT}장 / 장당
                   10MB 이하
                 </p>
@@ -455,7 +455,7 @@ export const CastingUploadButton = ({
                   {previewUrls.map((url, index) => (
                     <div
                       key={url}
-                      className="relative h-16 w-16 overflow-hidden rounded-lg border border-border bg-sub"
+                      className="border-border bg-sub relative h-16 w-16 overflow-hidden rounded-lg border"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -467,7 +467,7 @@ export const CastingUploadButton = ({
                         type="button"
                         onClick={() => removeFile(index)}
                         aria-label="이미지 제거"
-                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
+                        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
                       >
                         <X className="h-2.5 w-2.5" />
                       </button>
@@ -479,25 +479,25 @@ export const CastingUploadButton = ({
                       type="button"
                       onClick={() => inputRef.current?.click()}
                       aria-label="이미지 추가"
-                      className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-border text-text-muted transition-colors hover:border-primary/40 hover:text-primary"
+                      className="border-border text-text-muted hover:border-primary/40 hover:text-primary flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed transition-colors"
                     >
                       +
                     </button>
                   )}
 
-                  <span className="text-xs text-text-muted">
+                  <span className="text-text-muted text-xs">
                     {previewUrls.length}/{MAX_IMAGE_COUNT}장
                   </span>
                 </div>
               )}
 
-              {error && <p className="text-xs text-destructive">{error}</p>}
+              {error && <p className="text-destructive text-xs">{error}</p>}
 
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={resetToIdle}
-                  className="flex-1 rounded-4xl border border-border py-2 text-xs text-text-muted transition-colors hover:text-text"
+                  className="border-border text-text-muted hover:text-text flex-1 rounded-4xl border py-2 text-xs transition-colors"
                 >
                   취소
                 </button>
@@ -505,7 +505,7 @@ export const CastingUploadButton = ({
                   type="button"
                   onClick={handleSubmit}
                   disabled={files.length === 0}
-                  className="flex-1 rounded-4xl bg-primary py-2 text-xs font-bold text-white transition-colors disabled:opacity-40"
+                  className="bg-primary flex-1 rounded-4xl py-2 text-xs font-bold text-white transition-colors disabled:opacity-40"
                 >
                   {files.length === 0
                     ? "이미지를 선택해 주세요"
@@ -523,7 +523,7 @@ export const CastingUploadButton = ({
 
           {status === "confirming" && (
             <div className="flex flex-col gap-3">
-              <p className="text-xs text-text">
+              <p className="text-text text-xs">
                 읽어낸 이벤트예요. 날짜가 맞는지 봐주시면 그대로 올라가요.
                 <br />
                 <span className="text-text-muted">
@@ -532,7 +532,7 @@ export const CastingUploadButton = ({
               </p>
 
               <div>
-                <p className="mb-1 text-[10px] font-bold text-text-muted">
+                <p className="text-text-muted mb-1 text-[10px] font-bold">
                   원본 이미지와 대조해서 확인하세요
                 </p>
                 <OriginalImages images={previewUrls} />
@@ -540,20 +540,20 @@ export const CastingUploadButton = ({
 
               <EventConfirmList drafts={drafts} onChange={setDrafts} />
 
-              {error && <p className="text-xs text-destructive">{error}</p>}
+              {error && <p className="text-destructive text-xs">{error}</p>}
 
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={resetToIdle}
-                  className="flex-1 rounded-4xl border border-border py-2 text-xs text-text-muted transition-colors hover:text-text"
+                  className="border-border text-text-muted hover:text-text flex-1 rounded-4xl border py-2 text-xs transition-colors"
                 >
                   취소
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirm}
-                  className="flex-1 rounded-4xl bg-primary py-2 text-xs font-bold text-white transition-colors"
+                  className="bg-primary flex-1 rounded-4xl py-2 text-xs font-bold text-white transition-colors"
                 >
                   이대로 저장하기
                 </button>
@@ -563,13 +563,13 @@ export const CastingUploadButton = ({
 
           {status === "done" && result && (
             <div className="flex flex-col items-center gap-2 py-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-point">
-                <Check className="h-7 w-7 text-primary" />
+              <div className="bg-point flex h-14 w-14 items-center justify-center rounded-full">
+                <Check className="text-primary h-7 w-7" />
               </div>
 
-              <p className="text-base font-bold text-text">저장됐어요!</p>
+              <p className="text-text text-base font-bold">저장됐어요!</p>
 
-              <p className="text-xs leading-relaxed text-text-muted">
+              <p className="text-text-muted text-xs leading-relaxed">
                 {result.slotCount > 0 &&
                   `회차 ${result.slotCount}개, 배우 ${result.actorCount}명`}
                 {result.slotCount > 0 && result.eventCount > 0 && ", "}
@@ -585,7 +585,7 @@ export const CastingUploadButton = ({
               <button
                 type="button"
                 onClick={resetToIdle}
-                className="mt-2 rounded-4xl border border-border px-4 py-2 text-xs text-text transition-colors hover:bg-point"
+                className="border-border text-text hover:bg-point mt-2 rounded-4xl border px-4 py-2 text-xs transition-colors"
               >
                 닫기
               </button>

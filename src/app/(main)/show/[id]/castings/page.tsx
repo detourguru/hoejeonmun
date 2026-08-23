@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/back-button";
-import { SlotCard } from "@/components/casting/slot-card";
 import { CastingViews, MonthNav } from "@/components/casting/casting-views";
+import { SlotCard } from "@/components/casting/slot-card";
 import { CastingUploadButton } from "@/components/show/casting-upload-button";
+import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getCalendarCells,
   getMonthRange,
@@ -16,7 +16,7 @@ import {
   toIsoDate,
   toMonth,
 } from "@/lib/date";
-import { SLOT_COLOR } from "@/lib/actor-color";
+import { createClient } from "@/lib/supabase/server";
 import {
   getShowCastings,
   getShowEvents,
@@ -26,13 +26,14 @@ import {
   isEventReported,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
-import { createClient } from "@/lib/supabase/server";
 import {
   CASTING_VIEW,
   DEFAULT_CASTING_VIEW,
   parseActorsParam,
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
+
+import type { Metadata } from "next";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -112,16 +113,16 @@ export default async function Page({ params, searchParams }: Props) {
       <BackButton />
 
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-bold text-text">{show.prfnm}</h2>
+        <h2 className="text-text text-lg font-bold">{show.prfnm}</h2>
         <Link
           href={`/show/${id}`}
-          className="w-fit text-xs text-text-muted underline underline-offset-2"
+          className="text-text-muted w-fit text-xs underline underline-offset-2"
         >
           공연 정보 보기
         </Link>
       </div>
 
-      <p className="text-xs text-text-muted">
+      <p className="text-text-muted text-xs">
         캐스팅 정보는 사용자 제보 기반이라 제보 시점 이후 변경된 내용은 반영이
         안 됐을 수 있어요.
       </p>
@@ -131,10 +132,10 @@ export default async function Page({ params, searchParams }: Props) {
           <MonthNav month={month} />
 
           <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-sm text-text-muted">
+            <p className="text-text-muted text-sm">
               아직 이 달의 캐스팅 정보가 없어요.
             </p>
-            <p className="text-xs text-text-muted">
+            <p className="text-text-muted text-xs">
               캐스팅보드를 제보하면 회차별로 자동 정리돼요.
             </p>
           </div>
@@ -172,8 +173,11 @@ export default async function Page({ params, searchParams }: Props) {
         />
       )}
 
-      <div className="border-t border-border pt-4">
-        <CastingUploadButton showId={id} isLoggedIn={Boolean(auth.data?.claims)} />
+      <div className="border-border border-t pt-4">
+        <CastingUploadButton
+          showId={id}
+          isLoggedIn={Boolean(auth.data?.claims)}
+        />
       </div>
     </div>
   );

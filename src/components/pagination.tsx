@@ -26,7 +26,7 @@ export const Pagination = ({
 
   return (
     <nav
-      className="sticky bottom-0 -mx-4 flex items-center justify-center gap-2 border-t border-border bg-sub/90 px-4 py-2 backdrop-blur"
+      className="border-border bg-sub/90 sticky bottom-0 -mx-4 flex items-center justify-center gap-2 border-t px-4 py-2 backdrop-blur"
       aria-label="페이지 이동"
     >
       <button
@@ -39,7 +39,7 @@ export const Pagination = ({
         <ChevronLeft className="size-5" />
       </button>
 
-      <p className="min-w-16 text-center text-sm text-text tabular-nums">
+      <p className="text-text min-w-16 text-center text-sm tabular-nums">
         {page} / {totalPages}
       </p>
 

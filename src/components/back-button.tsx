@@ -18,7 +18,7 @@ export const BackButton = ({ fallback = "/show" }: { fallback?: string }) => {
       type="button"
       onClick={goBack}
       aria-label="뒤로 가기"
-      className="flex w-fit items-center gap-1 text-sm text-text-muted transition-colors hover:text-text"
+      className="text-text-muted hover:text-text flex w-fit items-center gap-1 text-sm transition-colors"
     >
       <ChevronLeft className="size-4" />
       목록

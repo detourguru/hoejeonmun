@@ -11,7 +11,7 @@ export function useDebouncedCallback<TArgs extends unknown[]>(
     latest.current = callback;
   });
 
-  // 언마운트된 뒤에 실행되지 않도록 정리 
+  // 언마운트된 뒤에 실행되지 않도록 정리
   useEffect(() => () => clearTimeout(timer.current), []);
 
   return useCallback(

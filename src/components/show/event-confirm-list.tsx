@@ -55,9 +55,9 @@ export const EventConfirmList = ({
       {drafts.map(({ event, include, replacesEventId }, index) => (
         <li
           key={`${event.source}-${event.imageIndex}-${index}`}
-          className="flex flex-col gap-2 rounded-lg border border-border p-3"
+          className="border-border flex flex-col gap-2 rounded-lg border p-3"
         >
-          <label className="flex items-center gap-2 text-xs text-text">
+          <label className="text-text flex items-center gap-2 text-xs">
             <input
               type="checkbox"
               checked={include}
@@ -71,7 +71,7 @@ export const EventConfirmList = ({
           {event.confirmReasons.length > 0 && (
             <ul className="flex flex-col gap-0.5">
               {event.confirmReasons.map((reason) => (
-                <li key={reason} className="text-xs text-destructive">
+                <li key={reason} className="text-destructive text-xs">
                   {EVENT_CONFIRM_MESSAGE[reason]}
                 </li>
               ))}
@@ -97,7 +97,7 @@ export const EventConfirmList = ({
                 updateEvent(index, { periodStart: target.value })
               }
             />
-            <span className="text-xs text-text-muted">~</span>
+            <span className="text-text-muted text-xs">~</span>
             <Input
               type="date"
               value={event.periodEnd}
@@ -110,7 +110,7 @@ export const EventConfirmList = ({
           </div>
 
           {event.periodStart > event.periodEnd && (
-            <p className="text-xs text-destructive">
+            <p className="text-destructive text-xs">
               시작일이 종료일보다 늦어요.
             </p>
           )}
@@ -120,7 +120,7 @@ export const EventConfirmList = ({
               value={replacesEventId ?? ""}
               disabled={!include}
               aria-label="이미 등록된 이벤트와의 관계"
-              className="h-8 rounded-lg border border-input bg-transparent px-2 text-xs text-text disabled:opacity-50"
+              className="border-input text-text h-8 rounded-lg border bg-transparent px-2 text-xs disabled:opacity-50"
               onChange={({ target }) =>
                 update(index, {
                   replacesEventId: target.value
@@ -140,7 +140,7 @@ export const EventConfirmList = ({
           )}
 
           {event.description && (
-            <p className="text-xs text-text-muted">{event.description}</p>
+            <p className="text-text-muted text-xs">{event.description}</p>
           )}
         </li>
       ))}

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+
 import { KakaoLoginButton } from "@/components/auth/kakao-login-button";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,8 +23,8 @@ export default async function LoginPage({
   return (
     <section className="flex flex-col gap-8 py-12">
       <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold text-text">로그인</h2>
-        <p className="text-sm text-text-muted">
+        <h2 className="text-text text-xl font-bold">로그인</h2>
+        <p className="text-text-muted text-sm">
           캐스팅보드 제보와 애정배우 저장에만 사용해요.
         </p>
       </div>
@@ -31,7 +32,7 @@ export default async function LoginPage({
       <KakaoLoginButton next={next} />
 
       {error && (
-        <p className="text-xs text-destructive">
+        <p className="text-destructive text-xs">
           {ERROR_MESSAGE[error] ?? ERROR_MESSAGE.failed}
         </p>
       )}

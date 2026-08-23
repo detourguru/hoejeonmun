@@ -10,9 +10,12 @@ export const ActorSlotCard = ({
   slot: ActorSlot;
   showDate?: boolean;
 }) => (
-  <li className="rounded-lg border border-border bg-surface p-3">
-    <Link href={`/show/${slot.showId}/castings`} className="flex flex-col gap-1">
-      <p className="text-xs font-bold text-text">
+  <li className="border-border bg-surface rounded-lg border p-3">
+    <Link
+      href={`/show/${slot.showId}/castings`}
+      className="flex flex-col gap-1"
+    >
+      <p className="text-text text-xs font-bold">
         {showDate && (
           <span className="text-text-muted">
             {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}){" "}
@@ -21,8 +24,8 @@ export const ActorSlotCard = ({
         {slot.time}
       </p>
 
-      <p className="text-sm text-text">{slot.showName}</p>
-      <p className="text-xs text-text-muted">{slot.role}</p>
+      <p className="text-text text-sm">{slot.showName}</p>
+      <p className="text-text-muted text-xs">{slot.role}</p>
     </Link>
   </li>
 );
