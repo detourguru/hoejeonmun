@@ -1,5 +1,9 @@
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 
 export default function Loading() {
-  return <LoadingGhost className="py-24" />;
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <LoadingGhost />
+    </div>
+  );
 }
