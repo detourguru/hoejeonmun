@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
+import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { cn } from "@/lib/utils";
 import { getRecentEvents, getRecentUploadedShows } from "@/service/casting";
 import { getShow } from "@/service/show";
@@ -68,7 +70,9 @@ export default async function Page({ searchParams }: Props) {
         </Link>
       </div>
 
-      {tab === "casting" ? <CastingFeed /> : <EventFeed />}
+      <Suspense key={tab} fallback={<LoadingGhost />}>
+        {tab === "casting" ? <CastingFeed /> : <EventFeed />}
+      </Suspense>
 
       <KopisNotice />
     </div>
