@@ -2,6 +2,7 @@
 
 import { Fragment, ReactNode, useState } from "react";
 
+import { OriginalImages } from "@/components/casting/original-images";
 import { ReportButton } from "@/components/report-button";
 import { WEEKDAYS } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -214,6 +215,12 @@ export const Calendar = ({
                       ? "제보자가 확인하고 고친 일정이에요"
                       : "제보 이미지에서 AI가 읽은 일정이에요"}
                   </p>
+
+                  <div className="mt-2">
+                    <OriginalImages
+                      images={event.imageUrl ? [event.imageUrl] : []}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
