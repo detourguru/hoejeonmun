@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 export type SlotReportType = "wrong_date" | "wrong_cast" | "wrong_show" | "other";
 export type EventReportType = "wrong_event" | "other";
 
-export type ReportResult = { ok: true } | { ok: false; message: string };
+export type ReportResult =
+  | { ok: true; hidden: boolean }
+  | { ok: false; message: string };
 
 export async function reportSlot(
   showId: string,
@@ -46,9 +48,16 @@ export async function reportSlot(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
+  const { data: hidden } = await supabase
+    .from("hidden_castings")
+    .select("slot_id")
+    .eq("upload_id", uploadId)
+    .eq("slot_id", slotId)
+    .maybeSingle();
+
   revalidatePath(`/show/${showId}`);
 
-  return { ok: true };
+  return { ok: true, hidden: !!hidden };
 }
 
 export async function cancelReport(
@@ -78,7 +87,7 @@ export async function cancelReport(
 
   revalidatePath(`/show/${showId}`);
 
-  return { ok: true };
+  return { ok: true, hidden: false };
 }
 
 export async function reportEvent(
@@ -116,9 +125,15 @@ export async function reportEvent(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
+  const { data: hidden } = await supabase
+    .from("hidden_events")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
   revalidatePath(`/show/${showId}`);
 
-  return { ok: true };
+  return { ok: true, hidden: !!hidden };
 }
 
 export async function cancelEventReport(
@@ -146,5 +161,5 @@ export async function cancelEventReport(
 
   revalidatePath(`/show/${showId}`);
 
-  return { ok: true };
+  return { ok: true, hidden: false };
 }

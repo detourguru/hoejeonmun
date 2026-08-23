@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { Toaster } from "@/components/toaster";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="bg-primary">{children}</body>
+      <body className="bg-primary">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }
