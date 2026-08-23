@@ -20,14 +20,14 @@ export default async function Page({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-0.5">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-primary/60">
+        <p className="text-primary/60 text-[11px] font-bold tracking-widest uppercase">
           Latest Updates
         </p>
-        <h2 className="text-lg font-bold text-text">최근 소식</h2>
+        <h2 className="text-text text-lg font-bold">최근 소식</h2>
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-0.5 rounded-xl bg-sub p-0.5">
+        <div className="bg-sub flex gap-0.5 rounded-xl p-0.5">
           {FEED_TAB.options.map(({ value, label }) => (
             <Link
               key={value}
@@ -46,7 +46,7 @@ export default async function Page({ searchParams }: Props) {
 
         <Link
           href="/show/all"
-          className="group flex items-center gap-1 text-xs font-medium text-primary"
+          className="group text-primary flex items-center gap-1 text-xs font-medium"
         >
           필터로 찾기
           <svg
@@ -124,14 +124,14 @@ async function EventFeed() {
 
 const EmptyFeed = () => (
   <div className="flex flex-col items-center gap-1 py-16 text-center">
-    <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-sub">
-      <span className="font-serif text-2xl text-text-muted">幕</span>
+    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full">
+      <span className="text-text-muted font-serif text-2xl">幕</span>
     </div>
-    <p className="font-medium text-text">아직 아무것도 올라오지 않았어요</p>
-    <p className="mb-2 text-sm text-text-muted">첫 번째 제보자가 되어볼까요?</p>
+    <p className="text-text font-medium">아직 아무것도 올라오지 않았어요</p>
+    <p className="text-text-muted mb-2 text-sm">첫 번째 제보자가 되어볼까요?</p>
     <Link
       href="/show/all"
-      className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/30 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
     >
       전체 공연 목록 둘러보기
     </Link>

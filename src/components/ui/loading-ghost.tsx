@@ -22,6 +22,6 @@ export const LoadingGhost = ({
       height={64}
       className="size-16 animate-spin"
     />
-    <p className="text-base font-medium text-text-muted">{label}</p>
+    <p className="text-text-muted text-base font-medium">{label}</p>
   </div>
 );

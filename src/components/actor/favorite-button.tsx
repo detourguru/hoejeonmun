@@ -44,7 +44,7 @@ export const FavoriteButton = ({
       disabled={pending}
       aria-pressed={favorited}
       className={cn(
-        "inline-flex w-fit items-center gap-1 rounded-4xl border border-border px-3 py-1 text-xs transition-colors disabled:opacity-60",
+        "border-border inline-flex w-fit items-center gap-1 rounded-4xl border px-3 py-1 text-xs transition-colors disabled:opacity-60",
         favorited ? "bg-primary text-white" : "text-text hover:bg-point",
       )}
     >

@@ -5,8 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type ToggleFavoriteResult =
-  | { ok: true; favorited: boolean }
-  | { ok: false; message: string };
+  { ok: true; favorited: boolean } | { ok: false; message: string };
 
 export async function toggleFavorite(
   actorId: number,

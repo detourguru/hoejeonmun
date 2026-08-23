@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { BackButton } from "@/components/back-button";
 import { ShowDetail } from "@/components/show/show-detail";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { getShow } from "@/service/show";
+
+import type { Metadata } from "next";
 
 type Props = { params: Promise<{ id: string }> };
 

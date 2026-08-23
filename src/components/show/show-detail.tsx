@@ -20,7 +20,7 @@ const RelateLink = ({ relatenm, relateurl }: ShowRelate) => (
       href={relateurl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center justify-between rounded border border-border px-2.5 py-1.5 text-xs text-text transition-colors hover:bg-point"
+      className="border-border text-text hover:bg-point flex items-center justify-between rounded border px-2.5 py-1.5 text-xs transition-colors"
     >
       {relatenm}
       <span aria-hidden>↗</span>
@@ -35,8 +35,8 @@ const Section = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <section className="flex flex-col gap-2 border-t border-border pt-4">
-    <h2 className="text-sm font-bold text-text">{title}</h2>
+  <section className="border-border flex flex-col gap-2 border-t pt-4">
+    <h2 className="text-text text-sm font-bold">{title}</h2>
     {children}
   </section>
 );
@@ -78,7 +78,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
             priority
           />
         ) : (
-          <div className="h-44 w-32 shrink-0 rounded bg-point/40" />
+          <div className="bg-point/40 h-44 w-32 shrink-0 rounded" />
         )}
 
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -87,12 +87,12 @@ export const ShowDetail = async ({ id }: { id: string }) => {
             <StateBadge state={show.prfstate} />
           </div>
 
-          <h1 className="text-lg font-bold break-keep text-text">
+          <h1 className="text-text text-lg font-bold break-keep">
             {show.prfnm}
           </h1>
 
-          <p className="text-xs text-text-muted">{show.fcltynm}</p>
-          <p className="text-xs text-text-muted">{`${show.prfpdfrom} ~ ${show.prfpdto}`}</p>
+          <p className="text-text-muted text-xs">{show.fcltynm}</p>
+          <p className="text-text-muted text-xs">{`${show.prfpdfrom} ~ ${show.prfpdto}`}</p>
 
           {relates.length > 0 && (
             <div className="mt-auto flex flex-col gap-1">
@@ -104,7 +104,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
 
               {relates.length > VISIBLE_RELATE_COUNT && (
                 <details>
-                  <summary className="cursor-pointer list-none text-xs text-text-muted [&::-webkit-details-marker]:hidden">
+                  <summary className="text-text-muted cursor-pointer list-none text-xs [&::-webkit-details-marker]:hidden">
                     예매처 {relates.length - VISIBLE_RELATE_COUNT}곳 더 보기
                   </summary>
                   <ul className="mt-1 flex flex-col gap-1">
@@ -119,11 +119,11 @@ export const ShowDetail = async ({ id }: { id: string }) => {
         </div>
       </header>
 
-      <dl className="flex flex-col gap-1.5 rounded bg-surface p-3 text-sm">
+      <dl className="bg-surface flex flex-col gap-1.5 rounded p-3 text-sm">
         {details.map(({ label, value }) => (
           <div key={label} className="flex gap-2">
-            <dt className="w-16 shrink-0 text-text-muted">{label}</dt>
-            <dd className="min-w-0 whitespace-pre-line text-text">{value}</dd>
+            <dt className="text-text-muted w-16 shrink-0">{label}</dt>
+            <dd className="text-text min-w-0 whitespace-pre-line">{value}</dd>
           </div>
         ))}
       </dl>
@@ -131,7 +131,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
       <Section title="캐스팅보드">
         <Link
           href={`/show/${id}/castings`}
-          className="inline-flex w-fit rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point"
+          className="border-border text-text hover:bg-point inline-flex w-fit rounded-4xl border px-3 py-1 text-xs transition-colors"
         >
           회차별 캐스팅 보기
         </Link>
@@ -139,7 +139,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
 
       {show.dtguidance && (
         <Section title="공연 시간">
-          <p className="whitespace-pre-line text-sm text-text">
+          <p className="text-text text-sm whitespace-pre-line">
             {show.dtguidance}
           </p>
         </Section>
@@ -178,13 +178,13 @@ export const ShowDetail = async ({ id }: { id: string }) => {
 
       {crew.length > 0 && (
         <Section title="제작진">
-          <p className="text-sm text-text-muted">{crew.join(", ")}</p>
+          <p className="text-text-muted text-sm">{crew.join(", ")}</p>
         </Section>
       )}
 
       {show.sty && (
         <Section title="줄거리">
-          <p className="whitespace-pre-line text-sm leading-relaxed text-text">
+          <p className="text-text text-sm leading-relaxed whitespace-pre-line">
             {show.sty}
           </p>
         </Section>

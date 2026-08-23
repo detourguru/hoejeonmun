@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import * as z from "zod";
 
+import { normalizeActorName, splitActorNames } from "@/lib/actor-name";
 import {
   addMonths,
   getToday,
@@ -9,7 +10,6 @@ import {
   toInputDate,
   toIsoDate,
 } from "@/lib/date";
-import { normalizeActorName, splitActorNames } from "@/lib/actor-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,

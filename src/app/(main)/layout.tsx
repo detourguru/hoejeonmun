@@ -1,8 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { SearchBar } from "@/components/search/search-bar";
-import Image from "next/image";
 
 export default function MainLayout({
   children,
@@ -10,10 +10,10 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen sm:max-w-md mx-auto flex flex-col bg-sub">
-      <header className="flex w-full flex-col gap-3 bg-point p-4 text-text">
+    <div className="bg-sub mx-auto flex min-h-screen flex-col sm:max-w-md">
+      <header className="bg-point text-text flex w-full flex-col gap-3 p-4">
         <h1 className="text-2xl font-bold">
-          <Link className="flex gap-1 items-center" href="/show">
+          <Link className="flex items-center gap-1" href="/show">
             <Image
               priority
               width={48}
@@ -35,7 +35,7 @@ export default function MainLayout({
         {children}
       </main>
 
-      <footer className="w-full bg-point p-4 text-text">
+      <footer className="bg-point text-text w-full p-4">
         <p>&copy; 2026 회전문 | Hoejeonmun. All rights reserved.</p>
       </footer>
     </div>

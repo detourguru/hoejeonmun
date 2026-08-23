@@ -34,18 +34,18 @@ export const MonthNav = ({ month }: { month: string }) => {
         type="button"
         onClick={() => moveMonth(-1)}
         aria-label="이전 달"
-        className="px-2 py-1 text-sm text-text-muted hover:text-text"
+        className="text-text-muted hover:text-text px-2 py-1 text-sm"
       >
         {`<`}
       </button>
 
-      <p className="text-sm font-bold text-text">{month.replace("-", ".")}</p>
+      <p className="text-text text-sm font-bold">{month.replace("-", ".")}</p>
 
       <button
         type="button"
         onClick={() => moveMonth(1)}
         aria-label="다음 달"
-        className="px-2 py-1 text-sm text-text-muted hover:text-text"
+        className="text-text-muted hover:text-text px-2 py-1 text-sm"
       >
         {`>`}
       </button>
@@ -126,7 +126,7 @@ export const CastingViews = ({
               type="button"
               onClick={() => changeView(value)}
               className={cn(
-                "rounded-4xl border border-border px-3 py-1 text-xs transition-colors",
+                "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
                 value === view ? "bg-primary text-white" : "text-text",
               )}
             >
@@ -145,7 +145,7 @@ export const CastingViews = ({
       )}
 
       {actors.length > 0 && visible.length === 0 ? (
-        <p className="py-16 text-center text-sm text-text-muted">
+        <p className="text-text-muted py-16 text-center text-sm">
           {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
         </p>
       ) : view === "calendar" ? (
@@ -158,7 +158,7 @@ export const CastingViews = ({
           initialDate={initialDate}
         />
       ) : visible.length === 0 ? (
-        <p className="py-16 text-center text-sm text-text-muted">
+        <p className="text-text-muted py-16 text-center text-sm">
           이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.
         </p>
       ) : (

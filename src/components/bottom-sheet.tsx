@@ -1,6 +1,5 @@
 "use client";
 
-import type { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
 import { ReactNode } from "react";
 
 import {
@@ -10,6 +9,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+
+import type { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
 
 export const BottomSheet = ({
   open,
@@ -31,7 +32,7 @@ export const BottomSheet = ({
           <DrawerTitle className="text-text">{title}</DrawerTitle>
         </DrawerHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 text-sm text-text">
+        <div className="text-text flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 text-sm">
           {children}
         </div>
 

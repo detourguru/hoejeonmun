@@ -16,9 +16,11 @@ export type CodeTable<TCode extends string, TName extends string> = {
   isCode: (value: unknown) => value is TCode;
 };
 
-export type CodeOf<T> = T extends CodeTable<infer TCode, string> ? TCode : never;
+export type CodeOf<T> =
+  T extends CodeTable<infer TCode, string> ? TCode : never;
 
-export type NameOf<T> = T extends CodeTable<string, infer TName> ? TName : never;
+export type NameOf<T> =
+  T extends CodeTable<string, infer TName> ? TName : never;
 
 export function createCodeTable<
   const TOptions extends readonly CodeOption<string, string>[],

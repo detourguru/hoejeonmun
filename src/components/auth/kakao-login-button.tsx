@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { createClient } from "@/lib/supabase/client";
 
 export const KakaoLoginButton = ({ next }: { next: string }) => {
@@ -37,7 +38,7 @@ export const KakaoLoginButton = ({ next }: { next: string }) => {
         {pending ? "카카오로 이동 중…" : "카카오로 시작하기"}
       </button>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-destructive text-xs">{error}</p>}
     </div>
   );
 };

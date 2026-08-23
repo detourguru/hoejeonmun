@@ -156,7 +156,7 @@ export const ReportButton = ({
 
       <BottomSheet open={open} onOpenChange={setOpen} title={`${label} 신고`}>
         <div className="flex flex-col gap-4">
-          <p className="text-center text-xs text-text-muted">
+          <p className="text-text-muted text-center text-xs">
             잘못된 {target.kind === "slot" ? "회차" : "이벤트"} 정보를 신고하고
             있어요. 어떤 문제인지 알려주세요.
           </p>
@@ -168,7 +168,7 @@ export const ReportButton = ({
                 type="button"
                 onClick={() => setReason(value)}
                 className={cn(
-                  "rounded-lg border border-border px-3 py-2 text-left text-xs transition-colors",
+                  "border-border rounded-lg border px-3 py-2 text-left text-xs transition-colors",
                   reason === value
                     ? "border-primary bg-primary text-white"
                     : "text-text",
@@ -185,25 +185,25 @@ export const ReportButton = ({
               onChange={(event) => setContext(event.target.value)}
               placeholder="어떤 부분이 잘못됐는지 알려주세요"
               rows={3}
-              className="w-full rounded-lg border border-border bg-surface p-2 text-left text-xs text-text placeholder:text-text-muted"
+              className="border-border bg-surface text-text placeholder:text-text-muted w-full rounded-lg border p-2 text-left text-xs"
             />
           )}
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-destructive text-xs">{error}</p>}
 
           <div className="flex justify-center gap-2">
             <button
               type="button"
               onClick={handleSubmit}
               disabled={pending}
-              className="inline-flex rounded-4xl border border-border px-3 py-1 text-xs text-text transition-colors hover:bg-point disabled:opacity-60"
+              className="border-border text-text hover:bg-point inline-flex rounded-4xl border px-3 py-1 text-xs transition-colors disabled:opacity-60"
             >
               신고하기
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="inline-flex rounded-4xl px-3 py-1 text-xs text-text-muted underline underline-offset-2"
+              className="text-text-muted inline-flex rounded-4xl px-3 py-1 text-xs underline underline-offset-2"
             >
               취소
             </button>

@@ -5,12 +5,12 @@ import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 
-export type SlotReportType = "wrong_date" | "wrong_cast" | "wrong_show" | "other";
+export type SlotReportType =
+  "wrong_date" | "wrong_cast" | "wrong_show" | "other";
 export type EventReportType = "wrong_event" | "other";
 
 export type ReportResult =
-  | { ok: true; hidden: boolean }
-  | { ok: false; message: string };
+  { ok: true; hidden: boolean } | { ok: false; message: string };
 
 export async function reportSlot(
   showId: string,

@@ -1,4 +1,5 @@
 import { StateName } from "@/type/show";
+
 import { Badge } from "../ui/badge";
 
 const BADGE_VARIANT_BY_STATE = {

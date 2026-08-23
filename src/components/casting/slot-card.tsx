@@ -6,13 +6,19 @@ import { getWeekday } from "@/lib/date";
 import { CastingSlot, getUploadImages, isReported } from "@/service/casting";
 
 // 매칭 안 된 이름은 링크 없이 그대로 보여준다
-const ActorName = ({ actor, actorId }: { actor: string; actorId: number | null }) =>
+const ActorName = ({
+  actor,
+  actorId,
+}: {
+  actor: string;
+  actorId: number | null;
+}) =>
   actorId === null ? (
     <span className="text-text">{actor}</span>
   ) : (
     <Link
       href={`/actor/${actorId}`}
-      className="text-text underline underline-offset-2 hover:text-primary"
+      className="text-text hover:text-primary underline underline-offset-2"
     >
       {actor}
     </Link>
@@ -33,12 +39,13 @@ export const SlotCard = async ({
   ]);
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+    <li className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-bold text-text">
+        <p className="text-text text-xs font-bold">
           {showDate && (
             <span className="text-text-muted">
-              {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}){" "}
+              {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}
+              ){" "}
             </span>
           )}
           {slot.time}
@@ -59,7 +66,7 @@ export const SlotCard = async ({
       <dl className="flex flex-col gap-1">
         {slot.casting.map(({ role, actor, actorId }) => (
           <div key={role} className="flex gap-2 text-xs">
-            <dt className="w-20 shrink-0 text-text-muted">{role}</dt>
+            <dt className="text-text-muted w-20 shrink-0">{role}</dt>
             <dd>
               <ActorName actor={actor} actorId={actorId} />
             </dd>

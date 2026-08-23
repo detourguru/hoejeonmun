@@ -16,7 +16,7 @@ export const OriginalImages = ({ images }: { images: string[] }) => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="w-fit text-[10px] text-text-muted underline underline-offset-2"
+        className="text-text-muted w-fit text-[10px] underline underline-offset-2"
       >
         {open ? "원본 접기" : "원본 보기"}
       </button>
@@ -28,7 +28,7 @@ export const OriginalImages = ({ images }: { images: string[] }) => {
               key={url}
               type="button"
               onClick={() => setZoomed(url)}
-              className="overflow-hidden rounded border border-border"
+              className="border-border overflow-hidden rounded border"
             >
               <Image
                 src={url}
@@ -46,7 +46,7 @@ export const OriginalImages = ({ images }: { images: string[] }) => {
         open={zoomed !== null}
         onOpenChange={(next) => !next && setZoomed(null)}
       >
-        <DialogContent className="max-w-[calc(100%-2rem)] bg-surface p-2 sm:max-w-2xl">
+        <DialogContent className="bg-surface max-w-[calc(100%-2rem)] p-2 sm:max-w-2xl">
           {zoomed && (
             <Image
               src={zoomed}

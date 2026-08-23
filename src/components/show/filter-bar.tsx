@@ -12,6 +12,7 @@ import {
   SORT_OPTIONS,
   STATE,
 } from "@/type/show";
+
 import { SelectBox } from "../select-box";
 import { Input } from "../ui/input";
 
@@ -47,7 +48,7 @@ export const FilterBar = () => {
 
   return (
     <div className="flex flex-col gap-2 py-2">
-      <div className="flex overflow-x-scroll items-center gap-2 py-2 justify-end">
+      <div className="flex items-center justify-end gap-2 overflow-x-scroll py-2">
         <SelectBox
           name="prfstate"
           placeholder="공연 상태"
@@ -56,11 +57,7 @@ export const FilterBar = () => {
 
         <SelectBox name="shcate" placeholder="장르" options={GENRE.options} />
 
-        <SelectBox
-          name="sort"
-          placeholder="개막일순"
-          options={SORT_OPTIONS}
-        />
+        <SelectBox name="sort" placeholder="개막일순" options={SORT_OPTIONS} />
 
         <SelectBox
           name="signgucode"

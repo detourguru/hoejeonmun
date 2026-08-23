@@ -46,7 +46,7 @@ export const ActorFilter = ({
         key={name}
         type="button"
         onClick={() => onChange(selected.filter((value) => value !== name))}
-        className="inline-flex shrink-0 items-center gap-1 rounded-4xl bg-primary px-2.5 py-1 text-xs text-white"
+        className="bg-primary inline-flex shrink-0 items-center gap-1 rounded-4xl px-2.5 py-1 text-xs text-white"
       >
         {name}
         <span aria-hidden>×</span>

@@ -84,9 +84,7 @@ export type EventSource = "badge" | "notice";
 
 // 코드 대조에 하나라도 실패했을 시 사용자 확인을 받는다
 export type EventConfirmReason =
-  | "range_badge"
-  | "no_printed_weekday"
-  | "overlaps_existing";
+  "range_badge" | "no_printed_weekday" | "overlaps_existing";
 
 export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
   range_badge: "캐스팅표 여백 라벨에서 읽어서 기간이 어긋날 수 있어요.",

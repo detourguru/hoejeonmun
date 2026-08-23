@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { BackButton } from "@/components/back-button";
 import { ActorSlotCard } from "@/components/actor/actor-slot-card";
 import { FavoriteButton } from "@/components/actor/favorite-button";
+import { BackButton } from "@/components/back-button";
 import { CastingViews, MonthNav } from "@/components/casting/casting-views";
+import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getCalendarCells,
   getMonthRange,
@@ -13,15 +13,15 @@ import {
   parseMonth,
   toMonth,
 } from "@/lib/date";
-import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getActor,
   getActorSchedule,
   getActorShows,
   isFavorited,
 } from "@/service/actor";
-
 import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
+
+import type { Metadata } from "next";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -76,11 +76,11 @@ export default async function Page({ params, searchParams }: Props) {
       <BackButton />
 
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-text">{actor.name}</h2>
+        <h2 className="text-text text-lg font-bold">{actor.name}</h2>
         <FavoriteButton actorId={actorId} favorited={favorited} />
       </div>
 
-      <p className="text-xs text-text-muted">
+      <p className="text-text-muted text-xs">
         캐스팅 정보는 사용자 제보 기반이라 제보 시점 이후 변경된 내용은 반영이
         안 됐을 수 있어요.
       </p>
@@ -91,7 +91,7 @@ export default async function Page({ params, searchParams }: Props) {
             <li key={showId}>
               <Link
                 href={`/show/${showId}/castings`}
-                className="inline-flex rounded-4xl border border-border px-2.5 py-1 text-xs text-text transition-colors hover:bg-point"
+                className="border-border text-text hover:bg-point inline-flex rounded-4xl border px-2.5 py-1 text-xs transition-colors"
               >
                 {showName}
               </Link>
@@ -104,7 +104,7 @@ export default async function Page({ params, searchParams }: Props) {
         <>
           <MonthNav month={month} />
 
-          <p className="py-16 text-center text-sm text-text-muted">
+          <p className="text-text-muted py-16 text-center text-sm">
             이 달에는 등록된 일정이 없어요.
           </p>
         </>
