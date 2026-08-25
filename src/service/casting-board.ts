@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import * as z from "zod";
@@ -25,9 +27,9 @@ import {
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
-const MODEL = "gemini-3.5-flash-lite";
+export const MODEL = "gemini-3.5-flash-lite";
 
-const castingJsonSchema = {
+export const castingJsonSchema = {
   type: "object",
   properties: {
     performances: {
@@ -175,7 +177,7 @@ const castingJsonSchema = {
 
 const castingSchema = z.fromJSONSchema(castingJsonSchema);
 
-const buildPrompt = (show: ShowDetail) => {
+export const buildPrompt = (show: ShowDetail) => {
   const { from, to } = resolveRunWindow(show);
 
   return `
@@ -904,6 +906,85 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   };
 }
 
+const sha256 = (input: Buffer) =>
+  createHash("sha256").update(input).digest("hex");
+
+export async function hashImages(images: Blob[]): Promise<string[]> {
+  return Promise.all(
+    images.map(async (image) => sha256(Buffer.from(await image.arrayBuffer()))),
+  );
+}
+
+async function hashStoragePaths(
+  admin: ReturnType<typeof createAdminClient>,
+  storagePaths: string[],
+): Promise<string[]> {
+  const downloads = await Promise.all(
+    storagePaths.map((path) =>
+      admin.storage.from(CASTING_BOARD_BUCKET).download(path),
+    ),
+  );
+
+  if (downloads.some(({ data, error }) => error || !data)) {
+    throw new Error("업로드된 이미지를 찾을 수 없어요.");
+  }
+
+  return hashImages(downloads.map(({ data }) => data!));
+}
+
+export type DuplicateReason = "reported" | "registered" | "picked_twice";
+
+export async function findDuplicateReasons({
+  admin,
+  showId,
+  hashes,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  showId: string;
+  hashes: string[];
+}): Promise<(DuplicateReason | null)[]> {
+  const { data, error } = await admin
+    .from("upload_images")
+    .select("image_hash, upload_id")
+    .eq("show_id", showId)
+    .in("image_hash", hashes);
+
+  if (error) throw error;
+
+  const rows = data as { image_hash: string; upload_id: number }[];
+  const reportedHashes = new Set<string>();
+  const savedHashes = new Set(rows.map(({ image_hash }) => image_hash));
+
+  if (rows.length > 0) {
+    const { data: hidden, error: hiddenError } = await admin
+      .from("hidden_castings")
+      .select("upload_id")
+      .in("upload_id", [...new Set(rows.map(({ upload_id }) => upload_id))]);
+
+    if (hiddenError) throw hiddenError;
+
+    const hiddenUploads = new Set(
+      (hidden as { upload_id: number }[]).map(({ upload_id }) => upload_id),
+    );
+
+    for (const { image_hash, upload_id } of rows) {
+      if (hiddenUploads.has(upload_id)) reportedHashes.add(image_hash);
+    }
+  }
+
+  const seen = new Set<string>();
+
+  return hashes.map((hash) => {
+    if (reportedHashes.has(hash)) return "reported";
+    if (savedHashes.has(hash)) return "registered";
+    if (seen.has(hash)) return "picked_twice";
+
+    seen.add(hash);
+
+    return null;
+  });
+}
+
 // 파싱 실패 사례
 export async function logParseFailure({
   admin,
@@ -990,6 +1071,8 @@ export async function saveCastingBoard({
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
 
+  const imageHashes = await hashStoragePaths(admin, storagePaths);
+
   const { data: upload, error: uploadError } = await admin
     .from("uploads")
     .insert({ show_id: showId, user_id: userId })
@@ -1003,6 +1086,8 @@ export async function saveCastingBoard({
     .insert(
       storagePaths.map((storagePath, position) => ({
         upload_id: upload.id,
+        show_id: showId,
+        image_hash: imageHashes[position],
         url: admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath)
           .data.publicUrl,
         position,
@@ -1010,7 +1095,12 @@ export async function saveCastingBoard({
     )
     .select("id, position");
 
-  if (uploadImagesError) throw uploadImagesError;
+  if (uploadImagesError) {
+    if (uploadImagesError.code === DUPLICATE_KEY)
+      throw new Error("이미 등록된 캐스팅보드예요.");
+
+    throw uploadImagesError;
+  }
 
   const uploadImageIdByPosition = new Map(
     uploadImages.map(({ id, position }) => [position, id]),
