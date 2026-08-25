@@ -10,6 +10,7 @@ import {
   saveCastingBoard,
   unverifiedPoints,
 } from "@/service/casting-board";
+import { MAX_IMAGE_COUNT } from "@/type/casting";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -59,7 +60,7 @@ const eventSchema = z
 const bodySchema = z
   .object({
     showId: z.string().min(1),
-    storagePaths: z.array(z.string().min(1)).min(1),
+    storagePaths: z.array(z.string().min(1)).min(1).max(MAX_IMAGE_COUNT),
     performances: z.array(performanceSchema),
     events: z.array(eventSchema),
     skippedCount: z.number(),

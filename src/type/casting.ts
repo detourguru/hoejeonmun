@@ -23,7 +23,7 @@ export type ReportTypeTab = CodeOf<typeof REPORT_TYPE_TAB>;
 export const DEFAULT_REPORT_TYPE_TAB: ReportTypeTab = "casting";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const MAX_IMAGE_COUNT = 5;
+export const MAX_IMAGE_COUNT = 3;
 
 // 배우 필터 규칙
 export const ACTORS_PARAM = "actors";
