@@ -66,8 +66,14 @@ create table vandal_reports (
   unique (user_id, upload_id, slot_id)
 );
 
+create table event_groups (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now()
+);
+
 create table events (
   id bigint generated always as identity primary key,
+  group_id bigint not null references event_groups(id) on delete cascade,
   show_id text not null,
   upload_id bigint not null references uploads(id) on delete cascade,
   upload_image_id bigint not null references upload_images(id) on delete cascade,
@@ -97,10 +103,9 @@ create index events_show_id_idx on events (show_id);
 create index events_slot_id_idx on events (slot_id);
 create index events_upload_image_id_idx on events (upload_image_id);
 
--- 같은 이미지를 다시 제보한 경우. 제목과 기간이 완전히 같으면 물어볼 것도 없다.
--- 기간이 하루만 어긋나는 경우는 제보 확인 화면에서 사용자가 판단한다
+-- 이전 버전과 동일 값으로 버전 수정을 할 수도 있으므로 group_id + upload_id
 create unique index events_dedupe_idx
-  on events (show_id, title_key, period_start, period_end);
+  on events (group_id, upload_id, period_start, period_end);
 
 -- 신고 단위는 이벤트 1건 
 create table event_reports (
@@ -153,6 +158,8 @@ create table parse_failures (
 create index parse_failures_show_id_idx on parse_failures (show_id);
 
 alter table parse_failures enable row level security;
+-- 직접 조회 없음, events/current_events를 통해서만 참조
+alter table event_groups enable row level security;
 
 -- 신고 5건이 쌓여 목록에서 내려간 업로드 + 회차
 create view hidden_castings
@@ -208,6 +215,7 @@ create view visible_events
 with (security_invoker = false) as
 select
   e.id,
+  e.group_id,
   e.show_id,
   e.upload_id,
   e.upload_image_id,
@@ -227,6 +235,13 @@ where not exists (
   from hidden_events h
   where h.event_id = e.id
 );
+
+create view current_events
+with (security_invoker = true) as
+select distinct on (group_id) *
+from visible_events
+order by group_id, id desc;
+
 
 alter table actors enable row level security;
 alter table uploads enable row level security;
@@ -300,3 +315,4 @@ create policy "users upload own casting boards" on storage.objects
     bucket_id = 'casting-boards'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
