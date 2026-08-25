@@ -650,18 +650,13 @@ export async function attachSuggestedDuplicates(pending: PendingEvent[]) {
 
   return pending.map((event, index) => {
     const savedId = suggested.get(index);
+    const match = event.overlapping.find(({ id }) => id === savedId);
 
-    // 겹치지도 않는 이벤트를 지목했으면 버린다
-    if (!event.overlapping.some(({ id }) => id === savedId)) return event;
+    if (!match) return event;
 
-    return { ...event, suggestedSameAsId: savedId };
+    return { ...event, suggestedSameAsGroupId: match.groupId };
   });
 }
-
-const EVENT_PRIORITY: Record<EventSource, number> = { badge: 0, notice: 1 };
-
-const priorityOf = (source: EventSource, edited: boolean) =>
-  edited ? EVENT_PRIORITY.notice + 1 : EVENT_PRIORITY[source];
 
 export function unverifiedPoints(event: {
   source: EventSource;
@@ -732,6 +727,7 @@ const toExistingEvent = (row: {
   period_end: string;
   source: EventSource;
   edited: boolean;
+  group_id: number;
 }): ExistingEvent => ({
   id: row.id,
   title: row.title,
@@ -739,6 +735,7 @@ const toExistingEvent = (row: {
   periodEnd: row.period_end,
   source: row.source,
   edited: row.edited,
+  groupId: row.group_id,
 });
 
 export async function attachOverlappingEvents(
@@ -756,8 +753,8 @@ export async function attachOverlappingEvents(
   const admin = createAdminClient();
 
   const { data, error } = await admin
-    .from("visible_events")
-    .select("id, title, period_start, period_end, source, edited")
+    .from("current_events")
+    .select("id, title, period_start, group_id, period_end, source, edited")
     .eq("show_id", showId)
     .lte("period_start", to)
     .gte("period_end", from);
@@ -937,6 +934,7 @@ export async function logParseFailure({
 }
 
 type EventRow = {
+  group_id: number;
   show_id: string;
   upload_id: number;
   upload_image_id: number;
@@ -952,6 +950,18 @@ type EventRow = {
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
+async function createEventGroup(admin: ReturnType<typeof createAdminClient>) {
+  const { data, error } = await admin
+    .from("event_groups")
+    .insert({})
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  return data.id as number;
+}
+
 async function insertEvent(
   admin: ReturnType<typeof createAdminClient>,
   row: EventRow,
@@ -961,38 +971,6 @@ async function insertEvent(
   if (error && error.code !== DUPLICATE_KEY) throw error;
 
   return !error;
-}
-
-async function replaceEvent(
-  admin: ReturnType<typeof createAdminClient>,
-  eventId: number,
-  row: EventRow,
-) {
-  const { data: current, error } = await admin
-    .from("events")
-    .select("source, edited_by")
-    .eq("id", eventId)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  // 신고로 내려갔거나 그 사이 지워졌으면 새로 넣는다
-  if (!current) return insertEvent(admin, row);
-
-  const incoming = priorityOf(row.source, row.edited_by !== null);
-
-  if (incoming < priorityOf(current.source, current.edited_by !== null)) {
-    return false;
-  }
-
-  const { error: updateError } = await admin
-    .from("events")
-    .update(row)
-    .eq("id", eventId);
-
-  if (updateError && updateError.code !== DUPLICATE_KEY) throw updateError;
-
-  return !updateError;
 }
 
 export async function saveCastingBoard({
@@ -1120,7 +1098,22 @@ export async function saveCastingBoard({
 
     if (uploadImageId === undefined) continue;
 
-    const row = {
+    let groupId: number;
+
+    if (event.replacesGroupId === undefined) {
+      groupId = await createEventGroup(admin);
+    } else {
+      const isApprovedGroup = event.overlapping.some(
+        ({ groupId: candidateId }) => candidateId === event.replacesGroupId,
+      );
+
+      if (!isApprovedGroup) continue;
+
+      groupId = event.replacesGroupId;
+    }
+
+    const row: EventRow = {
+      group_id: groupId,
       show_id: showId,
       upload_id: upload.id,
       upload_image_id: uploadImageId,
@@ -1133,10 +1126,7 @@ export async function saveCastingBoard({
       edited_by: event.edited ? userId : null,
     };
 
-    const saved =
-      event.replacesEventId === undefined
-        ? await insertEvent(admin, row)
-        : await replaceEvent(admin, event.replacesEventId, row);
+    const saved = await insertEvent(admin, row);
 
     if (saved) eventCount += 1;
   }

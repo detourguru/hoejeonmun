@@ -124,9 +124,7 @@ async function EventFeed() {
 
 const EmptyFeed = () => (
   <div className="flex flex-col items-center gap-1 py-16 text-center">
-    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full">
-      <span className="text-text-muted font-serif text-2xl">幕</span>
-    </div>
+    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
     <p className="text-text font-medium">아직 아무것도 올라오지 않았어요</p>
     <p className="text-text-muted mb-2 text-sm">첫 번째 제보자가 되어볼까요?</p>
     <Link

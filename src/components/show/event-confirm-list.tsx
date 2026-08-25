@@ -11,7 +11,7 @@ export type EventDraft = {
   event: PendingEvent;
   original: PendingEvent;
   include: boolean;
-  replacesEventId?: number;
+  replacesGroupId?: number;
 };
 
 export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
@@ -19,20 +19,20 @@ export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
     event,
     original: event,
     include: true,
-    replacesEventId: event.suggestedSameAsId,
+    replacesGroupId: event.suggestedSameAsGroupId,
   }));
 
 export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
   drafts
     .filter(({ include }) => include)
-    .map(({ event, original, replacesEventId }) => ({
+    .map(({ event, original, replacesGroupId }) => ({
       ...event,
       confirmed: true,
       edited:
         event.title !== original.title ||
         event.periodStart !== original.periodStart ||
         event.periodEnd !== original.periodEnd,
-      replacesEventId,
+      replacesGroupId,
     }));
 
 export const EventConfirmList = ({
@@ -52,7 +52,7 @@ export const EventConfirmList = ({
 
   return (
     <ul className="flex flex-col gap-3">
-      {drafts.map(({ event, include, replacesEventId }, index) => (
+      {drafts.map(({ event, include, replacesGroupId }, index) => (
         <li
           key={`${event.source}-${event.imageIndex}-${index}`}
           className="border-border flex flex-col gap-2 rounded-lg border p-3"
@@ -117,13 +117,13 @@ export const EventConfirmList = ({
 
           {event.overlapping.length > 0 && (
             <select
-              value={replacesEventId ?? ""}
+              value={replacesGroupId ?? ""}
               disabled={!include}
               aria-label="이미 등록된 이벤트와의 관계"
               className="border-input text-text h-8 rounded-lg border bg-transparent px-2 text-xs disabled:opacity-50"
               onChange={({ target }) =>
                 update(index, {
-                  replacesEventId: target.value
+                  replacesGroupId: target.value
                     ? Number(target.value)
                     : undefined,
                 })
@@ -131,7 +131,7 @@ export const EventConfirmList = ({
             >
               <option value="">따로 있는 이벤트예요</option>
               {event.overlapping.map((existing) => (
-                <option key={existing.id} value={existing.id}>
+                <option key={existing.id} value={existing.groupId}>
                   {existing.title} ({existing.periodStart} ~{" "}
                   {existing.periodEnd})와 같은 이벤트예요
                 </option>
