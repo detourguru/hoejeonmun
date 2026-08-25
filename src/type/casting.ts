@@ -2,6 +2,8 @@ import { CodeOf, createCodeTable } from "@/lib/code-table";
 
 export const CASTING_BOARD_BUCKET = "casting-boards";
 
+export const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
 // KOPIS 제공 코드 아님
 export const CASTING_VIEW = createCodeTable([
   { value: "calendar", label: "달력" },

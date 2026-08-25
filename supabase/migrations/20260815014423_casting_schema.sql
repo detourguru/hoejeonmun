@@ -20,7 +20,7 @@ create table upload_images (
   upload_id bigint not null references uploads(id) on delete cascade,
   show_id text,
   image_hash text,
-  url text not null,
+  storage_path text not null,
   -- 같은 업로드 내 이미지 순서
   position smallint not null,
   created_at timestamptz not null default now(),
@@ -261,8 +261,6 @@ alter table event_reports enable row level security;
 alter table show_title_aliases enable row level security;
 
 create policy "actors are public" on actors for select using (true);
-create policy "uploads are public" on uploads for select using (true);
-create policy "upload_images are public" on upload_images for select using (true);
 create policy "slots are public" on slots for select using (true);
 create policy "assignments are public" on assignments for select using (true);
 create policy "events are public" on events for select using (true);
