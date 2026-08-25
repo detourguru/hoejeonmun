@@ -13,13 +13,13 @@ import {
   toPendingEvents,
 } from "@/service/casting-board";
 import { getShow } from "@/service/show";
-import { CASTING_BOARD_BUCKET } from "@/type/casting";
+import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
 export const maxDuration = 60;
 
 const bodySchema = z.object({
   showId: z.string().min(1),
-  storagePaths: z.array(z.string().min(1)).min(1),
+  storagePaths: z.array(z.string().min(1)).min(1).max(MAX_IMAGE_COUNT),
 });
 
 export async function POST(request: Request) {
