@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { CASTING_BOARD_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/type/casting";
 
 const REVALIDATE = 60 * 5;
 
@@ -37,7 +38,7 @@ type SlotCastingRow = {
 
 type UploadImageRow = {
   upload_id: number;
-  url: string;
+  storage_path: string;
   position: number;
 };
 
@@ -291,37 +292,68 @@ export async function isEventReported(eventId: number) {
   return Boolean(data);
 }
 
+async function signPaths(paths: string[]): Promise<string[]> {
+  if (paths.length === 0) return [];
+
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase.storage
+    .from(CASTING_BOARD_BUCKET)
+    .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+
+  if (error) throw error;
+
+  const signedByPath = new Map(
+    data
+      .filter(({ path, signedUrl }) => path && signedUrl)
+      .map(({ path, signedUrl }) => [path, signedUrl]),
+  );
+
+  if (signedByPath.size === 0) {
+    return data.flatMap(({ signedUrl }) => signedUrl ?? []);
+  }
+
+  return paths.flatMap((path) => signedByPath.get(path) ?? []);
+}
+
 export async function getUploadImages(
   uploadId: number | null,
 ): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("upload_images")
-    .select("url")
+    .select("storage_path")
     .eq("upload_id", uploadId)
     .order("position");
 
   if (error) throw error;
 
-  const rows = data as Pick<UploadImageRow, "url">[];
-  return rows.flatMap((row) => row.url);
+  const rows = data as Pick<UploadImageRow, "storage_path">[];
+
+  return signPaths(rows.map(({ storage_path }) => storage_path));
 }
 
 export async function getUploadImage(
   uploadImageId: number,
 ): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("upload_images")
-    .select("url")
+    .select("storage_path")
     .eq("id", uploadImageId)
     .maybeSingle();
 
   if (error) throw error;
 
-  return (data as Pick<UploadImageRow, "url"> | null)?.url ?? null;
+  const row = data as Pick<UploadImageRow, "storage_path"> | null;
+
+  if (!row) return null;
+
+  const [signed] = await signPaths([row.storage_path]);
+
+  return signed ?? null;
 }
 
 export async function isReported(uploadId: number, slotId: number | null) {

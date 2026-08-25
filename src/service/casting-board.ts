@@ -1088,8 +1088,7 @@ export async function saveCastingBoard({
         upload_id: upload.id,
         show_id: showId,
         image_hash: imageHashes[position],
-        url: admin.storage.from(CASTING_BOARD_BUCKET).getPublicUrl(storagePath)
-          .data.publicUrl,
+        storage_path: storagePath,
         position,
       })),
     )
