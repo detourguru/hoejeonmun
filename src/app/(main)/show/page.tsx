@@ -7,7 +7,7 @@ import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { cn } from "@/lib/utils";
 import { getRecentEvents, getRecentUploadedShows } from "@/service/casting";
 import { getShow } from "@/service/show";
-import { DEFAULT_FEED_TAB, FEED_TAB } from "@/type/casting";
+import { DEFAULT_REPORT_TYPE_TAB, REPORT_TYPE_TAB } from "@/type/casting";
 
 const FEED_LIMIT = 10;
 
@@ -15,7 +15,7 @@ type Props = { searchParams: Promise<{ tab?: string }> };
 
 export default async function Page({ searchParams }: Props) {
   const { tab: rawTab } = await searchParams;
-  const tab = FEED_TAB.isCode(rawTab) ? rawTab : DEFAULT_FEED_TAB;
+  const tab = REPORT_TYPE_TAB.isCode(rawTab) ? rawTab : DEFAULT_REPORT_TYPE_TAB;
 
   return (
     <div className="flex flex-col gap-4">
@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: Props) {
 
       <div className="flex items-center justify-between gap-2">
         <div className="bg-sub flex gap-0.5 rounded-xl p-0.5">
-          {FEED_TAB.options.map(({ value, label }) => (
+          {REPORT_TYPE_TAB.options.map(({ value, label }) => (
             <Link
               key={value}
               href={`/show?tab=${value}`}
