@@ -7,6 +7,12 @@ import { useEffect, useRef, useState } from "react";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { OriginalImages } from "@/components/casting/original-images";
 import {
+  CastingConfirmList,
+  CastingDraft,
+  toCastingDrafts,
+  toConfirmedPerformances,
+} from "@/components/show/casting-confirm-list";
+import {
   EventConfirmList,
   EventDraft,
   toConfirmedEvents,
@@ -19,10 +25,13 @@ import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
   ConfirmedEvent,
+  DEFAULT_REPORT_TYPE_TAB,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_COUNT,
   ParsedPerformance,
   PendingEvent,
+  REPORT_TYPE_TAB,
+  ReportTypeTab,
 } from "@/type/casting";
 
 type Status =
@@ -38,7 +47,7 @@ const SHEET_TITLE: Record<Exclude<Status, "idle">, string> = {
   selecting: "이미지 선택",
   uploading: "이미지 올리는 중",
   analyzing: "표 읽는 중",
-  confirming: "이벤트 확인",
+  confirming: "제보 확인",
   saving: "저장하는 중",
   done: "저장 완료",
 };
@@ -168,8 +177,12 @@ export const CastingUploadButton = ({
   const [result, setResult] = useState<CastingBoardResult | null>(null);
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
+  const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
   const [analyzeSecondsLeft, setAnalyzeSecondsLeft] = useState(
     ANALYZE_TIMEOUT_SECONDS,
+  );
+  const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
+    DEFAULT_REPORT_TYPE_TAB,
   );
 
   useEffect(() => {
@@ -241,6 +254,7 @@ export const CastingUploadButton = ({
     setError(null);
     setParsed(null);
     setDrafts([]);
+    setCastingDrafts([]);
     setStatus("idle");
   };
 
@@ -325,14 +339,16 @@ export const CastingUploadButton = ({
 
     const upload = { storagePaths, performances, skippedCount };
 
-    if (events.length > 0) {
-      setParsed(upload);
-      setDrafts(toEventDrafts(events));
-      setStatus("confirming");
+    if (performances.length === 0 && events.length === 0) {
+      await save(upload, []);
       return;
     }
 
-    await save(upload, []);
+    setParsed(upload);
+    setCastingDrafts(toCastingDrafts(performances));
+    setDrafts(toEventDrafts(events));
+    setReviewTab(performances.length > 0 ? "casting" : "event");
+    setStatus("confirming");
   };
 
   const save = async (upload: ParsedUpload, events: ConfirmedEvent[]) => {
@@ -358,6 +374,7 @@ export const CastingUploadButton = ({
     setStatus("done");
     setParsed(null);
     setDrafts([]);
+    setCastingDrafts([]);
 
     // 저장된 회차가 캐스팅보드 영역에 바로 보이도록
     router.refresh();
@@ -366,6 +383,7 @@ export const CastingUploadButton = ({
   const handleConfirm = async () => {
     if (!parsed) return;
 
+    const performances = toConfirmedPerformances(castingDrafts);
     const events = toConfirmedEvents(drafts);
 
     if (events.some(({ periodStart, periodEnd }) => periodStart > periodEnd)) {
@@ -373,14 +391,14 @@ export const CastingUploadButton = ({
       return;
     }
 
-    if (parsed.performances.length === 0 && events.length === 0) {
+    if (performances.length === 0 && events.length === 0) {
       resetToIdle();
       return;
     }
 
     setError(null);
 
-    await save(parsed, events);
+    await save({ ...parsed, performances }, events);
   };
 
   return (
@@ -523,12 +541,27 @@ export const CastingUploadButton = ({
 
           {status === "confirming" && (
             <div className="flex flex-col gap-3">
+              <div className="flex flex-1 justify-center">
+                <div className="flex gap-1">
+                  {REPORT_TYPE_TAB.options.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setReviewTab(value)}
+                      className={cn(
+                        "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
+                        value === reviewTab
+                          ? "bg-primary text-white"
+                          : "text-text",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-text text-xs">
-                읽어낸 이벤트예요. 날짜가 맞는지 봐주시면 그대로 올라가요.
-                <br />
-                <span className="text-text-muted">
-                  캐스팅 표는 이미 저장됐어요.
-                </span>
+                읽어낸 내용이에요. 맞는지 봐주시면 그대로 올라가요.
               </p>
 
               <div>
@@ -538,7 +571,26 @@ export const CastingUploadButton = ({
                 <OriginalImages images={previewUrls} />
               </div>
 
-              <EventConfirmList drafts={drafts} onChange={setDrafts} />
+              {reviewTab === "casting" &&
+                (castingDrafts.length > 0 ? (
+                  <CastingConfirmList
+                    drafts={castingDrafts}
+                    onChange={setCastingDrafts}
+                  />
+                ) : (
+                  <p className="text-text-muted text-xs">
+                    읽어낸 캐스팅이 없어요.
+                  </p>
+                ))}
+
+              {reviewTab === "event" &&
+                (drafts.length > 0 ? (
+                  <EventConfirmList drafts={drafts} onChange={setDrafts} />
+                ) : (
+                  <p className="text-text-muted text-xs">
+                    읽어낸 이벤트가 없어요.
+                  </p>
+                ))}
 
               {error && <p className="text-destructive text-xs">{error}</p>}
 
