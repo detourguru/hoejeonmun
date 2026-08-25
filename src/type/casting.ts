@@ -94,6 +94,7 @@ export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
 
 export type ExistingEvent = {
   id: number;
+  groupId: number;
   title: string;
   periodStart: string;
   periodEnd: string;
@@ -112,14 +113,14 @@ export type PendingEvent = {
   imageIndex: number;
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
-  suggestedSameAsId?: number;
+  suggestedSameAsGroupId?: number;
 };
 
 export type ConfirmedEvent = PendingEvent & {
   // confirmReasons가 있으면 이게 참이어야 저장된다
   confirmed: boolean;
   edited: boolean;
-  replacesEventId?: number;
+  replacesGroupId?: number;
 };
 
 export type CastingBoardResult = {

@@ -209,9 +209,8 @@ from event_reports
 group by event_id
 having count(*) >= 5;
 
--- 화면에서 읽는 최종 이벤트 목록.
--- edited_by를 읽어야 edited를 만들 수 있는데 그 열은 아래에서 막으므로 정의자 권한으로 돈다
-create view visible_events
+-- 전체 이벤트 목록
+create view exist_events
 with (security_invoker = false) as
 select
   e.id,
@@ -236,10 +235,11 @@ where not exists (
   where h.event_id = e.id
 );
 
+-- 화면에서 보여지는 최종 목록
 create view current_events
 with (security_invoker = true) as
 select distinct on (group_id) *
-from visible_events
+from exist_events
 order by group_id, id desc;
 
 
@@ -261,7 +261,7 @@ create policy "slots are public" on slots for select using (true);
 create policy "assignments are public" on assignments for select using (true);
 create policy "events are public" on events for select using (true);
 
--- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 visible_events.edited만 나간다
+-- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 current_events.edited만 나간다
 revoke select on events from anon, authenticated;
 grant select (
   id, show_id, upload_id, upload_image_id, slot_id, title, title_key,

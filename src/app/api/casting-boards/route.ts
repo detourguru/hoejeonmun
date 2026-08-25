@@ -25,6 +25,7 @@ const eventSourceSchema = z.enum(["badge", "notice"]);
 
 const existingEventSchema = z.object({
   id: z.number(),
+  groupId: z.number(),
   title: z.string(),
   periodStart: z.string(),
   periodEnd: z.string(),
@@ -49,7 +50,7 @@ const eventSchema = z
     suggestedSameAsId: z.number().optional(),
     confirmed: z.boolean(),
     edited: z.boolean(),
-    replacesEventId: z.number().optional(),
+    replacesGroupId: z.number().optional(),
   })
   .refine(({ periodStart, periodEnd }) => periodStart <= periodEnd, {
     message: "이벤트 시작일이 종료일보다 늦어요.",

@@ -155,7 +155,7 @@ export async function getShowEvents(
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("visible_events")
+    .from("current_events")
     .select(
       "id, title, description, period_start, period_end, slot_id, upload_image_id, edited",
     )
@@ -240,7 +240,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
       const supabase = createAdminClient();
 
       const { data, error } = await supabase
-        .from("visible_events")
+        .from("current_events")
         .select(
           "id, show_id, title, description, period_start, period_end, slot_id, upload_image_id, edited, created_at",
         )
