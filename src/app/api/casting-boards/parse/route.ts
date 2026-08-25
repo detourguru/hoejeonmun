@@ -35,7 +35,24 @@ function duplicateMessage(reasons: (DuplicateReason | null)[]) {
   return "같은 이미지를 두 번 선택했어요. 표시된 이미지를 제외하고 재시도해주세요.";
 }
 
+function createLap() {
+  const id = Math.random().toString(36).slice(2, 8);
+  const started = performance.now();
+  let last = started;
+
+  return (label: string) => {
+    const now = performance.now();
+
+    console.log(
+      `[parse ${id}] ${label} ${Math.round(now - last)}ms (누적 ${Math.round(now - started)}ms)`,
+    );
+
+    last = now;
+  };
+}
+
 export async function POST(request: Request) {
+  const lap = createLap();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
 
@@ -53,7 +70,11 @@ export async function POST(request: Request) {
     return fail(403, "잘못된 요청이에요.");
   }
 
+  lap("인증과 요청 검증");
+
   const show = await getShow(showId);
+
+  lap("공연 조회 (KOPIS)");
 
   if (!show) return fail(404, "공연을 찾을 수 없어요.");
 
@@ -65,13 +86,20 @@ export async function POST(request: Request) {
     ),
   );
 
+  lap(`이미지 ${storagePaths.length}장 다운로드`);
+
   if (downloads.some(({ data: image, error }) => error || !image)) {
     return fail(404, "업로드된 이미지를 찾을 수 없어요.");
   }
 
   const images = downloads.map(({ data: image }) => image!);
   const hashes = await hashImages(images);
+
+  lap("이미지 해시");
+
   const reasons = await findDuplicateReasons({ admin, showId, hashes });
+
+  lap("중복 이미지 조회");
   const duplicateIndexes = reasons.flatMap((reason, index) =>
     reason ? [index] : [],
   );
@@ -89,6 +117,8 @@ export async function POST(request: Request) {
   try {
     const { performances, dateTags, events, skippedCount, reason } =
       await parseCastingBoard(images, show);
+
+    lap(`표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건)`);
 
     if (performances.length === 0 && events.length === 0) {
       await logParseFailure({
@@ -120,7 +150,11 @@ export async function POST(request: Request) {
       return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
     }
 
-    if (!(await isEventForShow(events, show))) {
+    const isForShow = await isEventForShow(events, show);
+
+    lap("공연명 판정");
+
+    if (!isForShow) {
       await logParseFailure({
         admin,
         showId,
@@ -135,9 +169,16 @@ export async function POST(request: Request) {
       return fail(422, "이 공연의 이벤트가 맞는지 확인해 주세요.");
     }
 
-    const pendingEvents = await attachSuggestedDuplicates(
-      await attachOverlappingEvents(showId, toPendingEvents(dateTags, events)),
+    const overlapping = await attachOverlappingEvents(
+      showId,
+      toPendingEvents(dateTags, events),
     );
+
+    lap("겹치는 이벤트 조회");
+
+    const pendingEvents = await attachSuggestedDuplicates(overlapping);
+
+    lap("이벤트 중복 판정");
 
     return Response.json({
       performances,
@@ -145,6 +186,7 @@ export async function POST(request: Request) {
       skippedCount,
     });
   } catch (error) {
+    lap("예외로 중단");
     console.error(error);
 
     await logParseFailure({
