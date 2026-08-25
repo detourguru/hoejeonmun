@@ -1,6 +1,12 @@
 "use client";
 
-import { Fragment, ReactNode, useState } from "react";
+import {
+  Fragment,
+  ReactNode,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 
 import { ActorFilter } from "@/components/casting/actor-filter";
 import { Calendar } from "@/components/casting/calendar";
@@ -16,42 +22,39 @@ import {
   CastingView,
 } from "@/type/casting";
 
-// 조회해오지 않은 달로 넘어갔을때 DB에서 조회가 필요하므로 별도로 분리
-export const MonthNav = ({ month }: { month: string }) => {
-  const updateSearchParams = useUpdateSearchParams();
+const MonthNav = ({
+  month,
+  pending,
+  onMove,
+}: {
+  month: string;
+  pending: boolean;
+  onMove: (offset: number) => void;
+}) => (
+  <div className="flex items-center gap-1">
+    <button
+      type="button"
+      onClick={() => onMove(-1)}
+      disabled={pending}
+      aria-label="이전 달"
+      className="text-text-muted active:text-text disabled:text-border px-2 py-1 text-sm"
+    >
+      {`<`}
+    </button>
 
-  const moveMonth = (offset: number) => {
-    const current = parseMonth(month);
+    <p className="text-text text-sm font-bold">{month.replace("-", ".")}</p>
 
-    if (!current) return;
-
-    updateSearchParams({ month: toMonth(addMonths(current, offset)) });
-  };
-
-  return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        onClick={() => moveMonth(-1)}
-        aria-label="이전 달"
-        className="text-text-muted hover:text-text px-2 py-1 text-sm"
-      >
-        {`<`}
-      </button>
-
-      <p className="text-text text-sm font-bold">{month.replace("-", ".")}</p>
-
-      <button
-        type="button"
-        onClick={() => moveMonth(1)}
-        aria-label="다음 달"
-        className="text-text-muted hover:text-text px-2 py-1 text-sm"
-      >
-        {`>`}
-      </button>
-    </div>
-  );
-};
+    <button
+      type="button"
+      onClick={() => onMove(1)}
+      disabled={pending}
+      aria-label="다음 달"
+      className="text-text-muted active:text-text disabled:text-border px-2 py-1 text-sm"
+    >
+      {`>`}
+    </button>
+  </div>
+);
 
 export const CastingViews = ({
   showId,
@@ -63,6 +66,7 @@ export const CastingViews = ({
   events = [],
   panels,
   listItems,
+  empty,
   filterOptions = [],
   initialActors = [],
 }: {
@@ -76,11 +80,28 @@ export const CastingViews = ({
   events?: EventWithReportStatus[];
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
+  empty: ReactNode;
   filterOptions?: string[];
   initialActors?: string[];
 }) => {
   const [view, setView] = useState<CastingView>(initialView);
   const [actors, setActors] = useState<string[]>(initialActors);
+  const [pending, startTransition] = useTransition();
+  const [visibleMonth, setVisibleMonth] = useOptimistic(month);
+  const updateSearchParams = useUpdateSearchParams();
+
+  const moveMonth = (offset: number) => {
+    const current = parseMonth(month);
+
+    if (!current) return;
+
+    const next = toMonth(addMonths(current, offset));
+
+    startTransition(() => {
+      setVisibleMonth(next);
+      updateSearchParams({ month: next });
+    });
+  };
 
   const replaceParams = (updates: Record<string, string>) => {
     const params = new URLSearchParams(window.location.search);
@@ -114,29 +135,33 @@ export const CastingViews = ({
     actors.every((name) => slot.filterKeys?.includes(name)),
   );
 
+  const isEmpty = slots.length === 0 && events.length === 0;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <MonthNav month={month} />
+        <MonthNav month={visibleMonth} pending={pending} onMove={moveMonth} />
 
-        <div className="flex gap-1">
-          {CASTING_VIEW.options.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => changeView(value)}
-              className={cn(
-                "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
-                value === view ? "bg-primary text-white" : "text-text",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {!isEmpty && (
+          <div className="flex gap-1">
+            {CASTING_VIEW.options.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => changeView(value)}
+                className={cn(
+                  "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
+                  value === view ? "bg-primary text-white" : "text-text",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {filterOptions.length > 0 && (
+      {!isEmpty && filterOptions.length > 0 && (
         <ActorFilter
           options={filterOptions}
           selected={actors}
@@ -144,30 +169,37 @@ export const CastingViews = ({
         />
       )}
 
-      {actors.length > 0 && visible.length === 0 ? (
-        <p className="text-text-muted py-16 text-center text-sm">
-          {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
-        </p>
-      ) : view === "calendar" ? (
-        <Calendar
-          showId={showId}
-          cells={cells}
-          slots={visible}
-          events={events}
-          panels={panels}
-          initialDate={initialDate}
-        />
-      ) : visible.length === 0 ? (
-        <p className="text-text-muted py-16 text-center text-sm">
-          이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {visible.map((slot) => (
-            <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
-          ))}
-        </ul>
-      )}
+      <div
+        aria-busy={pending}
+        className={cn("transition-opacity", pending && "opacity-40")}
+      >
+        {isEmpty ? (
+          empty
+        ) : actors.length > 0 && visible.length === 0 ? (
+          <p className="text-text-muted py-16 text-center text-sm">
+            {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
+          </p>
+        ) : view === "calendar" ? (
+          <Calendar
+            showId={showId}
+            cells={cells}
+            slots={visible}
+            events={events}
+            panels={panels}
+            initialDate={initialDate}
+          />
+        ) : visible.length === 0 ? (
+          <p className="text-text-muted py-16 text-center text-sm">
+            이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {visible.map((slot) => (
+              <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

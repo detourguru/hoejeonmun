@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ActorSlotCard } from "@/components/actor/actor-slot-card";
 import { FavoriteButton } from "@/components/actor/favorite-button";
 import { BackButton } from "@/components/back-button";
-import { CastingViews, MonthNav } from "@/components/casting/casting-views";
+import { CastingViews } from "@/components/casting/casting-views";
 import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getCalendarCells,
@@ -100,40 +100,35 @@ export default async function Page({ params, searchParams }: Props) {
         </ul>
       )}
 
-      {slots.length === 0 ? (
-        <>
-          <MonthNav month={month} />
-
+      <CastingViews
+        month={month}
+        initialView={view}
+        cells={getCalendarCells(monthDate)}
+        slots={slots.map((slot) => ({
+          id: slot.id,
+          date: slot.date,
+          time: slot.time,
+          label: slot.showName,
+          colorClass: SLOT_COLOR,
+        }))}
+        panels={Object.fromEntries(
+          slots.map((slot) => [
+            slot.id,
+            <ActorSlotCard key={slot.id} slot={slot} />,
+          ]),
+        )}
+        listItems={Object.fromEntries(
+          slots.map((slot) => [
+            slot.id,
+            <ActorSlotCard key={slot.id} slot={slot} showDate />,
+          ]),
+        )}
+        empty={
           <p className="text-text-muted py-16 text-center text-sm">
             이 달에는 등록된 일정이 없어요.
           </p>
-        </>
-      ) : (
-        <CastingViews
-          month={month}
-          initialView={view}
-          cells={getCalendarCells(monthDate)}
-          slots={slots.map((slot) => ({
-            id: slot.id,
-            date: slot.date,
-            time: slot.time,
-            label: slot.showName,
-            colorClass: SLOT_COLOR,
-          }))}
-          panels={Object.fromEntries(
-            slots.map((slot) => [
-              slot.id,
-              <ActorSlotCard key={slot.id} slot={slot} />,
-            ]),
-          )}
-          listItems={Object.fromEntries(
-            slots.map((slot) => [
-              slot.id,
-              <ActorSlotCard key={slot.id} slot={slot} showDate />,
-            ]),
-          )}
-        />
-      )}
+        }
+      />
     </div>
   );
 }

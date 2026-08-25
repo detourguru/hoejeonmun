@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/back-button";
-import { CastingViews, MonthNav } from "@/components/casting/casting-views";
+import { CastingViews } from "@/components/casting/casting-views";
 import { SlotCard } from "@/components/casting/slot-card";
 import { CastingUploadButton } from "@/components/show/casting-upload-button";
 import { SLOT_COLOR } from "@/lib/actor-color";
@@ -101,11 +101,14 @@ export default async function Page({ params, searchParams }: Props) {
   const initialActors = parseActorsParam(rawActors, actors);
 
   const eventsWithReportStatus = await Promise.all(
-    events.map(async (event) => ({
-      ...event,
-      reported: await isEventReported(event.id),
-      imageUrl: await getUploadImage(event.uploadImageId),
-    })),
+    events.map(async (event) => {
+      const [reported, imageUrl] = await Promise.all([
+        isEventReported(event.id),
+        getUploadImage(event.uploadImageId),
+      ]);
+
+      return { ...event, reported, imageUrl };
+    }),
   );
 
   return (
@@ -127,10 +130,36 @@ export default async function Page({ params, searchParams }: Props) {
         안 됐을 수 있어요.
       </p>
 
-      {slots.length === 0 && events.length === 0 ? (
-        <>
-          <MonthNav month={month} />
-
+      <CastingViews
+        showId={id}
+        month={month}
+        initialView={view}
+        initialDate={initialDate}
+        cells={cells}
+        events={eventsWithReportStatus}
+        slots={slots.map((slot) => ({
+          id: slot.id,
+          date: slot.date,
+          time: slot.time,
+          label: getSlotPairKey(slot),
+          colorClass: SLOT_COLOR,
+          filterKeys: slot.casting.map(({ actor }) => actor),
+        }))}
+        panels={Object.fromEntries(
+          slots.map((slot) => [
+            slot.id,
+            <SlotCard key={slot.id} slot={slot} showId={id} />,
+          ]),
+        )}
+        listItems={Object.fromEntries(
+          slots.map((slot) => [
+            slot.id,
+            <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
+          ]),
+        )}
+        filterOptions={actors}
+        initialActors={initialActors}
+        empty={
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <p className="text-text-muted text-sm">
               아직 이 달의 캐스팅 정보가 없어요.
@@ -139,39 +168,8 @@ export default async function Page({ params, searchParams }: Props) {
               캐스팅보드를 제보하면 회차별로 자동 정리돼요.
             </p>
           </div>
-        </>
-      ) : (
-        <CastingViews
-          showId={id}
-          month={month}
-          initialView={view}
-          initialDate={initialDate}
-          cells={cells}
-          events={eventsWithReportStatus}
-          slots={slots.map((slot) => ({
-            id: slot.id,
-            date: slot.date,
-            time: slot.time,
-            label: getSlotPairKey(slot),
-            colorClass: SLOT_COLOR,
-            filterKeys: slot.casting.map(({ actor }) => actor),
-          }))}
-          panels={Object.fromEntries(
-            slots.map((slot) => [
-              slot.id,
-              <SlotCard key={slot.id} slot={slot} showId={id} />,
-            ]),
-          )}
-          listItems={Object.fromEntries(
-            slots.map((slot) => [
-              slot.id,
-              <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
-            ]),
-          )}
-          filterOptions={actors}
-          initialActors={initialActors}
-        />
-      )}
+        }
+      />
 
       <div className="border-border border-t pt-4">
         <CastingUploadButton
