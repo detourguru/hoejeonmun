@@ -3,9 +3,12 @@ import * as z from "zod";
 import { errorMessage, fail } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { DuplicateReason } from "@/service/casting-board";
 import {
   attachOverlappingEvents,
   attachSuggestedDuplicates,
+  findDuplicateReasons,
+  hashImages,
   hasKnownCastOverlap,
   isEventForShow,
   logParseFailure,
@@ -21,6 +24,16 @@ const bodySchema = z.object({
   showId: z.string().min(1),
   storagePaths: z.array(z.string().min(1)).min(1).max(MAX_IMAGE_COUNT),
 });
+
+function duplicateMessage(reasons: (DuplicateReason | null)[]) {
+  if (reasons.includes("reported"))
+    return "신고가 쌓여 내려간 이미지예요. 표시된 이미지를 제외하고 재시도해주세요.";
+
+  if (reasons.includes("registered"))
+    return "이미 등록된 이미지예요. 표시된 이미지를 제외하고 재시도해주세요.";
+
+  return "같은 이미지를 두 번 선택했어요. 표시된 이미지를 제외하고 재시도해주세요.";
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -57,6 +70,21 @@ export async function POST(request: Request) {
   }
 
   const images = downloads.map(({ data: image }) => image!);
+  const hashes = await hashImages(images);
+  const reasons = await findDuplicateReasons({ admin, showId, hashes });
+  const duplicateIndexes = reasons.flatMap((reason, index) =>
+    reason ? [index] : [],
+  );
+
+  if (duplicateIndexes.length > 0) {
+    return Response.json(
+      {
+        message: duplicateMessage(reasons),
+        duplicateIndexes,
+      },
+      { status: 409 },
+    );
+  }
 
   try {
     const { performances, dateTags, events, skippedCount, reason } =

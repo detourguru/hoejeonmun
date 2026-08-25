@@ -18,6 +18,8 @@ create index uploads_show_id_idx on uploads (show_id);
 create table upload_images (
   id bigint generated always as identity primary key,
   upload_id bigint not null references uploads(id) on delete cascade,
+  show_id text,
+  image_hash text,
   url text not null,
   -- 같은 업로드 내 이미지 순서
   position smallint not null,
@@ -26,6 +28,10 @@ create table upload_images (
 );
 
 create index upload_images_upload_id_idx on upload_images (upload_id);
+
+create unique index upload_images_show_hash_idx
+  on upload_images (show_id, image_hash)
+  where show_id is not null and image_hash is not null;
 
 create table slots (
   id bigint generated always as identity primary key,

@@ -172,6 +172,7 @@ export const CastingUploadButton = ({
 
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [duplicateIndexes, setDuplicateIndexes] = useState<number[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CastingBoardResult | null>(null);
@@ -230,6 +231,7 @@ export const CastingUploadButton = ({
     }
 
     setError(messages.length > 0 ? messages.join(" ") : null);
+    setDuplicateIndexes([]);
 
     if (accepted.length === 0) return;
 
@@ -244,12 +246,14 @@ export const CastingUploadButton = ({
     URL.revokeObjectURL(previewUrls[index]);
     setFiles((prev) => prev.filter((_, at) => at !== index));
     setPreviewUrls((prev) => prev.filter((_, at) => at !== index));
+    setDuplicateIndexes([]);
   };
 
   const resetToIdle = () => {
     previewUrls.forEach((url) => URL.revokeObjectURL(url));
     setFiles([]);
     setPreviewUrls([]);
+    setDuplicateIndexes([]);
     setResult(null);
     setError(null);
     setParsed(null);
@@ -321,12 +325,14 @@ export const CastingUploadButton = ({
     });
 
     if (!parseResponse.ok) {
-      const { message } = await parseResponse
+      const { message, duplicateIndexes: duplicates } = await parseResponse
         .json()
         .catch(() => ({ message: "분석에 실패했어요." }));
 
       setStatus("selecting");
       setError(message);
+      setDuplicateIndexes(duplicates ?? []);
+
       return;
     }
 
@@ -473,7 +479,12 @@ export const CastingUploadButton = ({
                   {previewUrls.map((url, index) => (
                     <div
                       key={url}
-                      className="border-border bg-sub relative h-16 w-16 overflow-hidden rounded-lg border"
+                      className={cn(
+                        "bg-sub relative h-16 w-16 overflow-hidden rounded-lg border",
+                        duplicateIndexes.includes(index)
+                          ? "border-destructive border-2"
+                          : "border-border",
+                      )}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
