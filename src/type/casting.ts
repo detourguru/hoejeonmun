@@ -80,6 +80,14 @@ export type ParsedDateTag = {
   imageIndex: number;
 };
 
+// 기간 범위 내에 존재하지 않는 날짜의 이벤트의 경우 예외로 처리한다
+export type EventSlotException = {
+  // YYYY-MM-DD
+  date: string;
+  // HH:mm
+  time: string;
+};
+
 // 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우
 export type ParsedEvent = {
   title: string;
@@ -91,18 +99,25 @@ export type ParsedEvent = {
   printedStartWeekday: string;
   printedEndWeekday: string;
   imageIndex: number;
+  includedSlots?: EventSlotException[];
+  excludedSlots?: EventSlotException[];
 };
 
 export type EventSource = "badge" | "notice";
 
 // 코드 대조에 하나라도 실패했을 시 사용자 확인을 받는다
 export type EventConfirmReason =
-  "range_badge" | "no_printed_weekday" | "overlaps_existing";
+  | "range_badge"
+  | "no_printed_weekday"
+  | "overlaps_existing"
+  | "has_slot_exceptions";
 
 export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
   range_badge: "캐스팅표 여백 라벨에서 읽어서 기간이 어긋날 수 있어요.",
   no_printed_weekday: "이미지에 요일이 없어 날짜를 다시 확인하지 못했어요.",
   overlaps_existing: "이미 등록된 이벤트와 기간이 겹쳐요.",
+  has_slot_exceptions:
+    "지정된 이벤트 기간 외 포함/제외 회차가 있어요. 원본과 대조해 확인해주세요.",
 };
 
 export type ExistingEvent = {
@@ -124,6 +139,8 @@ export type PendingEvent = {
   printedEndWeekday: string;
   source: EventSource;
   imageIndex: number;
+  includedSlots?: EventSlotException[];
+  excludedSlots?: EventSlotException[];
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
   suggestedSameAsGroupId?: number;

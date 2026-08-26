@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_REPORT_TYPE_TAB,
   EVENT_CONFIRM_MESSAGE,
+  EventSlotException,
   REPORT_TYPE_TAB,
   ReportTypeTab,
 } from "@/type/casting";
@@ -206,6 +207,73 @@ export const UploadConfirmSheet = ({
   );
 };
 
+// 기간 밖 별도 포함/기간 안 제외 회차를 원본과 대조해서 고칠 수 있게 하는 목록
+const SlotExceptionEditor = ({
+  label,
+  items,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  items: EventSlotException[];
+  disabled: boolean;
+  onChange: (items: EventSlotException[]) => void;
+}) => (
+  <div className="flex flex-col gap-1">
+    <span className="text-text-muted text-xs">{label}</span>
+
+    <ul className="flex flex-col gap-1">
+      {items.map((slot, index) => (
+        <li key={index} className="flex items-center gap-1">
+          <Input
+            type="date"
+            value={slot.date}
+            disabled={disabled}
+            aria-label="날짜"
+            onChange={({ target }) =>
+              onChange(
+                items.map((item, at) =>
+                  at === index ? { ...item, date: target.value } : item,
+                ),
+              )
+            }
+          />
+          <Input
+            type="time"
+            value={slot.time}
+            disabled={disabled}
+            aria-label="시간"
+            onChange={({ target }) =>
+              onChange(
+                items.map((item, at) =>
+                  at === index ? { ...item, time: target.value } : item,
+                ),
+              )
+            }
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(items.filter((_, at) => at !== index))}
+            className="text-destructive shrink-0 text-xs disabled:opacity-40"
+          >
+            삭제
+          </button>
+        </li>
+      ))}
+    </ul>
+
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange([...items, { date: "", time: "" }])}
+      className="border-border text-text-muted w-fit rounded-lg border px-2 py-1 text-[10px] disabled:opacity-40"
+    >
+      + 회차 추가
+    </button>
+  </div>
+);
+
 const EventReview = ({
   draft,
   index,
@@ -304,6 +372,24 @@ const EventReview = ({
 
       {event.periodStart > event.periodEnd && (
         <p className="text-destructive text-xs">시작일이 종료일보다 늦어요.</p>
+      )}
+
+      {event.source === "notice" && (
+        <>
+          <SlotExceptionEditor
+            label="기간 막대 밖에서 추가로 포함되는 회차 (원본과 대조해주세요)"
+            items={event.includedSlots ?? []}
+            disabled={!include}
+            onChange={(items) => onEventChange({ includedSlots: items })}
+          />
+
+          <SlotExceptionEditor
+            label="기간 안에서 제외되는 회차 (원본과 대조해주세요)"
+            items={event.excludedSlots ?? []}
+            disabled={!include}
+            onChange={(items) => onEventChange({ excludedSlots: items })}
+          />
+        </>
       )}
 
       {event.overlapping.length > 0 && (

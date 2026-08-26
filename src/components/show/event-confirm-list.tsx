@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import {
   ConfirmedEvent,
   EVENT_CONFIRM_MESSAGE,
+  EventSlotException,
   PendingEvent,
 } from "@/type/casting";
 
@@ -22,6 +23,9 @@ export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
     replacesGroupId: event.suggestedSameAsGroupId,
   }));
 
+const sameSlots = (a?: EventSlotException[], b?: EventSlotException[]) =>
+  JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+
 export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
   drafts
     .filter(({ include }) => include)
@@ -31,7 +35,9 @@ export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
       edited:
         event.title !== original.title ||
         event.periodStart !== original.periodStart ||
-        event.periodEnd !== original.periodEnd,
+        event.periodEnd !== original.periodEnd ||
+        !sameSlots(event.includedSlots, original.includedSlots) ||
+        !sameSlots(event.excludedSlots, original.excludedSlots),
       replacesGroupId,
     }));
 
