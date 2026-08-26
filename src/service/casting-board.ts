@@ -831,6 +831,22 @@ function normalizeEvents(
   return valid;
 }
 
+function describeGeminiError(error: unknown): string {
+  const parts: string[] = [];
+  let current: unknown = error;
+
+  while (current instanceof Error) {
+    const code = (current as { code?: unknown }).code;
+
+    parts.push(
+      `${current.name}: ${current.message}${code ? ` (code=${String(code)})` : ""}`,
+    );
+    current = current.cause;
+  }
+
+  return parts.length > 0 ? parts.join(" <- caused by <- ") : String(error);
+}
+
 export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const resizeStart = performance.now();
 
@@ -866,18 +882,51 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const client = new GoogleGenAI({});
 
   const requestStart = performance.now();
+  const GEMINI_TIMEOUT_MS = 20000;
+  const GEMINI_MAX_ATTEMPTS = 2;
 
   console.log(`[gemini] 요청 시작 (model=${MODEL}, 이미지 ${imageBlocks.length}장)`);
 
-  const interaction = await client.interactions.create({
-    model: MODEL,
-    input: [{ type: "text", text: buildPrompt(show) }, ...imageBlocks],
-    response_format: {
-      type: "text",
-      mime_type: "application/json",
-      schema: castingJsonSchema,
-    },
-  });
+  let interaction: Awaited<ReturnType<typeof client.interactions.create>> | null =
+    null;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    const attemptStart = performance.now();
+
+    try {
+      interaction = await client.interactions.create(
+        {
+          model: MODEL,
+          input: [{ type: "text", text: buildPrompt(show) }, ...imageBlocks],
+          response_format: {
+            type: "text",
+            mime_type: "application/json",
+            schema: castingJsonSchema,
+          },
+        },
+        { timeout_ms: GEMINI_TIMEOUT_MS, retries: { strategy: "none" } },
+      );
+
+      console.log(
+        `[gemini] 시도 ${attempt}/${GEMINI_MAX_ATTEMPTS} 성공 ${Math.round(performance.now() - attemptStart)}ms`,
+      );
+
+      break;
+    } catch (error) {
+      lastError = error;
+
+      console.error(
+        `[gemini] 시도 ${attempt}/${GEMINI_MAX_ATTEMPTS} 실패 ${Math.round(performance.now() - attemptStart)}ms ${describeGeminiError(error)}`,
+      );
+    }
+  }
+
+  if (!interaction) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("Gemini 요청이 실패했습니다");
+  }
 
   console.log(
     `[gemini] 응답 수신 ${Math.round(performance.now() - requestStart)}ms status=${interaction.status} output_text=${interaction.output_text?.length ?? 0}자 input_tokens=${interaction.usage?.total_input_tokens ?? "?"} output_tokens=${interaction.usage?.total_output_tokens ?? "?"}`,
