@@ -132,7 +132,7 @@ export type ShowEvent = {
   // YYYY-MM-DD
   periodStart: string;
   periodEnd: string;
-  slotId: number | null;
+  slotIds: number[];
   uploadImageId: number;
   edited: boolean;
 };
@@ -143,10 +143,36 @@ type EventRow = {
   description: string | null;
   period_start: string;
   period_end: string;
-  slot_id: number | null;
   upload_image_id: number;
   edited: boolean;
 };
+
+// 이벤트 id -> 적용되는 회차 id 목록
+async function getSlotIdsByEvent(
+  supabase: Pick<Awaited<ReturnType<typeof createClient>>, "from">,
+  eventIds: number[],
+): Promise<Map<number, number[]>> {
+  if (eventIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("event_slots")
+    .select("event_id, slot_id")
+    .in("event_id", eventIds);
+
+  if (error) throw error;
+
+  const rows = data as { event_id: number; slot_id: number }[];
+  const slotIdsByEvent = new Map<number, number[]>();
+
+  for (const { event_id, slot_id } of rows) {
+    slotIdsByEvent.set(event_id, [
+      ...(slotIdsByEvent.get(event_id) ?? []),
+      slot_id,
+    ]);
+  }
+
+  return slotIdsByEvent;
+}
 
 // getShowEvents는 보고 있는 달과 기간이 겹치는 이벤트만 조회
 export async function getShowEvents(
@@ -159,7 +185,7 @@ export async function getShowEvents(
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, title, description, period_start, period_end, slot_id, upload_image_id, edited",
+      "id, title, description, period_start, period_end, upload_image_id, edited",
     )
     .eq("show_id", showId)
     .lte("period_start", end)
@@ -168,13 +194,19 @@ export async function getShowEvents(
 
   if (error) throw error;
 
-  return (data as EventRow[]).map((row) => ({
+  const rows = data as EventRow[];
+  const slotIdsByEvent = await getSlotIdsByEvent(
+    supabase,
+    rows.map(({ id }) => id),
+  );
+
+  return rows.map((row) => ({
     id: row.id,
     title: row.title,
     description: row.description,
     periodStart: row.period_start,
     periodEnd: row.period_end,
-    slotId: row.slot_id,
+    slotIds: slotIdsByEvent.get(row.id) ?? [],
     uploadImageId: row.upload_image_id,
     edited: row.edited,
   }));
@@ -244,14 +276,23 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
       const { data, error } = await supabase
         .from("current_events")
         .select(
-          "id, show_id, title, description, period_start, period_end, slot_id, upload_image_id, edited, created_at",
+          "id, show_id, title, description, period_start, period_end, upload_image_id, edited, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;
 
-      return data as RecentEventRow[];
+      const rows = data as RecentEventRow[];
+      const slotIdsByEvent = await getSlotIdsByEvent(
+        supabase,
+        rows.map(({ id }) => id),
+      );
+
+      return rows.map((row) => ({
+        ...row,
+        slotIds: slotIdsByEvent.get(row.id) ?? [],
+      }));
     },
     ["recent-events"],
     { tags: [CASTING_FEED_CACHE_TAG], revalidate: REVALIDATE },
@@ -264,7 +305,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     description: row.description,
     periodStart: row.period_start,
     periodEnd: row.period_end,
-    slotId: row.slot_id,
+    slotIds: row.slotIds,
     uploadImageId: row.upload_image_id,
     edited: row.edited,
     createdAt: row.created_at,
