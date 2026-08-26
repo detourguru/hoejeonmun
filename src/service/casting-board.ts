@@ -832,8 +832,10 @@ function normalizeEvents(
 }
 
 export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
+  const resizeStart = performance.now();
+
   const imageBlocks = await Promise.all(
-    images.map(async (image) => {
+    images.map(async (image, index) => {
       const buffer = Buffer.from(await image.arrayBuffer());
       const resized = await sharp(buffer)
         .resize({
@@ -845,6 +847,10 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
         .jpeg({ quality: 80 })
         .toBuffer();
 
+      console.log(
+        `[gemini] 이미지 ${index} 리사이즈 ${buffer.byteLength}B → ${resized.byteLength}B`,
+      );
+
       return {
         type: "image" as const,
         data: resized.toString("base64"),
@@ -853,7 +859,15 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     }),
   );
 
+  console.log(
+    `[gemini] 리사이즈 전체 ${Math.round(performance.now() - resizeStart)}ms`,
+  );
+
   const client = new GoogleGenAI({});
+
+  const requestStart = performance.now();
+
+  console.log(`[gemini] 요청 시작 (model=${MODEL}, 이미지 ${imageBlocks.length}장)`);
 
   const interaction = await client.interactions.create({
     model: MODEL,
@@ -865,9 +879,15 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     },
   });
 
+  console.log(
+    `[gemini] 응답 수신 ${Math.round(performance.now() - requestStart)}ms status=${interaction.status} output_text=${interaction.output_text?.length ?? 0}자 input_tokens=${interaction.usage?.total_input_tokens ?? "?"} output_tokens=${interaction.usage?.total_output_tokens ?? "?"}`,
+  );
+
   if (!interaction.output_text) {
     throw new Error("Gemini가 응답하지 않았습니다");
   }
+
+  const parseStart = performance.now();
 
   let raw: unknown;
 
@@ -886,13 +906,19 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     reason?: string;
   };
 
+  console.log(
+    `[gemini] JSON 파싱+검증 ${Math.round(performance.now() - parseStart)}ms (회차 ${parsed.performances.length}건, 이벤트 ${parsed.events.length}건)`,
+  );
+
+  const normalizeStart = performance.now();
+
   const { performances, skippedCount } = normalizePerformances(
     parsed.performances,
     show,
     imageBlocks.length,
   );
 
-  return {
+  const result = {
     performances,
     skippedCount,
     dateTags: normalizeDateTags(
@@ -904,6 +930,12 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     events: normalizeEvents(parsed.events, show, imageBlocks.length),
     reason: parsed.reason,
   };
+
+  console.log(
+    `[gemini] 정규화 ${Math.round(performance.now() - normalizeStart)}ms`,
+  );
+
+  return result;
 }
 
 const sha256 = (input: Buffer) =>
