@@ -26,6 +26,17 @@ export const DEFAULT_REPORT_TYPE_TAB: ReportTypeTab = "casting";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_COUNT = 5;
+export const PARSE_TIMEOUT_SECONDS = 60;
+
+export const UPLOAD_STEP = createCodeTable([
+  { value: "selecting", label: "선택" },
+  { value: "uploading", label: "업로드" },
+  { value: "analyzing", label: "분석" },
+  { value: "confirming", label: "확인" },
+  { value: "saving", label: "저장" },
+]);
+
+export type UploadStatus = "idle" | CodeOf<typeof UPLOAD_STEP> | "done";
 
 // 배우 필터 규칙
 export const ACTORS_PARAM = "actors";
