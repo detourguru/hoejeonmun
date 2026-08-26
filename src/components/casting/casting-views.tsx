@@ -1,8 +1,10 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Fragment,
   ReactNode,
+  useEffect,
   useOptimistic,
   useState,
   useTransition,
@@ -88,7 +90,24 @@ export const CastingViews = ({
   const [actors, setActors] = useState<string[]>(initialActors);
   const [pending, startTransition] = useTransition();
   const [visibleMonth, setVisibleMonth] = useOptimistic(month);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const updateSearchParams = useUpdateSearchParams();
+
+  useEffect(() => {
+    const current = parseMonth(month);
+
+    if (!current) return;
+
+    for (const offset of [-1, 1]) {
+      const params = new URLSearchParams(searchParams.toString());
+
+      params.delete("page");
+      params.set("month", toMonth(addMonths(current, offset)));
+      router.prefetch(`${pathname}?${params.toString()}`);
+    }
+  }, [month, pathname, router, searchParams]);
 
   const moveMonth = (offset: number) => {
     const current = parseMonth(month);

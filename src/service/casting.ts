@@ -37,6 +37,7 @@ type SlotCastingRow = {
 };
 
 type UploadImageRow = {
+  id: number;
   upload_id: number;
   storage_path: string;
   position: number;
@@ -280,40 +281,80 @@ export function groupByDate<T extends { date: string }>(items: T[]) {
   return grouped;
 }
 
-export async function isEventReported(eventId: number) {
-  const supabase = await createClient();
+async function getSignedUrlsByPath(paths: string[]) {
+  const uniquePaths = [...new Set(paths)];
 
-  const { data } = await supabase
-    .from("event_reports")
-    .select("event_id")
-    .eq("event_id", eventId)
-    .maybeSingle();
-
-  return Boolean(data);
-}
-
-async function signPaths(paths: string[]): Promise<string[]> {
-  if (paths.length === 0) return [];
+  if (uniquePaths.length === 0) return new Map<string, string>();
 
   const supabase = createAdminClient();
 
   const { data, error } = await supabase.storage
     .from(CASTING_BOARD_BUCKET)
-    .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+    .createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
 
   if (error) throw error;
 
-  const signedByPath = new Map(
-    data
-      .filter(({ path, signedUrl }) => path && signedUrl)
-      .map(({ path, signedUrl }) => [path, signedUrl]),
-  );
+  const signedByPath = new Map<string, string>();
 
-  if (signedByPath.size === 0) {
-    return data.flatMap(({ signedUrl }) => signedUrl ?? []);
+  for (const [index, { path, signedUrl }] of data.entries()) {
+    const requestedPath = path || uniquePaths[index];
+
+    if (requestedPath && signedUrl) {
+      signedByPath.set(requestedPath, signedUrl);
+    }
   }
 
+  return signedByPath;
+}
+
+async function signPaths(paths: string[]): Promise<string[]> {
+  const signedByPath = await getSignedUrlsByPath(paths);
+
   return paths.flatMap((path) => signedByPath.get(path) ?? []);
+}
+
+export async function getEventsWithReportStatus(
+  events: ShowEvent[],
+): Promise<EventWithReportStatus[]> {
+  if (events.length === 0) return [];
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const eventIds = [...new Set(events.map(({ id }) => id))];
+  const uploadImageIds = [
+    ...new Set(events.map(({ uploadImageId }) => uploadImageId)),
+  ];
+
+  const [{ data: reports }, { data: images, error: imagesError }] =
+    await Promise.all([
+      supabase.from("event_reports").select("event_id").in("event_id", eventIds),
+      admin
+        .from("upload_images")
+        .select("id, storage_path")
+        .in("id", uploadImageIds),
+    ]);
+
+  if (imagesError) throw imagesError;
+
+  const reportedEventIds = new Set(
+    (reports ?? []).map(({ event_id }) => event_id),
+  );
+  const imageRows = images as Pick<UploadImageRow, "id" | "storage_path">[];
+  const signedByPath = await getSignedUrlsByPath(
+    imageRows.map(({ storage_path }) => storage_path),
+  );
+  const imageUrlById = new Map(
+    imageRows.map(({ id, storage_path }) => [
+      id,
+      signedByPath.get(storage_path) ?? null,
+    ]),
+  );
+
+  return events.map((event) => ({
+    ...event,
+    reported: reportedEventIds.has(event.id),
+    imageUrl: imageUrlById.get(event.uploadImageId) ?? null,
+  }));
 }
 
 export async function getUploadImages(
@@ -332,28 +373,6 @@ export async function getUploadImages(
   const rows = data as Pick<UploadImageRow, "storage_path">[];
 
   return signPaths(rows.map(({ storage_path }) => storage_path));
-}
-
-export async function getUploadImage(
-  uploadImageId: number,
-): Promise<string | null> {
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase
-    .from("upload_images")
-    .select("storage_path")
-    .eq("id", uploadImageId)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  const row = data as Pick<UploadImageRow, "storage_path"> | null;
-
-  if (!row) return null;
-
-  const [signed] = await signPaths([row.storage_path]);
-
-  return signed ?? null;
 }
 
 export async function isReported(uploadId: number, slotId: number | null) {

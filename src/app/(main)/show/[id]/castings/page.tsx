@@ -21,9 +21,8 @@ import {
   getShowCastings,
   getShowEvents,
   getShowFilterData,
+  getEventsWithReportStatus,
   getSlotPairKey,
-  getUploadImage,
-  isEventReported,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
 import {
@@ -90,26 +89,15 @@ export default async function Page({ params, searchParams }: Props) {
   const cells = getCalendarCells(monthDate);
   const supabase = await createClient();
 
-  const [slots, events, auth] = await Promise.all([
+  const [slots, events, auth, filterData] = await Promise.all([
     getShowCastings(id, start, end),
     getShowEvents(id, start, end),
     supabase.auth.getClaims(),
+    getShowFilterData(id),
   ]);
 
-  const { actors } = await getShowFilterData(id);
-
-  const initialActors = parseActorsParam(rawActors, actors);
-
-  const eventsWithReportStatus = await Promise.all(
-    events.map(async (event) => {
-      const [reported, imageUrl] = await Promise.all([
-        isEventReported(event.id),
-        getUploadImage(event.uploadImageId),
-      ]);
-
-      return { ...event, reported, imageUrl };
-    }),
-  );
+  const initialActors = parseActorsParam(rawActors, filterData.actors);
+  const eventsWithReportStatus = await getEventsWithReportStatus(events);
 
   return (
     <div className="flex flex-col gap-4">
@@ -157,7 +145,7 @@ export default async function Page({ params, searchParams }: Props) {
             <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
           ]),
         )}
-        filterOptions={actors}
+        filterOptions={filterData.actors}
         initialActors={initialActors}
         empty={
           <div className="flex flex-col items-center gap-3 py-16 text-center">
