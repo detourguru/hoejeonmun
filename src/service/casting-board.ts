@@ -292,6 +292,12 @@ const titlesOverlap = (a: string, b: string) =>
 const agreesWithPrintedWeekday = (isoDate: string, printed: string) =>
   printed.length === 0 || getWeekday(isoDate) === printed;
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const isNextDay = (date: string, next: string) =>
+  Date.parse(`${next}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`) ===
+  MS_PER_DAY;
+
 function resolveRunWindow(show: ShowDetail) {
   if (show.openrun !== "Y")
     return { from: toIsoDate(show.prfpdfrom), to: toIsoDate(show.prfpdto) };
@@ -488,6 +494,45 @@ function normalizePerformances(
   return { performances: valid, skippedCount };
 }
 
+function mergeSameDateTags(dateTags: ParsedDateTag[]): ParsedDateTag[] {
+  const groups = new Map<string, ParsedDateTag[]>();
+
+  for (const dateTag of dateTags) {
+    const group = groups.get(dateTag.tag) ?? [];
+
+    group.push(dateTag);
+    groups.set(dateTag.tag, group);
+  }
+
+  const merged: ParsedDateTag[] = [];
+
+  for (const group of groups.values()) {
+    const [first, ...rest] = group.sort((a, b) =>
+      a.startDate.localeCompare(b.startDate),
+    );
+
+    let run = first;
+
+    for (const dateTag of rest) {
+      if (isNextDay(run.endDate, dateTag.startDate)) {
+        run = {
+          ...run,
+          endDate: dateTag.endDate,
+          printedEndWeekday: dateTag.printedEndWeekday,
+        };
+        continue;
+      }
+
+      merged.push(run);
+      run = dateTag;
+    }
+
+    merged.push(run);
+  }
+
+  return merged;
+}
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizeDateTags(
   dateTags: ParsedDateTag[],
@@ -538,7 +583,7 @@ function normalizeDateTags(
     });
   }
 
-  return valid;
+  return mergeSameDateTags(valid);
 }
 
 const eventMatchJsonSchema = {
@@ -885,10 +930,13 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const GEMINI_TIMEOUT_MS = 20000;
   const GEMINI_MAX_ATTEMPTS = 2;
 
-  console.log(`[gemini] 요청 시작 (model=${MODEL}, 이미지 ${imageBlocks.length}장)`);
+  console.log(
+    `[gemini] 요청 시작 (model=${MODEL}, 이미지 ${imageBlocks.length}장)`,
+  );
 
-  let interaction: Awaited<ReturnType<typeof client.interactions.create>> | null =
-    null;
+  let interaction: Awaited<
+    ReturnType<typeof client.interactions.create>
+  > | null = null;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
@@ -1100,7 +1148,6 @@ type EventRow = {
   show_id: string;
   upload_id: number;
   upload_image_id: number;
-  slot_id: null;
   title: string;
   description: string | null;
   period_start: string;
@@ -1128,11 +1175,15 @@ async function insertEvent(
   admin: ReturnType<typeof createAdminClient>,
   row: EventRow,
 ) {
-  const { error } = await admin.from("events").insert(row);
+  const { error, data } = await admin
+    .from("events")
+    .insert(row)
+    .select("id")
+    .single();
 
   if (error && error.code !== DUPLICATE_KEY) throw error;
 
-  return !error;
+  return data?.id;
 }
 
 export async function saveCastingBoard({
@@ -1287,7 +1338,6 @@ export async function saveCastingBoard({
       show_id: showId,
       upload_id: upload.id,
       upload_image_id: uploadImageId,
-      slot_id: null,
       title: event.title,
       description: event.description ?? null,
       period_start: event.periodStart,
@@ -1296,9 +1346,34 @@ export async function saveCastingBoard({
       edited_by: event.edited ? userId : null,
     };
 
-    const saved = await insertEvent(admin, row);
+    const eventId = await insertEvent(admin, row);
 
-    if (saved) eventCount += 1;
+    if (eventId) {
+      eventCount += 1;
+
+      const { data: slots, error: slotsErr } = await admin
+        .from("slots")
+        .select("id")
+        .eq("show_id", showId)
+        .gte("date", event.periodStart)
+        .lte("date", event.periodEnd);
+
+      if (slotsErr) throw slotsErr;
+
+      const eventSlots = slots.map(({ id }) => ({
+        event_id: eventId,
+        slot_id: id,
+      }));
+
+      const { error: eventSlotsErr } = await admin
+        .from("event_slots")
+        .upsert(eventSlots, {
+          onConflict: "event_id,slot_id",
+          ignoreDuplicates: true,
+        });
+
+      if (eventSlotsErr) throw eventSlotsErr;
+    }
   }
 
   return {
