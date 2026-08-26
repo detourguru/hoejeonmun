@@ -83,7 +83,6 @@ create table events (
   show_id text not null,
   upload_id bigint not null references uploads(id) on delete cascade,
   upload_image_id bigint not null references upload_images(id) on delete cascade,
-  slot_id bigint references slots(id) on delete cascade,
   title text not null,
   -- 제목의 공백/문장부호를 지운 중복 판정용 키 ("스페셜커튼콜위크" = "스페셜 커튼콜 위크")
   title_key text generated always as (
@@ -106,14 +105,21 @@ create table events (
 );
 
 create index events_show_id_idx on events (show_id);
-create index events_slot_id_idx on events (slot_id);
 create index events_upload_image_id_idx on events (upload_image_id);
 
 -- 이전 버전과 동일 값으로 버전 수정을 할 수도 있으므로 group_id + upload_id
 create unique index events_dedupe_idx
   on events (group_id, upload_id, period_start, period_end);
 
--- 신고 단위는 이벤트 1건 
+create table event_slots (
+  event_id bigint not null references events(id) on delete cascade,
+  slot_id bigint not null references slots(id) on delete cascade,
+  primary key (event_id, slot_id)
+);
+
+create index event_slots_slot_id_idx on event_slots (slot_id);
+
+-- 신고 단위는 이벤트 1건
 create table event_reports (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -224,7 +230,6 @@ select
   e.show_id,
   e.upload_id,
   e.upload_image_id,
-  e.slot_id,
   e.title,
   e.title_key,
   e.description,
@@ -259,16 +264,18 @@ alter table favorites enable row level security;
 alter table events enable row level security;
 alter table event_reports enable row level security;
 alter table show_title_aliases enable row level security;
+alter table event_slots enable row level security;
 
 create policy "actors are public" on actors for select using (true);
 create policy "slots are public" on slots for select using (true);
 create policy "assignments are public" on assignments for select using (true);
 create policy "events are public" on events for select using (true);
+create policy "event slots are public" on event_slots for select using (true);
 
 -- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 current_events.edited만 나간다
 revoke select on events from anon, authenticated;
 grant select (
-  id, show_id, upload_id, upload_image_id, slot_id, title, title_key,
+  id, show_id, upload_id, upload_image_id, title, title_key,
   description, period_start, period_end, source, created_at
 ) on events to anon, authenticated;
 
@@ -319,4 +326,3 @@ create policy "users upload own casting boards" on storage.objects
     bucket_id = 'casting-boards'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
-
