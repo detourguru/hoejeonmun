@@ -16,6 +16,7 @@ type Band = {
 };
 
 const DAYS_IN_WEEK = 7;
+const MAX_VISIBLE_SLOTS = 2;
 
 export const Calendar = ({
   showId,
@@ -162,7 +163,7 @@ export const Calendar = ({
                     >
                       {band?.start && (
                         <span
-                          className="text-text absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[8px] leading-3 font-bold"
+                          className="text-text absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[9px] leading-3 font-bold"
                           style={{ width: `${band.length * 100}%` }}
                         >
                           {band.start ? event.title : " "}
@@ -172,11 +173,11 @@ export const Calendar = ({
                   );
                 })}
 
-                {daySlots.map((slot) => (
+                {daySlots.slice(0, MAX_VISIBLE_SLOTS).map((slot) => (
                   <span
                     key={slot.id}
                     className={cn(
-                      "flex min-w-0 flex-col rounded px-0.5 py-px text-[9px] leading-tight",
+                      "flex min-w-0 flex-col rounded px-0.5 py-px text-[10px] leading-tight",
                       slot.colorClass,
                     )}
                   >
@@ -184,6 +185,12 @@ export const Calendar = ({
                     <span className="truncate">{slot.label}</span>
                   </span>
                 ))}
+
+                {daySlots.length > MAX_VISIBLE_SLOTS && (
+                  <span className="text-text-muted px-0.5 text-[10px] font-medium">
+                    +{daySlots.length - MAX_VISIBLE_SLOTS}건 더
+                  </span>
+                )}
               </div>
             </button>
           );
