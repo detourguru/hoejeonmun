@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { OriginalImages } from "@/components/casting/original-images";
+import { CorrectCastingButton } from "@/components/correct-casting-button";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
 import { CastingSlot, getUploadImages, isReported } from "@/service/casting";
@@ -51,24 +52,37 @@ export const SlotCard = async ({
           {slot.time}
         </p>
 
-        <ReportButton
-          target={{
-            kind: "slot",
-            showId,
-            uploadId: slot.uploadId,
-            slotId: slot.id,
-          }}
-          reported={reported}
-          label={`${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`}
-        />
+        <div className="flex items-center gap-1">
+          <CorrectCastingButton
+            showId={showId}
+            slotId={slot.id}
+            roles={slot.casting.map(({ role }) => role)}
+          />
+
+          <ReportButton
+            target={{
+              kind: "slot",
+              showId,
+              uploadId: slot.uploadId,
+              slotId: slot.id,
+            }}
+            reported={reported}
+            label={`${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`}
+          />
+        </div>
       </div>
 
       <dl className="flex flex-col gap-1">
-        {slot.casting.map(({ role, actor, actorId }) => (
-          <div key={role} className="flex gap-2 text-xs">
+        {slot.casting.map(({ role, actor, actorId, verified }) => (
+          <div key={role} className="flex items-center gap-2 text-xs">
             <dt className="text-text-muted w-20 shrink-0">{role}</dt>
-            <dd>
+            <dd className="flex items-center gap-1.5">
               <ActorName actor={actor} actorId={actorId} />
+              {!verified && (
+                <span className="border-border text-text-muted inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]">
+                  텍스트 제보
+                </span>
+              )}
             </dd>
           </div>
         ))}

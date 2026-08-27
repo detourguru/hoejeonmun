@@ -52,6 +52,7 @@ create table assignments (
   actor_name_raw text not null,
   actor_id bigint references actors(id) on delete set null,
   upload_image_id bigint not null references upload_images(id) on delete cascade,
+  verified boolean not null default true,
   unique (upload_id, slot_id, role_name_raw)
 );
 
@@ -208,6 +209,7 @@ select
   a.role_name_raw,
   a.actor_name_raw,
   a.actor_id,
+  a.verified,
   a.id as assignment_id
 from slots s
 join current_castings c on c.slot_id = s.id
