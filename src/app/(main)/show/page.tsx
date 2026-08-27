@@ -6,8 +6,9 @@ import { RecentEventCard } from "@/components/show/recent-event-card";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { cn } from "@/lib/utils";
 import { getRecentEvents, getRecentUploadedShows } from "@/service/casting";
-import { getShow } from "@/service/show";
+import { getShow, getShows } from "@/service/show";
 import { DEFAULT_REPORT_TYPE_TAB, REPORT_TYPE_TAB } from "@/type/casting";
+import type { Show } from "@/type/show";
 
 const FEED_LIMIT = 10;
 
@@ -72,17 +73,46 @@ export default async function Page({ searchParams }: Props) {
   );
 }
 
-async function CastingFeed() {
-  const recent = await getRecentUploadedShows(FEED_LIMIT);
+function indexShowsById(shows: Show[]) {
+  return new Map(shows.map((show) => [show.mt20id, show]));
+}
 
-  const resolved = await Promise.all(
-    recent.map(async ({ showId, uploadedAt }) => {
-      const show = await getShow(showId);
-      return show ? { show, uploadedAt } : null;
-    }),
+// 기조회된 데이터 안에 없을땐 별도 조회
+async function fillMissingShows(
+  showById: Map<string, Show>,
+  showIds: string[],
+) {
+  const missingIds = [...new Set(showIds)].filter((id) => !showById.has(id));
+
+  if (missingIds.length === 0) return showById;
+
+  const fetched = await Promise.all(missingIds.map((id) => getShow(id)));
+  const merged = new Map(showById);
+
+  missingIds.forEach((id, index) => {
+    const show = fetched[index];
+    if (show) merged.set(id, show);
+  });
+
+  return merged;
+}
+
+async function CastingFeed() {
+  const [recent, shows] = await Promise.all([
+    getRecentUploadedShows(FEED_LIMIT),
+    getShows(),
+  ]);
+  const showById = await fillMissingShows(
+    indexShowsById(shows),
+    recent.map(({ showId }) => showId),
   );
 
-  const items = resolved.filter((item) => item !== null);
+  const items = recent
+    .map(({ showId, uploadedAt }) => {
+      const show = showById.get(showId);
+      return show ? { show, uploadedAt } : null;
+    })
+    .filter((item) => item !== null);
 
   if (items.length === 0) return <EmptyFeed />;
 
@@ -100,16 +130,21 @@ async function CastingFeed() {
 }
 
 async function EventFeed() {
-  const events = await getRecentEvents(FEED_LIMIT);
-
-  const resolved = await Promise.all(
-    events.map(async (event) => {
-      const show = await getShow(event.showId);
-      return show ? { show, event } : null;
-    }),
+  const [events, shows] = await Promise.all([
+    getRecentEvents(FEED_LIMIT),
+    getShows(),
+  ]);
+  const showById = await fillMissingShows(
+    indexShowsById(shows),
+    events.map(({ showId }) => showId),
   );
 
-  const items = resolved.filter((item) => item !== null);
+  const items = events
+    .map((event) => {
+      const show = showById.get(event.showId);
+      return show ? { show, event } : null;
+    })
+    .filter((item) => item !== null);
 
   if (items.length === 0) return <EmptyFeed />;
 
