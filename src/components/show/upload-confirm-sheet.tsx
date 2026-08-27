@@ -70,9 +70,7 @@ export const UploadConfirmSheet = ({
     <BottomSheet
       open={open}
       onOpenChange={(next, eventDetails) => {
-        if (next) return;
-        if (saving) eventDetails.cancel();
-        else onCancel();
+        if (!next) eventDetails.cancel();
       }}
       title="읽어낸 내용 확인"
     >
