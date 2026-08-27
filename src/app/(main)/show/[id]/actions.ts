@@ -210,6 +210,51 @@ export async function reportEvent(
   return { ok: true, hidden: !!hidden };
 }
 
+export async function correctEventText(
+  showId: string,
+  eventId: number,
+  title: string,
+  description: string,
+): Promise<ReportResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const trimmedTitle = title.trim();
+
+  if (!trimmedTitle) return { ok: false, message: "제목을 입력해 주세요." };
+
+  const admin = createAdminClient();
+
+  const { error: updateError, count } = await admin
+    .from("events")
+    .update(
+      {
+        title: trimmedTitle,
+        description: description.trim() || null,
+        edited_by: userId,
+      },
+      { count: "exact" },
+    )
+    .eq("id", eventId);
+
+  if (updateError) {
+    console.error(updateError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!count) return { ok: false, message: "이벤트를 찾을 수 없어요." };
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, hidden: false };
+}
+
 export async function cancelEventReport(
   showId: string,
   eventId: number,
