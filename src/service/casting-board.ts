@@ -64,7 +64,8 @@ export const castingJsonSchema = {
           },
           confidence: {
             type: "number",
-            description: "a certainty of parsing result of the slots 0 to 1",
+            description:
+              "Your confidence in this row's parsing, from 0 to 1.",
           },
         },
         required: [
@@ -238,6 +239,7 @@ Casting board rules:
 - Some boards instead mark a whole run of dates at once, e.g. a colored label in the margin spanning several rows (such as "더블적립위크" or "장면시연위크" covering a week). Add a single "dateTags" entry for the whole run: "startDate" is the first date the label covers and "endDate" is the last. Do not expand a run into one entry per day.
 - A single date can carry more than one badge at once (e.g. a closing performance that is also a curtain-call day). In that case, add a separate "dateTags" entry for each badge on that date, rather than picking just one.
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the board prints next to that date. Never derive a weekday from the date; return "" when the board prints none there.
+- Fill "confidence" with your honest confidence (0 to 1) in this row's own date/time/casting, independent of other rows. Lower it when: the text is blurry, cropped, or partially obscured; the date/time had to be guessed rather than read; the row lacks a header row so roles were matched by position/legend instead of printed labels; or a casting cell was ambiguous between two similar names. A clean, fully legible row should be close to 1.
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
