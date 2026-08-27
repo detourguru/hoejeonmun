@@ -1,7 +1,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const { setDefaultResultOrder } = await import("node:dns");
+  const { registerNode } = await import("./instrumentation.node");
 
-  setDefaultResultOrder("ipv4first");
+  await registerNode();
 }
