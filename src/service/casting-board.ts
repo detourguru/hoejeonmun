@@ -62,8 +62,19 @@ export const castingJsonSchema = {
             description:
               "0-based index of which image (in the order provided) this row was read from. Used to link this performance back to its source image.",
           },
+          confidence: {
+            type: "number",
+            description: "a certainty of parsing result of the slots 0 to 1",
+          },
         },
-        required: ["date", "weekday", "time", "casting", "imageIndex"],
+        required: [
+          "date",
+          "weekday",
+          "time",
+          "casting",
+          "imageIndex",
+          "confidence",
+        ],
       },
     },
     dateTags: {
@@ -518,6 +529,7 @@ function normalizePerformances(
       weekday: performance.weekday,
       casting,
       imageIndex: performance.imageIndex,
+      confidence: performance.confidence,
     });
   }
 

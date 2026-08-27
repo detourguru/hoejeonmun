@@ -20,6 +20,7 @@ const performanceSchema = z.object({
   time: z.string(),
   casting: z.record(z.string(), z.string()),
   imageIndex: z.number(),
+  confidence: z.number(),
 });
 
 const eventSourceSchema = z.enum(["badge", "notice"]);
