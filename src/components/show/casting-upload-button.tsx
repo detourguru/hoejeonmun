@@ -73,6 +73,7 @@ export const CastingUploadButton = ({
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
+  const [knownDates, setKnownDates] = useState<Set<string>>(new Set());
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
     DEFAULT_REPORT_TYPE_TAB,
   );
@@ -141,6 +142,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
+    setKnownDates(new Set());
     setStatus("idle");
   };
 
@@ -226,6 +228,18 @@ export const CastingUploadButton = ({
       return;
     }
 
+    if (events.length > 0) {
+      const dates = new Set(performances.map(({ date }) => date));
+      const { data: existingSlots } = await supabase
+        .from("slots")
+        .select("date")
+        .eq("show_id", showId);
+
+      for (const { date } of existingSlots ?? []) dates.add(date);
+
+      setKnownDates(dates);
+    }
+
     setParsed(upload);
     setCastingDrafts(toCastingDrafts(performances));
     setDrafts(toEventDrafts(events));
@@ -255,6 +269,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
+    setKnownDates(new Set());
     setStatus("done");
     router.refresh();
   };
@@ -379,6 +394,7 @@ export const CastingUploadButton = ({
           open
           castingDrafts={castingDrafts}
           eventDrafts={drafts}
+          knownDates={knownDates}
           previewUrls={previewUrls}
           saving={status === "saving"}
           error={error}
