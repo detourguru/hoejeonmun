@@ -12,8 +12,10 @@ import {
 
 import { ActorFilter } from "@/components/casting/actor-filter";
 import { Calendar } from "@/components/casting/calendar";
+import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
+import { matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { EventWithReportStatus } from "@/service/casting";
 import {
@@ -213,9 +215,30 @@ export const CastingViews = ({
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {visible.map((slot) => (
-              <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
-            ))}
+            {visible.map((slot, index) => {
+              const isFirstOfDate =
+                index === 0 || visible[index - 1].date !== slot.date;
+
+              const dateEvents = isFirstOfDate
+                ? matchEventsToDate(
+                    visible.filter((s) => s.date === slot.date),
+                    events.filter(
+                      (event) =>
+                        event.periodStart <= slot.date &&
+                        slot.date <= event.periodEnd,
+                    ),
+                  )
+                : [];
+
+              return (
+                <Fragment key={slot.id}>
+                  {dateEvents.map((event) => (
+                    <EventCard key={event.id} event={event} showId={showId} />
+                  ))}
+                  {listItems[slot.id]}
+                </Fragment>
+              );
+            })}
           </ul>
         )}
       </div>

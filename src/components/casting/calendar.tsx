@@ -2,9 +2,9 @@
 
 import { Fragment, ReactNode, useState } from "react";
 
-import { OriginalImages } from "@/components/casting/original-images";
-import { ReportButton } from "@/components/report-button";
+import { EventCard } from "@/components/casting/event-card";
 import { WEEKDAYS } from "@/lib/date";
+import { matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { EventWithReportStatus } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
@@ -108,6 +108,11 @@ export const Calendar = ({
   // 필터를 걸면 원래 보던 날짜가 사라질 수 있다
   const openDate = selected && hasContent(selected) ? selected : firstFilled;
 
+  const openDateSlots = openDate ? (byDate.get(openDate) ?? []) : [];
+  const openDateEvents = openDate
+    ? matchEventsToDate(openDateSlots, eventsByDate.get(openDate) ?? [])
+    : [];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-7 items-start gap-y-0.5">
@@ -187,45 +192,16 @@ export const Calendar = ({
 
       {openDate && (
         <div className="border-border flex flex-col gap-3 border-t pt-4">
-          {(eventsByDate.get(openDate) ?? []).length > 0 && (
+          {openDateEvents.length > 0 && (
             <ul className="flex flex-col gap-2">
-              {(eventsByDate.get(openDate) ?? []).map((event) => (
-                <li key={event.id} className="bg-point/10 rounded p-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-text text-sm font-bold">{event.title}</p>
-
-                    {showId && (
-                      <ReportButton
-                        target={{ kind: "event", showId, eventId: event.id }}
-                        reported={event.reported}
-                        label={event.title}
-                      />
-                    )}
-                  </div>
-
-                  {event.description && (
-                    <p className="text-text-muted mt-1 text-xs">
-                      {event.description}
-                    </p>
-                  )}
-                  <p className="text-text-muted mt-1 text-[10px]">
-                    {event.edited
-                      ? "제보자가 확인하고 고친 일정이에요"
-                      : "제보 이미지에서 AI가 읽은 일정이에요"}
-                  </p>
-
-                  <div className="mt-2">
-                    <OriginalImages
-                      images={event.imageUrl ? [event.imageUrl] : []}
-                    />
-                  </div>
-                </li>
+              {openDateEvents.map((event) => (
+                <EventCard key={event.id} event={event} showId={showId} />
               ))}
             </ul>
           )}
 
           <ul className="flex flex-col gap-2">
-            {(byDate.get(openDate) ?? []).map((slot) => (
+            {openDateSlots.map((slot) => (
               <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
             ))}
           </ul>
