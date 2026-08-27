@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Download, Share, SquarePlus } from "lucide-react";
+import { Download, Share, SquarePlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -10,24 +10,25 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const isStandaloneDisplay = () =>
-  window.matchMedia("(display-mode: standalone)").matches ||
-  (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+const getIsIOS = () =>
+  typeof navigator !== "undefined" &&
+  /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+  !("MSStream" in window);
+
+const getIsStandalone = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone ===
+      true);
 
 export const InstallGuideButton = () => {
   const [open, setOpen] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS] = useState(getIsIOS);
+  const [isStandalone] = useState(getIsStandalone);
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-        !("MSStream" in window),
-    );
-    setIsStandalone(isStandaloneDisplay());
-
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
@@ -59,13 +60,10 @@ export const InstallGuideButton = () => {
       <button
         type="button"
         onClick={handleClick}
-        className="border-border bg-surface hover:border-primary/30 flex w-full items-center gap-3 rounded-xl border p-3 text-left shadow-sm transition-all hover:shadow"
+        className="border-border text-text-muted hover:border-primary/40 hover:text-primary flex w-full items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-colors"
       >
-        <span className="bg-point/40 flex size-9 shrink-0 items-center justify-center rounded-full">
-          <Download className="text-primary size-4" />
-        </span>
-        <span className="text-text flex-1 text-sm font-bold">앱 설치하기</span>
-        <ChevronRight className="text-text-muted size-4" />
+        <Download className="size-3.5" />
+        앱 설치하기
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="앱 설치 방법">

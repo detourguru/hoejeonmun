@@ -2,6 +2,7 @@ import { ChevronRight, Heart } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { InstallGuideButton } from "@/components/install-guide-button";
 import { MyUploadsSection } from "@/components/mypage/my-uploads-section";
 import { SignOutButton } from "@/components/mypage/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,10 @@ export default async function Page() {
 
       <MyUploadsSection userId={userId} />
 
-      <SignOutButton />
+      <div className="mt-2 flex flex-col gap-2">
+        <InstallGuideButton />
+        <SignOutButton />
+      </div>
     </div>
   );
 }
