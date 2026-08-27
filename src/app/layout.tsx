@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/next";
+
 import { Toaster } from "@/components/toaster";
 
 import type { Metadata } from "next";
@@ -16,6 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
+      <Analytics/>
       <body className="bg-primary">
         {children}
         <Toaster />
