@@ -92,8 +92,6 @@ export type EventSlotException = {
 // 이미지 전체가 캐스팅표가 아니라 특전/이벤트 안내인 경우
 export type ParsedEvent = {
   title: string;
-  // 타 공연 이벤트 올리는 것을 방지
-  rawTitle: string;
   description?: string;
   periodStart: string;
   periodEnd: string;

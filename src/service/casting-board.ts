@@ -133,11 +133,6 @@ export const castingJsonSchema = {
             type: "string",
             description: "Korean event/perk name, e.g. 폴라로이드 증정.",
           },
-          rawTitle: {
-            type: "string",
-            description:
-              'The show/production title as printed on this poster, usually near the logo (Korean and/or English). Copy it exactly as shown. Required even if it duplicates text already used for "title".',
-          },
           description: {
             type: "string",
             description: "Extra details about the event, if any.",
@@ -195,7 +190,6 @@ export const castingJsonSchema = {
         },
         required: [
           "title",
-          "rawTitle",
           "periodStart",
           "periodEnd",
           "printedStartWeekday",
@@ -251,7 +245,6 @@ Event rules:
 - A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
-- Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle". Copy what is printed -- do not translate it, expand it, or adjust it toward any other title you have been given.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 - When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
 - When the notice separately excludes specific performance date+times from within the period range (e.g. "단, 10/2 20:00 회차 제외"), list each as a {date, time} pair in "excludedSlots".
@@ -262,73 +255,12 @@ If both "performances" and "events" end up empty or clearly incomplete, briefly 
 `;
 };
 
-const sameShowJsonSchema = {
-  type: "object",
-  properties: {
-    isSame: {
-      type: "boolean",
-      description: "true when A and B name the same production.",
-    },
-  },
-  required: ["isSame"],
-} satisfies z.core.JSONSchema.JSONSchema;
-
-const sameShowSchema = z.fromJSONSchema(sameShowJsonSchema);
-
-const buildSameShowPrompt = (titleA: string, titleB: string) => `
-Two strings are given, each taken from the material of a stage production.
-
-A: ${titleA}
-B: ${titleB}
-
-Decide whether A and B name the same production.
-- Same when one is a transliteration or translation of the other (e.g. "BROKEBACK MOUNTAIN" and "브로크백 마운틴").
-- Same when one carries a genre, region, venue, season, or edition marker the other omits (e.g. "MUSICAL", "뮤지컬", "[대학로]", "2026", "내한").
-- Different when the underlying work differs, even if the genre or wording is similar.
-`;
-
-// 로마자 로고와 한글 공연명은 문자가 겹치지 않아 문자열 대조로는 판정할 수 없다
-async function namesSameShow(prfnm: string, printedTitle: string) {
-  const client = new GoogleGenAI({});
-
-  const interaction = await client.interactions.create({
-    model: MODEL,
-    input: [{ type: "text", text: buildSameShowPrompt(prfnm, printedTitle) }],
-    response_format: {
-      type: "text",
-      mime_type: "application/json",
-      schema: sameShowJsonSchema,
-    },
-  });
-
-  if (!interaction.output_text) {
-    throw new Error("Gemini가 응답하지 않았습니다");
-  }
-
-  const { isSame } = sameShowSchema.parse(
-    JSON.parse(interaction.output_text),
-  ) as { isSame: boolean };
-
-  return isSame;
-}
-
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
-
-// KOPIS는 공연명 뒤에 "[대학로]" 같은 지역 표기를 붙여 주는 경우가 있으므로 정규화
-const stripKopisRegionTag = (title: string) => title.replace(/\[[^\]]*\]/g, "");
-
-const normalizeTitle = (title: string) =>
-  stripKopisRegionTag(title)
-    .toLowerCase()
-    .replace(/[\s·・:,.\-()[\]{}'"!?]/g, "");
-
-const titlesOverlap = (a: string, b: string) =>
-  a.length > 0 && b.length > 0 && (a.includes(b) || b.includes(a));
 
 const agreesWithPrintedWeekday = (isoDate: string, printed: string) =>
   printed.length === 0 || getWeekday(isoDate) === printed;
@@ -380,98 +312,6 @@ export function hasKnownCastOverlap(
 
     return names.some((name) => known.has(normalizeName(name)));
   });
-}
-
-async function lookupTitleAliases(showTitleKey: string, printedKeys: string[]) {
-  const admin = createAdminClient();
-
-  const { data, error } = await admin
-    .from("show_title_aliases")
-    .select("printed_title_key, is_same")
-    .eq("show_title_key", showTitleKey)
-    .in("printed_title_key", printedKeys);
-
-  if (error) {
-    console.error("공연명 별칭 조회 실패", error);
-
-    return new Map<string, boolean>();
-  }
-
-  return new Map<string, boolean>(
-    data.map(({ printed_title_key, is_same }) => [printed_title_key, is_same]),
-  );
-}
-
-async function rememberTitleAlias(alias: {
-  showTitleKey: string;
-  printedTitleKey: string;
-  printedTitle: string;
-  isSame: boolean;
-}) {
-  const admin = createAdminClient();
-
-  const { error } = await admin.from("show_title_aliases").upsert(
-    {
-      show_title_key: alias.showTitleKey,
-      printed_title_key: alias.printedTitleKey,
-      printed_title: alias.printedTitle,
-      is_same: alias.isSame,
-    },
-    { onConflict: "show_title_key,printed_title_key", ignoreDuplicates: true },
-  );
-
-  if (error) console.error("공연명 별칭 저장 실패", error);
-}
-
-export async function isEventForShow(events: ParsedEvent[], show: ShowDetail) {
-  if (events.length === 0) return true;
-
-  const showTitleKey = normalizeTitle(show.prfnm);
-
-  if (!showTitleKey) return true;
-
-  const printed = [...new Set(events.map(({ rawTitle }) => rawTitle.trim()))]
-    .map((title) => ({ title, key: normalizeTitle(title) }))
-    .filter(({ key }) => key.length > 0);
-
-  if (printed.length === 0) return true;
-
-  const decided = await lookupTitleAliases(
-    showTitleKey,
-    printed.map(({ key }) => key),
-  );
-
-  // 인쇄된 공연명마다 개별로 판정한다 — 배치 중 하나라도 대상 공연이 아니면 전체를 거부
-  for (const { title, key } of printed) {
-    if (titlesOverlap(showTitleKey, key)) continue;
-
-    if (decided.has(key)) {
-      if (decided.get(key)) continue;
-
-      return false;
-    }
-
-    let isSame: boolean;
-
-    try {
-      isSame = await namesSameShow(show.prfnm, title);
-    } catch (error) {
-      console.error("공연명 대조 실패", error);
-
-      continue;
-    }
-
-    await rememberTitleAlias({
-      showTitleKey,
-      printedTitleKey: key,
-      printedTitle: title,
-      isSame,
-    });
-
-    if (!isSame) return false;
-  }
-
-  return true;
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -902,7 +742,6 @@ function normalizeEvents(
 
   for (const event of events) {
     const title = event.title?.trim() ?? "";
-    const rawTitle = event.rawTitle?.trim() ?? "";
     const periodStart = event.periodStart?.trim() ?? "";
     const periodEnd = event.periodEnd?.trim() ?? "";
     const printedStartWeekday = event.printedStartWeekday?.trim() ?? "";
@@ -927,7 +766,6 @@ function normalizeEvents(
 
     valid.push({
       title,
-      rawTitle,
       description,
       periodStart,
       periodEnd,
@@ -940,6 +778,94 @@ function normalizeEvents(
   }
 
   return valid;
+}
+
+const eventGroupJsonSchema = {
+  type: "object",
+  properties: {
+    groups: {
+      type: "array",
+      items: {
+        type: "array",
+        items: { type: "integer" },
+      },
+      description:
+        'Each inner array lists the indices (into the given list) that all refer to the same real-world event. Only include a group when it has 2 or more indices -- leave every other index out of "groups" entirely.',
+    },
+  },
+  required: ["groups"],
+} satisfies z.core.JSONSchema.JSONSchema;
+
+const eventGroupSchema = z.fromJSONSchema(eventGroupJsonSchema);
+
+const buildEventGroupPrompt = (entries: string[]) => `
+A list of perks/events read from one stage production's promotional images is given. The same real-world event sometimes shows up more than once in this list -- e.g. once from a weekly calendar image and again from a separate text notice about it, worded differently or with an unrelated event's name accidentally bundled in.
+
+${entries.join("\n")}
+
+Group the indices that name the same real-world event together.
+- One event is often worded differently depending on where it was printed. "럭키드로우 위크 (9/24(목) 2시 회차 제외)" and "럭키드로우 위크 (단, 9/24(목) 2시 회차 제외)(삶과 죽음의 경계선 DAY)" are the same event even though the second string has another event's name tacked on.
+- The two sources often disagree on the exact dates by a day or two. That alone does not make them different events.
+- Unrelated events frequently run in overlapping periods (e.g. a giveaway week and a signing session inside it). Do not group those together.
+`;
+
+async function groupSameEvents(events: ParsedEvent[]): Promise<number[][]> {
+  const client = new GoogleGenAI({});
+
+  const interaction = await client.interactions.create({
+    model: MODEL,
+    input: [
+      {
+        type: "text",
+        text: buildEventGroupPrompt(
+          events.map((event, index) => `${index}. ${describeEvent(event)}`),
+        ),
+      },
+    ],
+    response_format: {
+      type: "text",
+      mime_type: "application/json",
+      schema: eventGroupJsonSchema,
+    },
+  });
+
+  if (!interaction.output_text) throw new Error("Gemini가 응답하지 않았습니다");
+
+  const { groups } = eventGroupSchema.parse(
+    JSON.parse(interaction.output_text),
+  ) as { groups: number[][] };
+
+  return groups;
+}
+
+// 같은 업로드에서 여러 이미지가 같은 이벤트를 중복으로 담고 있을 때(예: 겹치게 캡처한 캘린더, 캘린더+추가 공지) 하나로 합친다
+async function dedupeEvents(events: ParsedEvent[]): Promise<ParsedEvent[]> {
+  const exact = new Map<string, ParsedEvent>();
+
+  for (const event of events) {
+    const key = `${normalizeName(event.title).toLowerCase()}|${event.periodStart}|${event.periodEnd}`;
+
+    if (!exact.has(key)) exact.set(key, event);
+  }
+
+  const deduped = [...exact.values()];
+
+  if (deduped.length < 2) return deduped;
+
+  let groups: number[][];
+
+  try {
+    groups = await groupSameEvents(deduped);
+  } catch (error) {
+    console.error("이벤트 자체 중복 판정 실패", error);
+
+    return deduped;
+  }
+
+  // 그룹마다 첫 번째 인덱스만 남기고 나머지는 중복으로 버린다
+  const dropIndexes = new Set(groups.flatMap(([, ...rest]) => rest));
+
+  return deduped.filter((_, index) => !dropIndexes.has(index));
 }
 
 function describeGeminiError(error: unknown): string {
@@ -1090,7 +1016,9 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
       imageBlocks.length,
       performances,
     ),
-    events: normalizeEvents(parsed.events, show, imageBlocks.length),
+    events: await dedupeEvents(
+      normalizeEvents(parsed.events, show, imageBlocks.length),
+    ),
     reason: parsed.reason,
   };
 

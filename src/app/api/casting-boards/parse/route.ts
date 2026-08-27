@@ -10,7 +10,6 @@ import {
   findDuplicateReasons,
   hashImages,
   hasKnownCastOverlap,
-  isEventForShow,
   logParseFailure,
   parseCastingBoard,
   toPendingEvents,
@@ -148,25 +147,6 @@ export async function POST(request: Request) {
       });
 
       return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
-    }
-
-    const isForShow = await isEventForShow(events, show);
-
-    lap("공연명 판정");
-
-    if (!isForShow) {
-      await logParseFailure({
-        admin,
-        showId,
-        userId,
-        storagePaths,
-        type: "show_mismatch",
-        reason: `포스터에서 읽은 공연명: ${[
-          ...new Set(events.map(({ rawTitle }) => rawTitle)),
-        ].join(" / ")}`,
-      });
-
-      return fail(422, "이 공연의 이벤트가 맞는지 확인해 주세요.");
     }
 
     const overlapping = await attachOverlappingEvents(
