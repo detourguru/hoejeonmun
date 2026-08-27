@@ -866,6 +866,18 @@ export async function attachOverlappingEvents(
   });
 }
 
+const sanitizeSlotExceptions = (
+  slots: EventSlotException[] | undefined,
+): EventSlotException[] | undefined => {
+  if (!slots) return undefined;
+
+  const cleaned = slots.filter(
+    ({ date, time }) => DATE_PATTERN.test(date) && TIME_PATTERN.test(time),
+  );
+
+  return cleaned.length > 0 ? cleaned : undefined;
+};
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizeEvents(
   events: ParsedEvent[],
@@ -910,6 +922,8 @@ function normalizeEvents(
       printedStartWeekday,
       printedEndWeekday,
       imageIndex: event.imageIndex,
+      includedSlots: sanitizeSlotExceptions(event.includedSlots),
+      excludedSlots: sanitizeSlotExceptions(event.excludedSlots),
     });
   }
 
