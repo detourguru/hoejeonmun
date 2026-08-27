@@ -23,6 +23,7 @@ export const UploadConfirmSheet = ({
   open,
   castingDrafts,
   eventDrafts,
+  knownDates,
   previewUrls,
   saving,
   error,
@@ -35,6 +36,7 @@ export const UploadConfirmSheet = ({
   open: boolean;
   castingDrafts: CastingDraft[];
   eventDrafts: EventDraft[];
+  knownDates: Set<string>;
   previewUrls: string[];
   saving: boolean;
   error: string | null;
@@ -123,6 +125,7 @@ export const UploadConfirmSheet = ({
             draft={draft}
             index={eventIndex}
             count={eventDrafts.length}
+            knownDates={knownDates}
             previewUrl={previewUrls[draft.event.imageIndex]}
             onDraftChange={updateEventDraft}
             onEventChange={updateEvent}
@@ -272,10 +275,37 @@ const SlotExceptionEditor = ({
   </div>
 );
 
+// periodStart~periodEnd 중 공연이 없는 날
+function datesWithoutSchedule(
+  periodStart: string,
+  periodEnd: string,
+  knownDates: Set<string>,
+): string[] {
+  if (!periodStart || !periodEnd || periodStart > periodEnd) return [];
+
+  const missing: string[] = [];
+  let cursor = new Date(`${periodStart}T00:00:00Z`);
+  const end = new Date(`${periodEnd}T00:00:00Z`);
+
+  while (cursor <= end) {
+    const iso = cursor.toISOString().slice(0, 10);
+
+    if (!knownDates.has(iso)) missing.push(iso);
+
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  return missing;
+}
+
+const toShortDate = (iso: string) =>
+  `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}`;
+
 const EventReview = ({
   draft,
   index,
   count,
+  knownDates,
   previewUrl,
   onDraftChange,
   onEventChange,
@@ -283,11 +313,17 @@ const EventReview = ({
   draft: EventDraft;
   index: number;
   count: number;
+  knownDates: Set<string>;
   previewUrl?: string;
   onDraftChange: (next: Partial<EventDraft>) => void;
   onEventChange: (next: Partial<EventDraft["event"]>) => void;
 }) => {
   const { event, include, replacesGroupId } = draft;
+  const datesWithNoShow = datesWithoutSchedule(
+    event.periodStart,
+    event.periodEnd,
+    knownDates,
+  );
   const replacing = event.overlapping.find(
     ({ groupId }) => groupId === replacesGroupId,
   );
@@ -370,6 +406,12 @@ const EventReview = ({
 
       {event.periodStart > event.periodEnd && (
         <p className="text-destructive text-xs">시작일이 종료일보다 늦어요.</p>
+      )}
+
+      {datesWithNoShow.length > 0 && (
+        <p className="text-text-muted text-xs">
+          공연 없음: {datesWithNoShow.map(toShortDate).join(", ")}
+        </p>
       )}
 
       {event.source === "notice" && (
