@@ -137,7 +137,7 @@ export const ReportButton = ({
         type="button"
         onClick={handleCancel}
         disabled={pending}
-        className="inline-flex w-fit shrink-0 rounded-4xl border border-red-700 px-2 py-0.5 text-[10px] text-red-700 disabled:opacity-60"
+        className="text-destructive inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] underline underline-offset-2 disabled:opacity-60"
       >
         신고취소
       </button>
@@ -149,7 +149,7 @@ export const ReportButton = ({
       <button
         type="button"
         onClick={openSheet}
-        className="inline-flex w-fit shrink-0 rounded-4xl border border-red-700 px-2 py-0.5 text-[10px] text-red-700"
+        className="text-text-muted hover:text-destructive inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors"
       >
         신고
       </button>

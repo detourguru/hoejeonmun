@@ -21,7 +21,7 @@ export const BackButton = ({ fallback = "/show" }: { fallback?: string }) => {
       className="text-text-muted hover:text-text flex w-fit items-center gap-1 text-sm transition-colors"
     >
       <ChevronLeft className="size-4" />
-      목록
+      뒤로
     </button>
   );
 };
