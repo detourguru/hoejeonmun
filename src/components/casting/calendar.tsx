@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import type { EventWithReportStatus } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
 
-type Band = {
+type LaneEntry = {
+  event: EventWithReportStatus;
   start: boolean;
   end: boolean;
   length: number;
@@ -17,6 +18,7 @@ type Band = {
 
 const DAYS_IN_WEEK = 7;
 const MAX_VISIBLE_SLOTS = 2;
+const MAX_EVENT_LANES = 5;
 
 export const Calendar = ({
   showId,
@@ -66,36 +68,101 @@ export const Calendar = ({
     );
   };
 
-  const bandsByDate = new Map<string, Map<number, Band>>();
-  const shownEventIds = new Set<number>();
+  const lanesByIndex = new Map<number, (LaneEntry | null)[]>();
+  const hiddenCountByIndex = new Map<number, number>();
+  const overflowWeeks = new Set<number>();
 
-  cells.forEach((date, index) => {
-    if (!date) return;
+  for (let week = 0; week * DAYS_IN_WEEK < cells.length; week += 1) {
+    const from = week * DAYS_IN_WEEK;
+    const indexes = Array.from(
+      { length: DAYS_IN_WEEK },
+      (_, offset) => from + offset,
+    ).filter((index) => index < cells.length);
 
-    const bands = new Map<number, Band>();
+    const weekEvents = new Map<number, EventWithReportStatus>();
 
-    for (const { id } of eventsByDate.get(date) ?? []) {
-      const start = index % DAYS_IN_WEEK === 0 || !isActiveAt(index - 1, id);
-      const end =
-        index % DAYS_IN_WEEK === DAYS_IN_WEEK - 1 || !isActiveAt(index + 1, id);
-
-      let length = 1;
-
-      while (
-        start &&
-        (index + length) % DAYS_IN_WEEK !== 0 &&
-        isActiveAt(index + length, id)
-      ) {
-        length += 1;
+    for (const index of indexes) {
+      for (const event of eventsByDate.get(cells[index] ?? "") ?? []) {
+        weekEvents.set(event.id, event);
       }
-
-      if (start) shownEventIds.add(id);
-
-      bands.set(id, { start, end, length });
     }
 
-    bandsByDate.set(date, bands);
-  });
+    const ordered = [...weekEvents.values()].sort(
+      (a, b) =>
+        a.periodStart.localeCompare(b.periodStart) ||
+        b.periodEnd.localeCompare(a.periodEnd) ||
+        a.id - b.id,
+    );
+
+    const occupied: Set<number>[] = [];
+    const laneOf = new Map<number, number>();
+
+    for (const event of ordered) {
+      const span = indexes.filter((index) => isActiveAt(index, event.id));
+
+      let lane = 0;
+
+      while (
+        occupied[lane]?.size &&
+        span.some((at) => occupied[lane].has(at))
+      ) {
+        lane += 1;
+      }
+
+      occupied[lane] ??= new Set();
+
+      for (const at of span) occupied[lane].add(at);
+
+      laneOf.set(event.id, lane);
+    }
+
+    const overflow = occupied.length > MAX_EVENT_LANES;
+    const barLanes = overflow ? MAX_EVENT_LANES - 1 : occupied.length;
+
+    if (overflow) overflowWeeks.add(week);
+
+    for (const index of indexes) {
+      const date = cells[index];
+
+      if (!date) continue;
+
+      const lanes: (LaneEntry | null)[] = Array.from(
+        { length: barLanes },
+        () => null,
+      );
+
+      let hidden = 0;
+
+      for (const event of eventsByDate.get(date) ?? []) {
+        const lane = laneOf.get(event.id) ?? 0;
+
+        if (lane >= barLanes) {
+          hidden += 1;
+          continue;
+        }
+
+        const start = index === from || !isActiveAt(index - 1, event.id);
+        const end =
+          index === from + DAYS_IN_WEEK - 1 || !isActiveAt(index + 1, event.id);
+
+        let length = 1;
+
+        while (
+          start &&
+          (index + length) % DAYS_IN_WEEK !== 0 &&
+          isActiveAt(index + length, event.id)
+        ) {
+          length += 1;
+        }
+
+        lanes[lane] = { event, start, end, length };
+      }
+
+      lanesByIndex.set(index, lanes);
+
+      if (hidden > 0) hiddenCountByIndex.set(index, hidden);
+    }
+  }
 
   const hasContent = (date: string) =>
     byDate.has(date) || eventsByDate.has(date);
@@ -149,29 +216,40 @@ export const Calendar = ({
                 {Number(date.slice(8))}
               </span>
               <div className="flex flex-col">
-                {dayEvents.map((event) => {
-                  const band = bandsByDate.get(date)?.get(event.id);
-
-                  return (
+                {(lanesByIndex.get(index) ?? []).map((entry, lane) =>
+                  entry ? (
                     <span
-                      key={event.id}
+                      key={entry.event.id}
                       className={cn(
                         "bg-point/50 relative h-3 border-b border-white",
-                        band?.start && "ml-px rounded-l-sm",
-                        band?.end && "mr-px rounded-r-sm",
+                        entry.start && "ml-px rounded-l-sm",
+                        entry.end && "mr-px rounded-r-sm",
                       )}
                     >
-                      {band?.start && (
+                      {entry.start && (
                         <span
                           className="text-text absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[9px] leading-3 font-bold"
-                          style={{ width: `${band.length * 100}%` }}
+                          style={{ width: `${entry.length * 100}%` }}
                         >
-                          {band.start ? event.title : " "}
+                          {entry.event.title}
                         </span>
                       )}
                     </span>
-                  );
-                })}
+                  ) : (
+                    <span
+                      key={`lane-${lane}`}
+                      className="h-3 border-b border-transparent"
+                    />
+                  ),
+                )}
+
+                {overflowWeeks.has(Math.floor(index / DAYS_IN_WEEK)) && (
+                  <span className="text-text-muted h-3 border-b border-transparent px-1 text-left text-[9px] leading-3">
+                    {hiddenCountByIndex.has(index)
+                      ? `+${hiddenCountByIndex.get(index)}`
+                      : ""}
+                  </span>
+                )}
 
                 {daySlots.slice(0, MAX_VISIBLE_SLOTS).map((slot) => (
                   <span
