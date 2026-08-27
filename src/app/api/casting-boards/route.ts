@@ -34,6 +34,11 @@ const existingEventSchema = z.object({
   edited: z.boolean(),
 });
 
+const slotExceptionSchema = z.object({
+  date: z.string().regex(ISO_DATE),
+  time: z.string(),
+});
+
 const eventSchema = z
   .object({
     title: z.string().trim().min(1),
@@ -44,8 +49,15 @@ const eventSchema = z
     printedEndWeekday: z.string(),
     source: eventSourceSchema,
     imageIndex: z.number(),
+    includedSlots: z.array(slotExceptionSchema).optional(),
+    excludedSlots: z.array(slotExceptionSchema).optional(),
     confirmReasons: z.array(
-      z.enum(["range_badge", "no_printed_weekday", "overlaps_existing"]),
+      z.enum([
+        "range_badge",
+        "no_printed_weekday",
+        "overlaps_existing",
+        "has_slot_exceptions",
+      ]),
     ),
     overlapping: z.array(existingEventSchema),
     suggestedSameAsId: z.number().optional(),
