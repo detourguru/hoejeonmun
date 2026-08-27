@@ -15,8 +15,16 @@ export type EventDraft = {
   replacesGroupId?: number;
 };
 
+// 날짜순으로 붙어 있어야 중복 이벤트가 눈에 바로 띈다
+const byPeriod = (a: PendingEvent, b: PendingEvent) => {
+  const keyA = a.periodStart + a.periodEnd;
+  const keyB = b.periodStart + b.periodEnd;
+
+  return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
+};
+
 export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
-  events.map((event) => ({
+  [...events].sort(byPeriod).map((event) => ({
     event,
     original: event,
     include: true,

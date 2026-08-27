@@ -468,7 +468,9 @@ const EventReview = ({
       )}
 
       {event.description && (
-        <p className="text-text-muted text-xs">{event.description}</p>
+        <div className="bg-muted-foreground/20 rounded-xl p-4">
+          <p className="text-text text-xs">{event.description}</p>
+        </div>
       )}
     </div>
   );
