@@ -18,6 +18,7 @@ import {
   CastingBoardResult,
   ConfirmedEvent,
   EventConfirmReason,
+  EventSlotException,
   EventSource,
   ExistingEvent,
   ParsedDateTag,
@@ -154,6 +155,32 @@ export const castingJsonSchema = {
             description:
               "0-based index of which image (in the order provided) this event was read from.",
           },
+          includedSlots: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: "YYYY-MM-DD" },
+                time: { type: "string", description: "HH:mm" },
+              },
+              required: ["date", "time"],
+            },
+            description:
+              'Specific performance date+times this event ALSO applies to, outside the periodStart/periodEnd range (e.g. notice text like "10/5(월) 15:00, 18:30 회차 포함" when the period itself ends 10/4). Do not fold these into periodEnd -- keep the period as printed and list the extra times here instead. Omit or leave empty when the notice has no such extra inclusion.',
+          },
+          excludedSlots: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: "YYYY-MM-DD" },
+                time: { type: "string", description: "HH:mm" },
+              },
+              required: ["date", "time"],
+            },
+            description:
+              'Specific performance date+times WITHIN the periodStart/periodEnd range that this event does NOT apply to (e.g. "단, 10/2 20:00 회차 제외"). Omit or leave empty when there is no such exclusion.',
+          },
         },
         required: [
           "title",
@@ -215,6 +242,9 @@ Event rules:
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
 - Also read the show/production title printed on the poster itself (usually near a logo) and put it verbatim in "rawTitle". Copy what is printed -- do not translate it, expand it, or adjust it toward any other title you have been given.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
+- When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
+- When the notice separately excludes specific performance date+times from within the period range (e.g. "단, 10/2 20:00 회차 제외"), list each as a {date, time} pair in "excludedSlots".
+- Keep any such inclusion/exclusion wording in "title" or "description" as printed -- do not remove it just because you also structured it into "includedSlots"/"excludedSlots".
 
 Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
 If both "performances" and "events" end up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table or event notice found, header row missing).
@@ -711,6 +741,8 @@ export function unverifiedPoints(event: {
   periodEnd: string;
   printedStartWeekday: string;
   printedEndWeekday: string;
+  includedSlots?: EventSlotException[];
+  excludedSlots?: EventSlotException[];
 }): EventConfirmReason[] {
   const reasons: EventConfirmReason[] = [];
 
@@ -720,6 +752,10 @@ export function unverifiedPoints(event: {
 
   if (!event.printedStartWeekday || !event.printedEndWeekday) {
     reasons.push("no_printed_weekday");
+  }
+
+  if (event.includedSlots?.length || event.excludedSlots?.length) {
+    reasons.push("has_slot_exceptions");
   }
 
   return reasons;
@@ -738,6 +774,8 @@ export function toPendingEvents(
       printedStartWeekday,
       printedEndWeekday,
       imageIndex,
+      includedSlots,
+      excludedSlots,
     }) => ({
       title,
       description,
@@ -746,6 +784,8 @@ export function toPendingEvents(
       printedStartWeekday,
       printedEndWeekday,
       imageIndex,
+      includedSlots,
+      excludedSlots,
       source: "notice" as const,
     }),
   );
@@ -1186,6 +1226,8 @@ async function insertEvent(
   return data?.id;
 }
 
+const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
+
 export async function saveCastingBoard({
   showId,
   userId,
@@ -1351,18 +1393,52 @@ export async function saveCastingBoard({
     if (eventId) {
       eventCount += 1;
 
-      const { data: slots, error: slotsErr } = await admin
+      const { data: periodSlots, error: periodSlotsErr } = await admin
         .from("slots")
-        .select("id")
+        .select("id, date, time")
         .eq("show_id", showId)
         .gte("date", event.periodStart)
         .lte("date", event.periodEnd);
 
-      if (slotsErr) throw slotsErr;
+      if (periodSlotsErr) throw periodSlotsErr;
 
-      const eventSlots = slots.map(({ id }) => ({
+      const excludedKeys = new Set(
+        (event.excludedSlots ?? []).map(({ date, time }) =>
+          slotKey(date, time),
+        ),
+      );
+
+      const matchedSlotIds = new Set(
+        periodSlots
+          .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
+          .map(({ id }) => id),
+      );
+
+      const includedSlots = event.includedSlots ?? [];
+
+      if (includedSlots.length > 0) {
+        const { data: extraSlots, error: extraSlotsErr } = await admin
+          .from("slots")
+          .select("id, date, time")
+          .eq("show_id", showId)
+          .in("date", [...new Set(includedSlots.map(({ date }) => date))]);
+
+        if (extraSlotsErr) throw extraSlotsErr;
+
+        const includedKeys = new Set(
+          includedSlots.map(({ date, time }) => slotKey(date, time)),
+        );
+
+        for (const slot of extraSlots) {
+          if (includedKeys.has(slotKey(slot.date, slot.time))) {
+            matchedSlotIds.add(slot.id);
+          }
+        }
+      }
+
+      const eventSlots = [...matchedSlotIds].map((slotId) => ({
         event_id: eventId,
-        slot_id: id,
+        slot_id: slotId,
       }));
 
       const { error: eventSlotsErr } = await admin
