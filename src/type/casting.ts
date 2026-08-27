@@ -68,6 +68,7 @@ export type ParsedPerformance = {
   // 배역명 -> 배우명
   casting: Record<string, string>;
   imageIndex: number;
+  confidence: number;
 };
 
 // 캐스팅표에 붙은 배지(프리뷰/막공/커튼콜데이/더블적립위크 등).

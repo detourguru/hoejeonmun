@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ParsedPerformance } from "@/type/casting";
+
+const CONFIDENCE_THRESHOLD = 0.7;
 
 export type CastingDraft = {
   performance: ParsedPerformance;
@@ -69,6 +74,7 @@ export const CastingConfirmList = ({
 }) => {
   const roles = uniqueValues(drafts, 0);
   const actors = uniqueValues(drafts, 1);
+  const [expanded, setExpanded] = useState(false);
 
   const updateDraft = (index: number, next: Partial<CastingDraft>) =>
     onChange(
@@ -91,6 +97,65 @@ export const CastingConfirmList = ({
         ? timeA.localeCompare(timeB)
         : dateA.localeCompare(dateB);
     });
+
+  const lowConf = ordered.filter(
+    (order) => order.draft.performance.confidence < CONFIDENCE_THRESHOLD,
+  );
+  const highConf = ordered.filter(
+    (order) => order.draft.performance.confidence >= CONFIDENCE_THRESHOLD,
+  );
+
+  const renderCard = (
+    { performance, include }: CastingDraft,
+    index: number,
+  ) => {
+    return (
+      <li
+        key={index}
+        className="border-border flex flex-col gap-2 rounded-lg border p-3"
+      >
+        <label className="text-text flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={include}
+            onChange={({ target }) =>
+              updateDraft(index, { include: target.checked })
+            }
+          />
+          이 회차를 저장할게요
+        </label>
+
+        <div className="flex items-center gap-1">
+          <Input
+            type="date"
+            value={performance.date}
+            disabled={!include}
+            aria-label="날짜"
+            onChange={({ target }) =>
+              updatePerformance(index, { date: target.value })
+            }
+          />
+          <Input
+            type="time"
+            value={performance.time}
+            disabled={!include}
+            aria-label="시간"
+            onChange={({ target }) =>
+              updatePerformance(index, { time: target.value })
+            }
+          />
+        </div>
+
+        <ul className="text-text-muted flex flex-col gap-0.5 text-xs">
+          {Object.entries(performance.casting).map(([role, actor]) => (
+            <li key={role}>
+              {role}: {actor}
+            </li>
+          ))}
+        </ul>
+      </li>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -141,53 +206,18 @@ export const CastingConfirmList = ({
       )}
 
       <ul className="flex flex-col gap-3">
-        {ordered.map(({ draft: { performance, include }, index }) => (
-          <li
-            key={index}
-            className="border-border flex flex-col gap-2 rounded-lg border p-3"
-          >
-            <label className="text-text flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={include}
-                onChange={({ target }) =>
-                  updateDraft(index, { include: target.checked })
-                }
-              />
-              이 회차를 저장할게요
-            </label>
-
-            <div className="flex items-center gap-1">
-              <Input
-                type="date"
-                value={performance.date}
-                disabled={!include}
-                aria-label="날짜"
-                onChange={({ target }) =>
-                  updatePerformance(index, { date: target.value })
-                }
-              />
-              <Input
-                type="time"
-                value={performance.time}
-                disabled={!include}
-                aria-label="시간"
-                onChange={({ target }) =>
-                  updatePerformance(index, { time: target.value })
-                }
-              />
-            </div>
-
-            <ul className="text-text-muted flex flex-col gap-0.5 text-xs">
-              {Object.entries(performance.casting).map(([role, actor]) => (
-                <li key={role}>
-                  {role}: {actor}
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+        {lowConf.map(({ draft, index }) => renderCard(draft, index))}
       </ul>
+      {highConf.length > 0 && (
+        <Button onClick={() => setExpanded(!expanded)}>
+          {highConf.length}건 자동확정
+        </Button>
+      )}
+      {expanded && (
+        <ul className="flex flex-col gap-3">
+          {highConf.map(({ draft, index }) => renderCard(draft, index))}
+        </ul>
+      )}
     </div>
   );
 };
