@@ -1,4 +1,5 @@
 import { OriginalImages } from "@/components/casting/original-images";
+import { CorrectEventTextButton } from "@/components/correct-event-text-button";
 import { ReportButton } from "@/components/report-button";
 import type { EventWithSlotTimes } from "@/lib/event-slots";
 
@@ -14,11 +15,20 @@ export const EventCard = ({
       <p className="text-text text-sm font-bold">{event.title}</p>
 
       {showId && (
-        <ReportButton
-          target={{ kind: "event", showId, eventId: event.id }}
-          reported={event.reported}
-          label={event.title}
-        />
+        <div className="flex items-center gap-1">
+          <CorrectEventTextButton
+            showId={showId}
+            eventId={event.id}
+            initialTitle={event.title}
+            initialDescription={event.description}
+          />
+
+          <ReportButton
+            target={{ kind: "event", showId, eventId: event.id }}
+            reported={event.reported}
+            label={event.title}
+          />
+        </div>
       )}
     </div>
 
