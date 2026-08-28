@@ -1,3 +1,5 @@
+import { withSerwist } from "@serwist/turbopack";
+
 import type { NextConfig } from "next";
 
 const supabaseHostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
@@ -36,4 +38,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);
