@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 
@@ -11,6 +12,75 @@ export type EventReportType = "wrong_event" | "other";
 
 export type ReportResult =
   { ok: true; hidden: boolean } | { ok: false; message: string };
+
+export async function correctSlotCasting(
+  showId: string,
+  slotId: number,
+  role: string,
+  newActor: string,
+): Promise<ReportResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  const { error: castingError, data: castingData } = await admin
+    .from("current_castings")
+    .select("upload_id")
+    .eq("slot_id", slotId)
+    .maybeSingle();
+
+  if (castingError) {
+    console.error(castingError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!castingData)
+    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  const { data: actor, error: actorError } = await admin
+    .from("actors")
+    .upsert([{ name: newActor }], {
+      onConflict: "name",
+      ignoreDuplicates: false,
+    })
+    .select("id")
+    .single();
+
+  if (actorError) {
+    console.error(actorError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  const { error: updateError, count } = await admin
+    .from("assignments")
+    .update(
+      { actor_name_raw: newActor, actor_id: actor.id, verified: false },
+      { count: "exact" },
+    )
+    .eq("upload_id", castingData.upload_id)
+    .eq("slot_id", slotId)
+    .eq("role_name_raw", role);
+
+  if (updateError) {
+    console.error(updateError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!count) return { ok: false, message: "해당 배역을 찾을 수 없어요." };
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
+
+  return { ok: true, hidden: false };
+}
 
 export async function reportSlot(
   showId: string,
