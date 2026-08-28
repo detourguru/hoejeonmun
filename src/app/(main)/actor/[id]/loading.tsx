@@ -1,9 +1,3 @@
-import { LoadingGhost } from "@/components/ui/loading-ghost";
+import { RouteLoading } from "@/components/ui/route-loading";
 
-export default function Loading() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <LoadingGhost />
-    </div>
-  );
-}
+export default RouteLoading;
