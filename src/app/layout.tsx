@@ -9,7 +9,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "회전문 | Hoejeonmun",
-  description: "공연 관련 정보를 제공하는 웹 애플리케이션",
+  description: "티켓팅 전에 확인하는 뮤지컬/연극 캐스팅 정보",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <Analytics/>
+      <Analytics />
       <body className="bg-primary">
         <SerwistProvider swUrl="/serwist/sw.js">
           {children}
