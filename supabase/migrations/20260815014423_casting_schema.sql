@@ -274,6 +274,9 @@ create policy "assignments are public" on assignments for select using (true);
 create policy "events are public" on events for select using (true);
 create policy "event slots are public" on event_slots for select using (true);
 
+create policy "read own uploads" on uploads
+  for select to authenticated using (user_id = auth.uid());
+
 -- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 current_events.edited만 나간다
 revoke select on events from anon, authenticated;
 grant select (

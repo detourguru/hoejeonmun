@@ -36,7 +36,7 @@ export async function toggleFavorite(
   }
 
   revalidatePath(`/actor/${actorId}`);
-  revalidatePath("/actor/favorite");
+  revalidatePath("/mypage");
 
   return { ok: true, favorited: !favorited };
 }

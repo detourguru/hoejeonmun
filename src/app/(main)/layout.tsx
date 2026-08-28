@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { FooterNav } from "@/components/footer-nav";
 import { SearchBar } from "@/components/search/search-bar";
 
 export default function MainLayout({
@@ -31,12 +32,12 @@ export default function MainLayout({
         </Suspense>
       </header>
 
-      <main className="flex w-full max-w-4xl flex-1 flex-col p-4">
+      <main className="flex w-full max-w-4xl flex-1 flex-col p-4 pb-24">
         {children}
       </main>
 
-      <footer className="bg-point text-text w-full p-4">
-        <p>&copy; 2026 회전문 | Hoejeonmun. All rights reserved.</p>
+      <footer className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full sm:max-w-md">
+        <FooterNav />
       </footer>
     </div>
   );
