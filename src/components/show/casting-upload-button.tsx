@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { discardUploadImages } from "@/app/(main)/show/[id]/actions";
 import { ImageZoom } from "@/components/image-zoom";
 import {
   CastingDraft,
@@ -216,6 +217,7 @@ export const CastingUploadButton = ({
       setStatus("selecting");
       setError(message);
       setDuplicateIndexes(duplicates ?? []);
+      void discardUploadImages(storagePaths);
       return;
     }
 
@@ -277,6 +279,11 @@ export const CastingUploadButton = ({
     router.refresh();
   };
 
+  const handleCancelConfirm = () => {
+    if (parsed) void discardUploadImages(parsed.storagePaths);
+    reset();
+  };
+
   const handleConfirm = async () => {
     if (!parsed) return;
 
@@ -289,7 +296,7 @@ export const CastingUploadButton = ({
     }
 
     if (performances.length === 0 && events.length === 0) {
-      reset();
+      handleCancelConfirm();
       return;
     }
 
@@ -405,7 +412,7 @@ export const CastingUploadButton = ({
           onCastingChange={setCastingDrafts}
           onEventChange={setDrafts}
           onConfirm={handleConfirm}
-          onCancel={reset}
+          onCancel={handleCancelConfirm}
         />
       )}
 

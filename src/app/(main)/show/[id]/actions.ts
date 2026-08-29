@@ -5,6 +5,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
+import { CASTING_BOARD_BUCKET } from "@/type/casting";
 
 export type SlotReportType =
   "wrong_date" | "wrong_cast" | "wrong_show" | "other";
@@ -282,4 +283,45 @@ export async function cancelEventReport(
   updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: false };
+}
+
+// 업로드 후 취소 시 storage에서 이미지를 삭제한다.
+export async function discardUploadImages(
+  storagePaths: string[],
+): Promise<{ ok: boolean }> {
+  if (storagePaths.length === 0) return { ok: true };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false };
+
+  if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
+    return { ok: false };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: linked } = await admin
+    .from("upload_images")
+    .select("storage_path")
+    .in("storage_path", storagePaths);
+
+  const linkedPaths = new Set((linked ?? []).map((row) => row.storage_path));
+  const deletable = storagePaths.filter((path) => !linkedPaths.has(path));
+
+  if (deletable.length === 0) return { ok: true };
+
+  const { error } = await admin.storage
+    .from(CASTING_BOARD_BUCKET)
+    .remove(deletable);
+
+  if (error) {
+    console.error(error);
+    return { ok: false };
+  }
+
+  return { ok: true };
 }
