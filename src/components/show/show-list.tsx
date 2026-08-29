@@ -30,11 +30,12 @@ export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
   return (
     <>
       <div className="flex-1">
-        {items.map((show) => (
+        {items.map((show, index) => (
           <ShowCard
             key={show.mt20id}
             show={show}
             lastUpdatedAt={latestUploads.get(show.mt20id) ?? null}
+            priority={index === 0}
           />
         ))}
       </div>

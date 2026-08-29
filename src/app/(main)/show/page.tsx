@@ -135,12 +135,13 @@ async function FavoriteActorFeed() {
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map(({ show, showId, actorNames, nearestDate }) => (
+      {items.map(({ show, showId, actorNames, nearestDate }, index) => (
         <FavoriteActorShowCard
           key={showId}
           show={show}
           actorNames={actorNames}
           nearestDate={nearestDate}
+          priority={index === 0}
         />
       ))}
     </div>
@@ -187,18 +188,20 @@ async function RecentFeed() {
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((item) =>
+      {items.map((item, index) =>
         item.type === "casting" ? (
           <RecentCastingCard
             key={`casting-${item.show.mt20id}`}
             show={item.show}
             uploadedAt={item.uploadedAt}
+            priority={index === 0}
           />
         ) : (
           <RecentEventCard
             key={`event-${item.event.id}`}
             show={item.show}
             event={item.event}
+            priority={index === 0}
           />
         ),
       )}

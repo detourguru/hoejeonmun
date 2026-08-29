@@ -11,9 +11,11 @@ import { StateBadge } from "./state-badge";
 export const ShowCard = ({
   show,
   lastUpdatedAt,
+  priority = false,
 }: {
   show: Show;
   lastUpdatedAt?: string | null;
+  priority?: boolean;
 }) => {
   return (
     <Link
@@ -24,6 +26,8 @@ export const ShowCard = ({
         <Image
           width="100"
           height="150"
+          sizes="96px"
+          priority={priority}
           className="h-32 w-24 rounded object-cover"
           src={show.poster}
           alt={show.prfnm}

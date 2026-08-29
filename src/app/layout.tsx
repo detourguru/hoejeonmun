@@ -11,11 +11,8 @@ import "./globals.css";
 
 const maruBuri = localFont({
   src: [
-    { path: "./fonts/MaruBuri-ExtraLight.ttf", weight: "200", style: "normal" },
-    { path: "./fonts/MaruBuri-Light.ttf", weight: "300", style: "normal" },
-    { path: "./fonts/MaruBuri-Regular.ttf", weight: "400", style: "normal" },
-    { path: "./fonts/MaruBuri-SemiBold.ttf", weight: "600", style: "normal" },
-    { path: "./fonts/MaruBuri-Bold.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/MaruBuri-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/MaruBuri-Bold.woff2", weight: "700", style: "normal" },
   ],
   variable: "--font-maruburi",
   display: "swap",

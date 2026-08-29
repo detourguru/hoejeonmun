@@ -95,8 +95,8 @@ export default async function Page({ searchParams }: Props) {
       {shows.length > 0 && (
         <Section title="공연" count={shows.length}>
           <div>
-            {shows.map((show) => (
-              <ShowCard key={show.mt20id} show={show} />
+            {shows.map((show, index) => (
+              <ShowCard key={show.mt20id} show={show} priority={index === 0} />
             ))}
           </div>
         </Section>
