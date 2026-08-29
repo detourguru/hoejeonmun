@@ -17,6 +17,7 @@ import {
 } from "@/components/show/event-confirm-list";
 import { UploadConfirmSheet } from "@/components/show/upload-confirm-sheet";
 import { UploadProgress } from "@/components/show/upload-progress";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -394,35 +395,38 @@ export const CastingUploadButton = ({
           {error && <p className="text-destructive text-xs">{error}</p>}
 
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
               onClick={handleUpload}
               disabled={files.length === 0}
-              className="border-border bg-point text-text rounded-lg border px-3 py-1 text-xs font-bold disabled:opacity-40"
+              className="font-bold"
             >
               {files.length}장 올리기
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => inputRef.current?.click()}
               disabled={files.length >= MAX_IMAGE_COUNT}
-              className="border-border text-text rounded-lg border px-3 py-1 text-xs disabled:opacity-40"
             >
               더 고르기
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={reset}
-              className="text-text-muted rounded-lg px-3 py-1 text-xs underline underline-offset-2"
+              className="text-text-muted underline underline-offset-2"
             >
               취소
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <Dialog open={showTutorial} onOpenChange={setShowTutorial}>
-        <DialogContent showCloseButton={false}>
+      <Dialog
+        open={showTutorial}
+        onOpenChange={(open) => {
+          if (!open) handleTutorialConfirm();
+        }}
+      >
+        <DialogContent showCloseButton={false} className="bg-surface">
           <DialogHeader>
             <DialogTitle>캐스팅/이벤트 제보하는 방법</DialogTitle>
           </DialogHeader>
@@ -442,13 +446,9 @@ export const CastingUploadButton = ({
           </p>
 
           <DialogFooter>
-            <button
-              type="button"
-              onClick={handleTutorialConfirm}
-              className="border-border bg-point text-text rounded-lg border px-3 py-1 text-xs font-bold"
-            >
+            <Button onClick={handleTutorialConfirm} className="w-full font-bold">
               확인했어요
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

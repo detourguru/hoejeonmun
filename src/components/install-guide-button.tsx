@@ -78,7 +78,10 @@ export const InstallGuideButton = () => {
 
       <BottomSheet open={open} onOpenChange={setOpen} title="앱 설치 방법">
         <ol className="flex flex-col gap-3">
-          <GuideStep index={1}>브라우저 메뉴(⋮ 또는 …)를 여세요</GuideStep>
+          <GuideStep index={1}>
+            브라우저 메뉴(⋮ 또는 …)를 여세요 (브라우저에 따라 우측 하단이나
+            상단에 있어요)
+          </GuideStep>
           {isIOS ? (
             <>
               <GuideStep index={2}>
