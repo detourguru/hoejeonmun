@@ -153,6 +153,23 @@ create table favorites (
   primary key (user_id, actor_id)
 );
 
+create table my_slots (
+  user_id uuid not null references auth.users(id) on delete cascade, 
+  slot_id bigint not null references slots(id) on delete cascade, 
+  created_at timestamptz not null default now(),
+  primary key (user_id, slot_id)
+);
+
+create table my_event_groups (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  group_id bigint not null references event_groups(id) on delete cascade,
+  -- 담을 때 보고 있던 날짜. 이벤트 기간이 아니라 이 날짜 기준으로 마이페이지에 표시한다
+  date date not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, group_id)
+);
+
+
 create index favorites_actor_id_idx on favorites (actor_id);
 
 -- Gemini 파싱 실패 사례 적재 (프롬프트 개선용, 내부 분석 전용이라 공개 정책 없음)
@@ -267,6 +284,9 @@ alter table events enable row level security;
 alter table event_reports enable row level security;
 alter table show_title_aliases enable row level security;
 alter table event_slots enable row level security;
+alter table my_slots enable row level security;
+alter table my_event_groups enable row level security;
+
 
 create policy "actors are public" on actors for select using (true);
 create policy "slots are public" on slots for select using (true);
@@ -280,7 +300,7 @@ create policy "read own uploads" on uploads
 -- edited_by는 내부 추적용이라 열 단위로 막는다. 밖으로는 current_events.edited만 나간다
 revoke select on events from anon, authenticated;
 grant select (
-  id, show_id, upload_id, upload_image_id, title, title_key,
+  id, group_id, show_id, upload_id, upload_image_id, title, title_key,
   description, period_start, period_end, source, created_at
 ) on events to anon, authenticated;
 
@@ -292,6 +312,24 @@ create policy "add own favorites" on favorites
 
 create policy "remove own favorites" on favorites
   for delete to authenticated using (user_id = auth.uid());
+
+create policy "remove own my slots" on my_slots
+  for delete to authenticated using (user_id = auth.uid());
+
+create policy "remove own my event groups" on my_event_groups
+  for delete to authenticated using (user_id = auth.uid());
+
+create policy "add own my slots" on my_slots
+  for insert to authenticated with check (user_id = auth.uid());
+
+create policy "add own my event groups" on my_event_groups
+  for insert to authenticated with check (user_id = auth.uid());
+
+create policy "read own my slots" on my_slots
+  for select to authenticated using (user_id = auth.uid());
+
+create policy "read own my event groups" on my_event_groups
+  for select to authenticated using (user_id = auth.uid());
 
 create policy "read own vandal reports" on vandal_reports
   for select to authenticated using (user_id = auth.uid());

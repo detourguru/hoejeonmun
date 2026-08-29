@@ -1,10 +1,11 @@
 import Link from "next/link";
 
+import { MySlotButton } from "@/components/casting/my-slot-button";
 import { OriginalImages } from "@/components/casting/original-images";
 import { CorrectCastingButton } from "@/components/correct-casting-button";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
-import { CastingSlot, getUploadImages, isReported } from "@/service/casting";
+import type { CastingSlotWithStatus } from "@/service/casting";
 
 // 매칭 안 된 이름은 링크 없이 그대로 보여준다
 const ActorName = ({
@@ -25,19 +26,16 @@ const ActorName = ({
     </Link>
   );
 
-export const SlotCard = async ({
+export const SlotCard = ({
   slot,
   showId,
   showDate = false,
 }: {
-  slot: CastingSlot;
+  slot: CastingSlotWithStatus;
   showId: string;
   showDate?: boolean;
 }) => {
-  const [reported, images] = await Promise.all([
-    isReported(slot.uploadId, slot.id),
-    getUploadImages(slot.uploadId),
-  ]);
+  const { reported, bookmarked, images } = slot;
 
   return (
     <li className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-3">
@@ -53,6 +51,8 @@ export const SlotCard = async ({
         </p>
 
         <div className="flex items-center gap-1">
+          <MySlotButton slotId={slot.id} bookmarked={bookmarked} />
+
           <CorrectCastingButton
             showId={showId}
             slotId={slot.id}

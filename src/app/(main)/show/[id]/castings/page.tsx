@@ -23,6 +23,7 @@ import {
   getShowFilterData,
   getEventsWithReportStatus,
   getSlotPairKey,
+  getSlotsWithStatus,
 } from "@/service/casting";
 import { getShow } from "@/service/show";
 import {
@@ -98,6 +99,7 @@ export default async function Page({ params, searchParams }: Props) {
 
   const initialActors = parseActorsParam(rawActors, filterData.actors);
   const eventsWithReportStatus = await getEventsWithReportStatus(events);
+  const slotsWithStatus = await getSlotsWithStatus(slots);
 
   return (
     <div className="flex flex-col gap-4">
@@ -125,7 +127,7 @@ export default async function Page({ params, searchParams }: Props) {
         initialDate={initialDate}
         cells={cells}
         events={eventsWithReportStatus}
-        slots={slots.map((slot) => ({
+        slots={slotsWithStatus.map((slot) => ({
           id: slot.id,
           date: slot.date,
           time: slot.time,
@@ -134,13 +136,13 @@ export default async function Page({ params, searchParams }: Props) {
           filterKeys: slot.casting.map(({ actor }) => actor),
         }))}
         panels={Object.fromEntries(
-          slots.map((slot) => [
+          slotsWithStatus.map((slot) => [
             slot.id,
             <SlotCard key={slot.id} slot={slot} showId={id} />,
           ]),
         )}
         listItems={Object.fromEntries(
-          slots.map((slot) => [
+          slotsWithStatus.map((slot) => [
             slot.id,
             <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
           ]),
