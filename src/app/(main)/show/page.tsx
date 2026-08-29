@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { FavoriteActorShowCard } from "@/components/show/favorite-actor-show-card";
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { cn } from "@/lib/utils";
-import { getRecentEvents, getRecentUploadedShows } from "@/service/casting";
+import { getShowsWithFavoritedActors } from "@/service/actor";
+import {
+  getRecentEvents,
+  getRecentUploadedShows,
+  RecentEvent,
+} from "@/service/casting";
 import { getShow, getShows } from "@/service/show";
-import { DEFAULT_REPORT_TYPE_TAB, REPORT_TYPE_TAB } from "@/type/casting";
-import type { Show } from "@/type/show";
+import { DEFAULT_SHOW_FEED_TAB, SHOW_FEED_TAB, type Show } from "@/type/show";
 
 const FEED_LIMIT = 10;
 
@@ -16,20 +21,20 @@ type Props = { searchParams: Promise<{ tab?: string }> };
 
 export default async function Page({ searchParams }: Props) {
   const { tab: rawTab } = await searchParams;
-  const tab = REPORT_TYPE_TAB.isCode(rawTab) ? rawTab : DEFAULT_REPORT_TYPE_TAB;
+  const tab = SHOW_FEED_TAB.isCode(rawTab) ? rawTab : DEFAULT_SHOW_FEED_TAB;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-0.5">
         <p className="text-primary/60 text-[11px] font-bold tracking-widest uppercase">
-          Latest Updates
+          Discover
         </p>
-        <h2 className="text-text text-lg font-bold">최근 소식</h2>
+        <h2 className="text-text text-lg font-bold">둘러보기</h2>
       </div>
 
       <div className="flex items-center justify-between gap-2">
         <div className="bg-sub flex gap-0.5 rounded-xl p-0.5">
-          {REPORT_TYPE_TAB.options.map(({ value, label }) => (
+          {SHOW_FEED_TAB.options.map(({ value, label }) => (
             <Link
               key={value}
               href={`/show?tab=${value}`}
@@ -67,7 +72,7 @@ export default async function Page({ searchParams }: Props) {
       </div>
 
       <Suspense key={tab} fallback={<LoadingGhost />}>
-        {tab === "casting" ? <CastingFeed /> : <EventFeed />}
+        {tab === "favorite" ? <FavoriteActorFeed /> : <RecentFeed />}
       </Suspense>
     </div>
   );
@@ -97,62 +102,95 @@ async function fillMissingShows(
   return merged;
 }
 
-async function CastingFeed() {
-  const [recent, shows] = await Promise.all([
-    getRecentUploadedShows(FEED_LIMIT),
+async function FavoriteActorFeed() {
+  const [favoritedShows, shows] = await Promise.all([
+    getShowsWithFavoritedActors(),
     getShows(),
   ]);
+
   const showById = await fillMissingShows(
     indexShowsById(shows),
-    recent.map(({ showId }) => showId),
+    favoritedShows.map(({ showId }) => showId),
   );
 
-  const items = recent
-    .map(({ showId, uploadedAt }) => {
-      const show = showById.get(showId);
-      return show ? { show, uploadedAt } : null;
+  const items = favoritedShows
+    .map((favorited) => {
+      const show = showById.get(favorited.showId);
+      return show ? { ...favorited, show } : null;
     })
     .filter((item) => item !== null);
 
-  if (items.length === 0) return <EmptyFeed />;
+  if (items.length === 0) return <EmptyFavoriteFeed />;
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map(({ show, uploadedAt }) => (
-        <RecentCastingCard
-          key={show.mt20id}
+      {items.map(({ show, showId, actorNames, nearestDate }) => (
+        <FavoriteActorShowCard
+          key={showId}
           show={show}
-          uploadedAt={uploadedAt}
+          actorNames={actorNames}
+          nearestDate={nearestDate}
         />
       ))}
     </div>
   );
 }
 
-async function EventFeed() {
-  const [events, shows] = await Promise.all([
+type FeedItem =
+  | { type: "casting"; show: Show; uploadedAt: string }
+  | { type: "event"; show: Show; event: RecentEvent };
+
+const feedItemDate = (item: FeedItem) =>
+  item.type === "casting" ? item.uploadedAt : item.event.createdAt;
+
+async function RecentFeed() {
+  const [recentUploads, recentEvents, shows] = await Promise.all([
+    getRecentUploadedShows(FEED_LIMIT),
     getRecentEvents(FEED_LIMIT),
     getShows(),
   ]);
-  const showById = await fillMissingShows(
-    indexShowsById(shows),
-    events.map(({ showId }) => showId),
-  );
+  const showById = await fillMissingShows(indexShowsById(shows), [
+    ...recentUploads.map(({ showId }) => showId),
+    ...recentEvents.map(({ showId }) => showId),
+  ]);
 
-  const items = events
-    .map((event) => {
-      const show = showById.get(event.showId);
-      return show ? { show, event } : null;
+  const castingItems = recentUploads
+    .map(({ showId, uploadedAt }): FeedItem | null => {
+      const show = showById.get(showId);
+      return show ? { type: "casting", show, uploadedAt } : null;
     })
     .filter((item) => item !== null);
+
+  const eventItems = recentEvents
+    .map((event): FeedItem | null => {
+      const show = showById.get(event.showId);
+      return show ? { type: "event", show, event } : null;
+    })
+    .filter((item) => item !== null);
+
+  const items = [...castingItems, ...eventItems]
+    .sort((a, b) => feedItemDate(b).localeCompare(feedItemDate(a)))
+    .slice(0, FEED_LIMIT);
 
   if (items.length === 0) return <EmptyFeed />;
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map(({ show, event }) => (
-        <RecentEventCard key={event.id} show={show} event={event} />
-      ))}
+      {items.map((item) =>
+        item.type === "casting" ? (
+          <RecentCastingCard
+            key={`casting-${item.show.mt20id}`}
+            show={item.show}
+            uploadedAt={item.uploadedAt}
+          />
+        ) : (
+          <RecentEventCard
+            key={`event-${item.event.id}`}
+            show={item.show}
+            event={item.event}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -167,6 +205,22 @@ const EmptyFeed = () => (
       className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
     >
       전체 공연 목록 둘러보기
+    </Link>
+  </div>
+);
+
+const EmptyFavoriteFeed = () => (
+  <div className="flex flex-col items-center gap-1 py-16 text-center">
+    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
+    <p className="text-text font-medium">아직 애정배우가 없어요</p>
+    <p className="text-text-muted mb-2 text-sm">
+      배우를 검색해서 즐겨찾기해보세요
+    </p>
+    <Link
+      href="/search"
+      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
+    >
+      배우 검색하러 가기
     </Link>
   </div>
 );

@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getShow } from "@/service/show";
@@ -168,6 +169,68 @@ export async function getFavoriteActors(): Promise<Actor[]> {
   if (error) throw error;
 
   return (data as unknown as { actors: Actor }[]).map(({ actors }) => actors);
+}
+
+export type FavoritedActorShow = {
+  showId: string;
+  actorNames: string[];
+  // 즐겨찾기한 배우가 나오는 가장 가까운 회차
+  nearestDate: string;
+};
+
+type FavoritedSlotRow = {
+  show_id: string;
+  date: string;
+  actor_id: number;
+};
+
+export async function getShowsWithFavoritedActors(): Promise<
+  FavoritedActorShow[]
+> {
+  const favorites = await getFavoriteActors();
+
+  if (favorites.length === 0) return [];
+
+  const supabase = await createClient();
+  const nameById = new Map(favorites.map(({ id, name }) => [id, name]));
+
+  const { data, error } = await supabase
+    .from("slot_castings")
+    .select("show_id, date, actor_id")
+    .in(
+      "actor_id",
+      favorites.map(({ id }) => id),
+    )
+    .gte("date", toInputDate(getToday()))
+    .order("date");
+
+  if (error) throw error;
+
+  const byShow = new Map<
+    string,
+    { nearestDate: string; actorIds: Set<number> }
+  >();
+
+  for (const row of data as FavoritedSlotRow[]) {
+    const entry = byShow.get(row.show_id);
+
+    if (entry) {
+      entry.actorIds.add(row.actor_id);
+    } else {
+      byShow.set(row.show_id, {
+        nearestDate: row.date,
+        actorIds: new Set([row.actor_id]),
+      });
+    }
+  }
+
+  return [...byShow.entries()]
+    .sort(([, a], [, b]) => a.nearestDate.localeCompare(b.nearestDate))
+    .map(([showId, { nearestDate, actorIds }]) => ({
+      showId,
+      nearestDate,
+      actorNames: [...actorIds].map((id) => nameById.get(id) ?? "배우"),
+    }));
 }
 
 export async function isFavorited(actorId: number) {

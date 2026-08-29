@@ -14,7 +14,7 @@ export type CastingView = CodeOf<typeof CASTING_VIEW>;
 
 export const DEFAULT_CASTING_VIEW: CastingView = "calendar";
 
-// /show 최근 피드 탭
+// 캐스팅보드 업로드 검수 바텀시트 탭
 export const REPORT_TYPE_TAB = createCodeTable([
   { value: "casting", label: "캐스팅" },
   { value: "event", label: "이벤트" },
