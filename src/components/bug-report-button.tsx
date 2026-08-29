@@ -9,6 +9,7 @@ import { submitBugReport } from "@/app/(main)/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ImageZoom } from "@/components/image-zoom";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   BUG_REPORT_IMAGE_BUCKET,
   MAX_BUG_REPORT_IMAGE_BYTES,
@@ -181,7 +182,12 @@ export const BugReportButton = () => {
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="문의 · 버그신고">
-        <div className="flex flex-col gap-4">
+        <div
+          className={cn(
+            "flex flex-col gap-4 transition-opacity",
+            pending && "pointer-events-none opacity-50",
+          )}
+        >
           <textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
@@ -223,7 +229,7 @@ export const BugReportButton = () => {
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={files.length >= MAX_BUG_REPORT_IMAGE_COUNT}
+            disabled={pending || files.length >= MAX_BUG_REPORT_IMAGE_COUNT}
             className="border-border text-text-muted mx-auto inline-flex rounded-4xl border px-3 py-1 text-xs disabled:opacity-40"
           >
             사진 추가 ({files.length}/{MAX_BUG_REPORT_IMAGE_COUNT})
@@ -243,7 +249,8 @@ export const BugReportButton = () => {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-text-muted inline-flex rounded-4xl px-3 py-1 text-xs underline underline-offset-2"
+              disabled={pending}
+              className="text-text-muted inline-flex rounded-4xl px-3 py-1 text-xs underline underline-offset-2 disabled:opacity-60"
             >
               취소
             </button>
