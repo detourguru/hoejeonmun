@@ -207,7 +207,7 @@ export async function getMyEvents(
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, group_id, show_id, title, description, upload_image_id, edited",
+      "id, group_id, show_id, title, description, upload_id, upload_image_id, edited",
     )
     .in("group_id", groupIds);
 
@@ -219,6 +219,7 @@ export async function getMyEvents(
     show_id: string;
     title: string;
     description: string | null;
+    upload_id: number;
     upload_image_id: number;
     edited: boolean;
   }[];
@@ -240,6 +241,7 @@ export async function getMyEvents(
       periodStart: anchorDate,
       periodEnd: anchorDate,
       slotIds: slotIdsByEvent.get(row.id) ?? [],
+      uploadId: row.upload_id,
       uploadImageId: row.upload_image_id,
       edited: row.edited,
     };

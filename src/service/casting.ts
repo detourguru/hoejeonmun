@@ -140,6 +140,7 @@ export type ShowEvent = {
   periodStart: string;
   periodEnd: string;
   slotIds: number[];
+  uploadId: number;
   uploadImageId: number;
   edited: boolean;
 };
@@ -151,6 +152,7 @@ type EventRow = {
   description: string | null;
   period_start: string;
   period_end: string;
+  upload_id: number;
   upload_image_id: number;
   edited: boolean;
 };
@@ -193,7 +195,7 @@ export async function getShowEvents(
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, group_id, title, description, period_start, period_end, upload_image_id, edited",
+      "id, group_id, title, description, period_start, period_end, upload_id, upload_image_id, edited",
     )
     .eq("show_id", showId)
     .lte("period_start", end)
@@ -216,6 +218,7 @@ export async function getShowEvents(
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotIds: slotIdsByEvent.get(row.id) ?? [],
+    uploadId: row.upload_id,
     uploadImageId: row.upload_image_id,
     edited: row.edited,
   }));
@@ -225,6 +228,8 @@ export type EventWithReportStatus = ShowEvent & {
   reported: boolean;
   bookmarked: boolean;
   imageUrl: string | null;
+  // 지금 요청 중인 사용자가 올린 업로드에서 나온 이벤트인지
+  isMine: boolean;
 };
 
 export type CalendarEvent = EventWithReportStatus & {
@@ -319,7 +324,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
       const { data, error } = await supabase
         .from("current_events")
         .select(
-          "id, group_id, show_id, title, description, period_start, period_end, upload_image_id, edited, created_at",
+          "id, group_id, show_id, title, description, period_start, period_end, upload_id, upload_image_id, edited, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -350,6 +355,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     periodStart: row.period_start,
     periodEnd: row.period_end,
     slotIds: row.slotIds,
+    uploadId: row.upload_id,
     uploadImageId: row.upload_image_id,
     edited: row.edited,
     createdAt: row.created_at,
@@ -398,6 +404,24 @@ async function signPaths(paths: string[]): Promise<string[]> {
   return paths.flatMap((path) => signedByPath.get(path) ?? []);
 }
 
+// uploads의 "read own uploads" 정책이 user_id = auth.uid()로 걸러주므로
+// 주어진 upload_id 중 실제로 이 응답을 요청한 사람 것만 그대로 돌아온다
+async function getMyUploadIds(
+  supabase: Pick<Awaited<ReturnType<typeof createClient>>, "from">,
+  uploadIds: number[],
+): Promise<Set<number>> {
+  if (uploadIds.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("uploads")
+    .select("id")
+    .in("id", uploadIds);
+
+  if (error) throw error;
+
+  return new Set((data as { id: number }[]).map(({ id }) => id));
+}
+
 export async function getEventsWithReportStatus(
   events: ShowEvent[],
 ): Promise<EventWithReportStatus[]> {
@@ -407,6 +431,7 @@ export async function getEventsWithReportStatus(
   const admin = createAdminClient();
   const eventIds = [...new Set(events.map(({ id }) => id))];
   const groupIds = [...new Set(events.map(({ groupId }) => groupId))];
+  const uploadIds = [...new Set(events.map(({ uploadId }) => uploadId))];
   const uploadImageIds = [
     ...new Set(events.map(({ uploadImageId }) => uploadImageId)),
   ];
@@ -414,6 +439,7 @@ export async function getEventsWithReportStatus(
   const [
     { data: reports },
     { data: bookmarks },
+    myUploadIds,
     { data: images, error: imagesError },
   ] = await Promise.all([
     supabase.from("event_reports").select("event_id").in("event_id", eventIds),
@@ -421,6 +447,7 @@ export async function getEventsWithReportStatus(
       .from("my_event_groups")
       .select("group_id")
       .in("group_id", groupIds),
+    getMyUploadIds(supabase, uploadIds),
     admin
       .from("upload_images")
       .select("id, storage_path")
@@ -451,6 +478,7 @@ export async function getEventsWithReportStatus(
     reported: reportedEventIds.has(event.id),
     bookmarked: bookmarkedGroupIds.has(event.groupId),
     imageUrl: imageUrlById.get(event.uploadImageId) ?? null,
+    isMine: myUploadIds.has(event.uploadId),
   }));
 }
 
@@ -476,6 +504,8 @@ export type CastingSlotWithStatus = CastingSlot & {
   reported: boolean;
   bookmarked: boolean;
   images: string[];
+  // 지금 요청 중인 사용자가 올린 업로드에서 나온 회차인지
+  isMine: boolean;
 };
 
 export async function getSlotsWithStatus(
@@ -491,6 +521,7 @@ export async function getSlotsWithStatus(
   const [
     { data: reports },
     { data: bookmarks },
+    myUploadIds,
     { data: images, error: imagesError },
   ] = await Promise.all([
     supabase
@@ -498,6 +529,7 @@ export async function getSlotsWithStatus(
       .select("upload_id, slot_id")
       .in("slot_id", slotIds),
     supabase.from("my_slots").select("slot_id").in("slot_id", slotIds),
+    getMyUploadIds(supabase, uploadIds),
     admin
       .from("upload_images")
       .select("upload_id, storage_path")
@@ -539,6 +571,7 @@ export async function getSlotsWithStatus(
     ...slot,
     reported: reportedKeys.has(`${slot.uploadId}:${slot.id}`),
     bookmarked: bookmarkedSlotIds.has(slot.id),
+    isMine: myUploadIds.has(slot.uploadId),
     images: imagesByUpload.get(slot.uploadId) ?? [],
   }));
 }
