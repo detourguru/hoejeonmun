@@ -15,7 +15,7 @@ import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
-import { matchEventsToDate } from "@/lib/event-slots";
+import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/service/casting";
 import {
@@ -233,9 +233,8 @@ export const CastingViews = ({
               const daySlots = visible.filter((slot) => slot.date === date);
               const dateEvents = matchEventsToDate(
                 daySlots,
-                events.filter(
-                  (event) =>
-                    event.periodStart <= date && date <= event.periodEnd,
+                events.filter((event) =>
+                  eventAppliesToDate(event, date, daySlots),
                 ),
               );
 

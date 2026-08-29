@@ -4,7 +4,7 @@ import { Fragment, ReactNode, useState } from "react";
 
 import { EventCard } from "@/components/casting/event-card";
 import { WEEKDAYS } from "@/lib/date";
-import { matchEventsToDate } from "@/lib/event-slots";
+import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
@@ -53,8 +53,9 @@ export const Calendar = ({
     if (!date) continue;
     if (knowsSchedule && !byDate.has(date)) continue;
 
-    const active = events.filter(
-      (event) => event.periodStart <= date && date <= event.periodEnd,
+    const dateSlots = byDate.get(date) ?? [];
+    const active = events.filter((event) =>
+      eventAppliesToDate(event, date, dateSlots),
     );
 
     if (active.length > 0) eventsByDate.set(date, active);
