@@ -64,8 +64,7 @@ export const castingJsonSchema = {
           },
           confidence: {
             type: "number",
-            description:
-              "Your confidence in this row's parsing, from 0 to 1.",
+            description: "Your confidence in this row's parsing, from 0 to 1.",
           },
         },
         required: [
@@ -921,7 +920,7 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const client = new GoogleGenAI({});
 
   const requestStart = performance.now();
-  const GEMINI_TIMEOUT_MS = 20000;
+  const GEMINI_TIMEOUT_MS = 40000;
   const GEMINI_MAX_ATTEMPTS = 2;
 
   console.log(
