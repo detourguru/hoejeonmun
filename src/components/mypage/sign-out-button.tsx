@@ -1,10 +1,17 @@
+import { LogOut } from "lucide-react";
+
 export const SignOutButton = () => (
   <form action="/auth/signout" method="post">
     <button
       type="submit"
-      className="border-border text-text-muted hover:border-destructive/40 hover:text-destructive w-full rounded-xl border py-2.5 text-xs font-medium transition-colors"
+      className="hover:bg-sub flex w-full items-center gap-3 p-3 text-left transition-colors"
     >
-      로그아웃
+      <span className="bg-destructive/10 flex size-9 shrink-0 items-center justify-center rounded-full">
+        <LogOut className="text-destructive size-4" />
+      </span>
+      <span className="text-destructive flex-1 text-sm font-bold">
+        로그아웃
+      </span>
     </button>
   </form>
 );
