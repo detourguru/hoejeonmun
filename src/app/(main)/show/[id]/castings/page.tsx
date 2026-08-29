@@ -101,6 +101,17 @@ export default async function Page({ params, searchParams }: Props) {
   const eventsWithReportStatus = await getEventsWithReportStatus(events);
   const slotsWithStatus = await getSlotsWithStatus(slots);
 
+  const eventsBySlotId = new Map<number, { id: number; title: string }[]>();
+
+  for (const event of eventsWithReportStatus) {
+    for (const slotId of event.slotIds) {
+      eventsBySlotId.set(slotId, [
+        ...(eventsBySlotId.get(slotId) ?? []),
+        { id: event.id, title: event.title },
+      ]);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <BackButton />
@@ -122,6 +133,7 @@ export default async function Page({ params, searchParams }: Props) {
 
       <CastingViews
         showId={id}
+        isLoggedIn={Boolean(auth.data?.claims)}
         month={month}
         initialView={view}
         initialDate={initialDate}
@@ -138,13 +150,24 @@ export default async function Page({ params, searchParams }: Props) {
         panels={Object.fromEntries(
           slotsWithStatus.map((slot) => [
             slot.id,
-            <SlotCard key={slot.id} slot={slot} showId={id} />,
+            <SlotCard
+              key={slot.id}
+              slot={slot}
+              showId={id}
+              events={eventsBySlotId.get(slot.id)}
+            />,
           ]),
         )}
         listItems={Object.fromEntries(
           slotsWithStatus.map((slot) => [
             slot.id,
-            <SlotCard key={slot.id} slot={slot} showId={id} showDate />,
+            <SlotCard
+              key={slot.id}
+              slot={slot}
+              showId={id}
+              showDate
+              events={eventsBySlotId.get(slot.id)}
+            />,
           ]),
         )}
         filterOptions={filterData.actors}
@@ -155,13 +178,19 @@ export default async function Page({ params, searchParams }: Props) {
               아직 이 달의 캐스팅 정보가 없어요.
             </p>
             <p className="text-text-muted text-xs">
-              캐스팅보드를 제보하면 회차별로 자동 정리돼요.
+              회원님이 캐스팅보드를 올려서 채워보시겠어요?
             </p>
+            <a
+              href="#casting-upload"
+              className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
+            >
+              캐스팅보드 올리러 가기
+            </a>
           </div>
         }
       />
 
-      <div className="border-border border-t pt-4">
+      <div id="casting-upload" className="border-border border-t pt-4">
         <CastingUploadButton
           showId={id}
           isLoggedIn={Boolean(auth.data?.claims)}

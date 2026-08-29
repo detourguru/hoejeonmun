@@ -55,6 +55,12 @@ export default async function Page({ searchParams }: Props) {
         <p className="text-text-muted text-xs">
           배우는 제보된 캐스팅보드에 등장한 이름만 검색돼요.
         </p>
+        <Link
+          href="/show"
+          className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
+        >
+          공연 찾아서 캐스팅보드 올리러 가기
+        </Link>
       </div>
     );
   }
