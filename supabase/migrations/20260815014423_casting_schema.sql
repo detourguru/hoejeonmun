@@ -1,6 +1,9 @@
 create table actors (
   id bigint generated always as identity primary key,
   name text not null unique,
+  name_no_space text generated always as (
+    regexp_replace(name, '[[:space:]]+', '', 'g')
+  ) stored,
   created_at timestamptz not null default now()
 );
 
@@ -21,7 +24,8 @@ create table upload_images (
   upload_id bigint not null references uploads(id) on delete cascade,
   show_id text,
   image_hash text,
-  storage_path text not null,
+  -- 직접 입력일 때만 null
+  storage_path text,
   -- 같은 업로드 내 이미지 순서
   position smallint not null,
   created_at timestamptz not null default now(),

@@ -140,7 +140,7 @@ export async function getActorIdsByNames(names: string[]) {
 const SEARCH_LIMIT = 20;
 
 export async function searchActors(keyword: string): Promise<Actor[]> {
-  const escaped = keyword.replace(/[%_\\]/g, "");
+  const escaped = keyword.replace(/[%_\\]/g, "").replace(/\s+/g, "");
 
   if (!escaped) return [];
 
@@ -149,7 +149,7 @@ export async function searchActors(keyword: string): Promise<Actor[]> {
   const { data, error } = await supabase
     .from("actors")
     .select("id, name")
-    .ilike("name", `%${escaped}%`)
+    .ilike("name_no_space", `%${escaped}%`)
     .order("name")
     .limit(SEARCH_LIMIT);
 
