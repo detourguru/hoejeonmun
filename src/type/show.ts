@@ -64,7 +64,7 @@ export const AREA_NAMES_BY_CODE: Record<AreaCode, readonly string[]> = {
  */
 
 export const SHOW_FEED_TAB = createCodeTable([
-  { value: "favorite", label: "최애배우" },
+  { value: "favorite", label: "애정배우" },
   { value: "recent", label: "최근소식" },
 ]);
 

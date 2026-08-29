@@ -18,10 +18,11 @@ export const FavoriteActorShowCard = ({
   nearestDate: string;
 }) => {
   const [firstActor, ...rest] = actorNames;
+  const month = nearestDate.slice(0, 7);
 
   return (
     <Link
-      href={`/show/${show.mt20id}`}
+      href={`/show/${show.mt20id}/castings?month=${month}&date=${nearestDate}`}
       className="group border-primary/30 bg-surface hover:border-primary flex gap-3 rounded-xl border p-3 transition-all hover:shadow-md"
     >
       <div className="bg-point/40 h-32 w-24 shrink-0 overflow-hidden rounded-lg">
@@ -49,7 +50,7 @@ export const FavoriteActorShowCard = ({
           {rest.length > 0 ? ` 외 ${rest.length}명` : ""} 출연
         </p>
         <p className="text-muted-foreground text-xs">
-          {normalizeDate(nearestDate, ".")} 회차
+          댜가오는 회차 · {normalizeDate(nearestDate, ".")}
         </p>
       </div>
     </Link>

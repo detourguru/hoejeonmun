@@ -26,7 +26,7 @@ export const SHOWS_CACHE_TAG = "shows";
 
 export const showCacheTag = (id: string) => `show:${id}`;
 
-// 값이 작을수록 우선 노출. 공연중을 공연예정보다 위로 올린다
+// 값이 작을수록 우선 노출
 const STATE_PRIORITY: Record<StateName, number> = {
   공연중: 0,
   공연예정: 1,
