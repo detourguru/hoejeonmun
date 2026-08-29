@@ -1,15 +1,16 @@
 import type { EventWithReportStatus } from "@/service/casting";
 import type { CalendarSlot } from "@/type/casting";
 
-export type EventWithSlotTimes = EventWithReportStatus & {
-  // 회차 전체일때 undefined
-  times?: string[];
-};
+export type EventWithSlotTimes<T extends EventWithReportStatus = EventWithReportStatus> =
+  T & {
+    // 회차 전체일때 undefined
+    times?: string[];
+  };
 
-export function matchEventsToDate(
+export function matchEventsToDate<T extends EventWithReportStatus>(
   dateSlots: CalendarSlot[],
-  events: EventWithReportStatus[],
-): EventWithSlotTimes[] {
+  events: T[],
+): EventWithSlotTimes<T>[] {
   return events.map((event) => {
     const matchedTimes = dateSlots
       .filter((slot) => event.slotIds.includes(slot.id))

@@ -6,11 +6,11 @@ import { EventCard } from "@/components/casting/event-card";
 import { WEEKDAYS } from "@/lib/date";
 import { matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
-import type { EventWithReportStatus } from "@/service/casting";
+import type { CalendarEvent } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
 
 type LaneEntry = {
-  event: EventWithReportStatus;
+  event: CalendarEvent;
   start: boolean;
   end: boolean;
   length: number;
@@ -32,7 +32,7 @@ export const Calendar = ({
   // null이면 1일 앞의 빈칸
   cells: (string | null)[];
   slots: CalendarSlot[];
-  events?: EventWithReportStatus[];
+  events?: CalendarEvent[];
   // 날짜를 폈을 때 보여줄 회차 카드
   panels: Record<number, ReactNode>;
   // 진입 시 보여줄 날짜
@@ -45,9 +45,9 @@ export const Calendar = ({
   }
 
   // 회차가 하나도 없는 건 공연이 없는 게 아니라 제보가 아직 없는 것이다
-  const knowsSchedule = slots.length > 0;
+  const knowsSchedule = !!showId && slots.length > 0;
 
-  const eventsByDate = new Map<string, EventWithReportStatus[]>();
+  const eventsByDate = new Map<string, CalendarEvent[]>();
 
   for (const date of cells) {
     if (!date) continue;
@@ -79,7 +79,7 @@ export const Calendar = ({
       (_, offset) => from + offset,
     ).filter((index) => index < cells.length);
 
-    const weekEvents = new Map<number, EventWithReportStatus>();
+    const weekEvents = new Map<number, CalendarEvent>();
 
     for (const index of indexes) {
       for (const event of eventsByDate.get(cells[index] ?? "") ?? []) {
@@ -183,7 +183,7 @@ export const Calendar = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-7 items-start gap-y-0.5">
+      <div className="grid grid-cols-7 gap-y-0.5">
         {WEEKDAYS.map((weekday) => (
           <p
             key={weekday}
@@ -207,7 +207,7 @@ export const Calendar = ({
               disabled={isEmpty}
               onClick={() => setSelected(date)}
               className={cn(
-                "flex min-h-11 flex-col py-0.5",
+                "flex min-h-11 flex-col overflow-hidden py-0.5",
                 isEmpty && "text-text-muted",
                 date === openDate && "border-primary border-2",
               )}
@@ -280,7 +280,14 @@ export const Calendar = ({
           {openDateEvents.length > 0 && (
             <ul className="flex flex-col gap-2">
               {openDateEvents.map((event) => (
-                <EventCard key={event.id} event={event} showId={showId} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  showId={event.showId ?? showId}
+                  showName={event.showName}
+                  date={openDate}
+                  readOnly={event.readOnly}
+                />
               ))}
             </ul>
           )}

@@ -130,6 +130,7 @@ export async function getShowFilterData(showId: string) {
 
 export type ShowEvent = {
   id: number;
+  groupId: number;
   title: string;
   description: string | null;
   // YYYY-MM-DD
@@ -142,6 +143,7 @@ export type ShowEvent = {
 
 type EventRow = {
   id: number;
+  group_id: number;
   title: string;
   description: string | null;
   period_start: string;
@@ -151,7 +153,7 @@ type EventRow = {
 };
 
 // 이벤트 id -> 적용되는 회차 id 목록
-async function getSlotIdsByEvent(
+export async function getSlotIdsByEvent(
   supabase: Pick<Awaited<ReturnType<typeof createClient>>, "from">,
   eventIds: number[],
 ): Promise<Map<number, number[]>> {
@@ -188,7 +190,7 @@ export async function getShowEvents(
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, title, description, period_start, period_end, upload_image_id, edited",
+      "id, group_id, title, description, period_start, period_end, upload_image_id, edited",
     )
     .eq("show_id", showId)
     .lte("period_start", end)
@@ -205,6 +207,7 @@ export async function getShowEvents(
 
   return rows.map((row) => ({
     id: row.id,
+    groupId: row.group_id,
     title: row.title,
     description: row.description,
     periodStart: row.period_start,
@@ -217,7 +220,14 @@ export async function getShowEvents(
 
 export type EventWithReportStatus = ShowEvent & {
   reported: boolean;
+  bookmarked: boolean;
   imageUrl: string | null;
+};
+
+export type CalendarEvent = EventWithReportStatus & {
+  showId?: string;
+  showName?: string;
+  readOnly?: boolean;
 };
 
 export type RecentUploadedShow = {
@@ -279,7 +289,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
       const { data, error } = await supabase
         .from("current_events")
         .select(
-          "id, show_id, title, description, period_start, period_end, upload_image_id, edited, created_at",
+          "id, group_id, show_id, title, description, period_start, period_end, upload_image_id, edited, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -303,6 +313,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
 
   return data.map((row) => ({
     id: row.id,
+    groupId: row.group_id,
     showId: row.show_id,
     title: row.title,
     description: row.description,
@@ -365,23 +376,34 @@ export async function getEventsWithReportStatus(
   const supabase = await createClient();
   const admin = createAdminClient();
   const eventIds = [...new Set(events.map(({ id }) => id))];
+  const groupIds = [...new Set(events.map(({ groupId }) => groupId))];
   const uploadImageIds = [
     ...new Set(events.map(({ uploadImageId }) => uploadImageId)),
   ];
 
-  const [{ data: reports }, { data: images, error: imagesError }] =
-    await Promise.all([
-      supabase.from("event_reports").select("event_id").in("event_id", eventIds),
-      admin
-        .from("upload_images")
-        .select("id, storage_path")
-        .in("id", uploadImageIds),
-    ]);
+  const [
+    { data: reports },
+    { data: bookmarks },
+    { data: images, error: imagesError },
+  ] = await Promise.all([
+    supabase.from("event_reports").select("event_id").in("event_id", eventIds),
+    supabase
+      .from("my_event_groups")
+      .select("group_id")
+      .in("group_id", groupIds),
+    admin
+      .from("upload_images")
+      .select("id, storage_path")
+      .in("id", uploadImageIds),
+  ]);
 
   if (imagesError) throw imagesError;
 
   const reportedEventIds = new Set(
     (reports ?? []).map(({ event_id }) => event_id),
+  );
+  const bookmarkedGroupIds = new Set(
+    (bookmarks ?? []).map(({ group_id }) => group_id),
   );
   const imageRows = images as Pick<UploadImageRow, "id" | "storage_path">[];
   const signedByPath = await getSignedUrlsByPath(
@@ -397,6 +419,7 @@ export async function getEventsWithReportStatus(
   return events.map((event) => ({
     ...event,
     reported: reportedEventIds.has(event.id),
+    bookmarked: bookmarkedGroupIds.has(event.groupId),
     imageUrl: imageUrlById.get(event.uploadImageId) ?? null,
   }));
 }
@@ -419,15 +442,73 @@ export async function getUploadImages(
   return signPaths(rows.map(({ storage_path }) => storage_path));
 }
 
-export async function isReported(uploadId: number, slotId: number | null) {
+export type CastingSlotWithStatus = CastingSlot & {
+  reported: boolean;
+  bookmarked: boolean;
+  images: string[];
+};
+
+export async function getSlotsWithStatus(
+  slots: CastingSlot[],
+): Promise<CastingSlotWithStatus[]> {
+  if (slots.length === 0) return [];
+
   const supabase = await createClient();
+  const admin = createAdminClient();
+  const slotIds = [...new Set(slots.map(({ id }) => id))];
+  const uploadIds = [...new Set(slots.map(({ uploadId }) => uploadId))];
 
-  const { data } = await supabase
-    .from("vandal_reports")
-    .select("slot_id")
-    .eq("slot_id", slotId)
-    .eq("upload_id", uploadId)
-    .maybeSingle();
+  const [
+    { data: reports },
+    { data: bookmarks },
+    { data: images, error: imagesError },
+  ] = await Promise.all([
+    supabase
+      .from("vandal_reports")
+      .select("upload_id, slot_id")
+      .in("slot_id", slotIds),
+    supabase.from("my_slots").select("slot_id").in("slot_id", slotIds),
+    admin
+      .from("upload_images")
+      .select("upload_id, storage_path")
+      .in("upload_id", uploadIds)
+      .order("position"),
+  ]);
 
-  return Boolean(data);
+  if (imagesError) throw imagesError;
+
+  const reportedKeys = new Set(
+    (reports ?? []).map(({ upload_id, slot_id }) => `${upload_id}:${slot_id}`),
+  );
+  const bookmarkedSlotIds = new Set(
+    (bookmarks ?? []).map(({ slot_id }) => slot_id),
+  );
+
+  const imageRows = images as Pick<
+    UploadImageRow,
+    "upload_id" | "storage_path"
+  >[];
+  const signedByPath = await getSignedUrlsByPath(
+    imageRows.map(({ storage_path }) => storage_path),
+  );
+
+  const imagesByUpload = new Map<number, string[]>();
+
+  for (const { upload_id, storage_path } of imageRows) {
+    const url = signedByPath.get(storage_path);
+
+    if (!url) continue;
+
+    imagesByUpload.set(upload_id, [
+      ...(imagesByUpload.get(upload_id) ?? []),
+      url,
+    ]);
+  }
+
+  return slots.map((slot) => ({
+    ...slot,
+    reported: reportedKeys.has(`${slot.uploadId}:${slot.id}`),
+    bookmarked: bookmarkedSlotIds.has(slot.id),
+    images: imagesByUpload.get(slot.uploadId) ?? [],
+  }));
 }

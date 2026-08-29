@@ -17,7 +17,7 @@ import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
-import type { EventWithReportStatus } from "@/service/casting";
+import type { CalendarEvent } from "@/service/casting";
 import {
   ACTORS_PARAM,
   ACTORS_SEPARATOR,
@@ -81,10 +81,10 @@ export const CastingViews = ({
   initialDate?: string;
   cells: (string | null)[];
   slots: CalendarSlot[];
-  events?: EventWithReportStatus[];
+  events?: CalendarEvent[];
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
-  empty: ReactNode;
+  empty?: ReactNode;
   filterOptions?: string[];
   initialActors?: string[];
 }) => {
@@ -158,6 +158,20 @@ export const CastingViews = ({
 
   const isEmpty = slots.length === 0 && events.length === 0;
 
+  const slotDatesSet = new Set(visible.map(({ date }) => date));
+  const standaloneEventDates = [
+    ...new Set(
+      events
+        .filter(
+          (event) =>
+            event.periodStart === event.periodEnd &&
+            !slotDatesSet.has(event.periodStart),
+        )
+        .map((event) => event.periodStart),
+    ),
+  ];
+  const listDates = [...slotDatesSet, ...standaloneEventDates].sort();
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -209,33 +223,38 @@ export const CastingViews = ({
             panels={panels}
             initialDate={initialDate}
           />
-        ) : visible.length === 0 ? (
+        ) : listDates.length === 0 ? (
           <p className="text-text-muted py-16 text-center text-sm">
             이 달은 아직 회차 정보가 없어요. 달력에서 이벤트를 볼 수 있어요.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {visible.map((slot, index) => {
-              const isFirstOfDate =
-                index === 0 || visible[index - 1].date !== slot.date;
-
-              const dateEvents = isFirstOfDate
-                ? matchEventsToDate(
-                    visible.filter((s) => s.date === slot.date),
-                    events.filter(
-                      (event) =>
-                        event.periodStart <= slot.date &&
-                        slot.date <= event.periodEnd,
-                    ),
-                  )
-                : [];
+            {listDates.map((date) => {
+              const daySlots = visible.filter((slot) => slot.date === date);
+              const dateEvents = matchEventsToDate(
+                daySlots,
+                events.filter(
+                  (event) =>
+                    event.periodStart <= date && date <= event.periodEnd,
+                ),
+              );
 
               return (
-                <Fragment key={slot.id}>
+                <Fragment key={date}>
                   {dateEvents.map((event) => (
-                    <EventCard key={event.id} event={event} showId={showId} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      showId={event.showId ?? showId}
+                      showName={event.showName}
+                      date={date}
+                      showDate
+                      readOnly={event.readOnly}
+                    />
                   ))}
-                  {listItems[slot.id]}
+                  {daySlots.map((slot) => (
+                    <Fragment key={slot.id}>{listItems[slot.id]}</Fragment>
+                  ))}
                 </Fragment>
               );
             })}
