@@ -71,6 +71,31 @@ export type ParsedPerformance = {
   confidence: number;
 };
 
+export type PerformanceSkipReason =
+  | "invalid_date"
+  | "invalid_time"
+  | "out_of_range"
+  | "weekday_mismatch"
+  | "empty_casting"
+  | "duplicate"
+  | "invalid_image_index";
+
+export const PERFORMANCE_SKIP_MESSAGE: Record<PerformanceSkipReason, string> = {
+  invalid_date: "날짜 형식을 읽지 못했어요.",
+  invalid_time: "시간 형식을 읽지 못했어요.",
+  out_of_range: "공연 기간 밖의 날짜예요.",
+  weekday_mismatch: "이미지에 적힌 요일과 날짜가 맞지 않아요.",
+  empty_casting: "캐스팅 정보를 읽지 못했어요.",
+  duplicate: "같은 날짜·시간이 이미 있어요.",
+  invalid_image_index: "이미지 번호를 확인하지 못했어요.",
+};
+
+export type SkippedPerformance = {
+  imageIndex: number;
+  raw: ParsedPerformance;
+  reason: PerformanceSkipReason;
+};
+
 // 캐스팅표에 붙은 배지(프리뷰/막공/커튼콜데이/더블적립위크 등).
 export type ParsedDateTag = {
   tag: string;
@@ -158,4 +183,5 @@ export type CastingBoardResult = {
   actorCount: number;
   eventCount: number;
   skippedCount: number;
+  skipped: SkippedPerformance[];
 };

@@ -23,6 +23,20 @@ const performanceSchema = z.object({
   confidence: z.number(),
 });
 
+const skippedPerformanceSchema = z.object({
+  imageIndex: z.number(),
+  raw: performanceSchema,
+  reason: z.enum([
+    "invalid_date",
+    "invalid_time",
+    "out_of_range",
+    "weekday_mismatch",
+    "empty_casting",
+    "duplicate",
+    "invalid_image_index",
+  ]),
+});
+
 const eventSourceSchema = z.enum(["badge", "notice"]);
 
 const existingEventSchema = z.object({
@@ -76,7 +90,7 @@ const bodySchema = z
     storagePaths: z.array(z.string().min(1)).min(1).max(MAX_IMAGE_COUNT),
     performances: z.array(performanceSchema),
     events: z.array(eventSchema),
-    skippedCount: z.number(),
+    skipped: z.array(skippedPerformanceSchema),
   })
   .refine(
     ({ performances, events }) => performances.length > 0 || events.length > 0,
@@ -95,8 +109,7 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePaths, performances, events, skippedCount } =
-    body.data;
+  const { showId, storagePaths, performances, events, skipped } = body.data;
 
   if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
@@ -123,7 +136,7 @@ export async function POST(request: Request) {
           ({ confirmReasons, confirmed }) =>
             confirmReasons.length === 0 || confirmed,
         ),
-      skippedCount,
+      skipped,
     });
 
     revalidateTag(CASTING_FEED_CACHE_TAG, { expire: 0 });
