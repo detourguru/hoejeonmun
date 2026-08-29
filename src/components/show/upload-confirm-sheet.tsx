@@ -9,12 +9,12 @@ import {
   CastingDraft,
 } from "@/components/show/casting-confirm-list";
 import { EventDraft } from "@/components/show/event-confirm-list";
+import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_REPORT_TYPE_TAB,
   EVENT_CONFIRM_MESSAGE,
-  EventSlotException,
   REPORT_TYPE_TAB,
   ReportTypeTab,
 } from "@/type/casting";
@@ -208,54 +208,38 @@ export const UploadConfirmSheet = ({
   );
 };
 
-// 기간 밖 별도 포함/기간 안 제외 회차를 원본과 대조해서 고칠 수 있게 하는 목록
-const SlotExceptionEditor = ({
-  label,
-  items,
+const ExactTimesEditor = ({
+  times,
   disabled,
   onChange,
 }: {
-  label: string;
-  items: EventSlotException[];
+  times: string[];
   disabled: boolean;
-  onChange: (items: EventSlotException[]) => void;
+  onChange: (times: string[]) => void;
 }) => (
   <div className="flex flex-col gap-1">
-    <span className="text-text-muted text-xs">{label}</span>
+    <span className="text-text-muted text-xs">
+      기간 내 특정 시간 회차에만 적용 (원본과 대조해주세요, 비우면 전체 적용)
+    </span>
 
     <ul className="flex flex-col gap-1">
-      {items.map((slot, index) => (
+      {times.map((time, index) => (
         <li key={index} className="flex items-center gap-1">
           <Input
-            type="date"
-            value={slot.date}
-            disabled={disabled}
-            aria-label="날짜"
-            onChange={({ target }) =>
-              onChange(
-                items.map((item, at) =>
-                  at === index ? { ...item, date: target.value } : item,
-                ),
-              )
-            }
-          />
-          <Input
             type="time"
-            value={slot.time}
+            value={time}
             disabled={disabled}
             aria-label="시간"
             onChange={({ target }) =>
               onChange(
-                items.map((item, at) =>
-                  at === index ? { ...item, time: target.value } : item,
-                ),
+                times.map((item, at) => (at === index ? target.value : item)),
               )
             }
           />
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onChange(items.filter((_, at) => at !== index))}
+            onClick={() => onChange(times.filter((_, at) => at !== index))}
             className="text-destructive shrink-0 text-xs disabled:opacity-40"
           >
             삭제
@@ -267,10 +251,10 @@ const SlotExceptionEditor = ({
     <button
       type="button"
       disabled={disabled}
-      onClick={() => onChange([...items, { date: "", time: "" }])}
+      onClick={() => onChange([...times, ""])}
       className="border-border text-text-muted w-fit rounded-lg border px-2 py-1 text-[10px] disabled:opacity-40"
     >
-      + 회차 추가
+      + 시간 추가
     </button>
   </div>
 );
@@ -428,6 +412,16 @@ const EventReview = ({
             items={event.excludedSlots ?? []}
             disabled={!include}
             onChange={(items) => onEventChange({ excludedSlots: items })}
+          />
+
+          <ExactTimesEditor
+            times={event.exactTimes ?? []}
+            disabled={!include}
+            onChange={(times) =>
+              onEventChange({
+                exactTimes: times.length > 0 ? times : undefined,
+              })
+            }
           />
         </>
       )}

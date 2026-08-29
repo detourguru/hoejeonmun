@@ -189,6 +189,15 @@ export const castingJsonSchema = {
             description:
               'Specific performance date+times WITHIN the periodStart/periodEnd range that this event does NOT apply to (e.g. "단, 10/2 20:00 회차 제외"). Omit or leave empty when there is no such exclusion.',
           },
+          exactTimes: {
+            type: "array",
+            items: {
+              type: "string",
+              description: "HH:mm",
+            },
+            description:
+              'When the notice ties this event to specific performance times rather than every performance within the period (e.g. "9/12(토) 19시 회차에는 ~", or "4시&8시 회차에는 ~" naming two times on the same day), list each such time here in HH:mm. This applies to every date in the period, not just one. Omit or leave empty when the event applies to every performance within the period.',
+          },
         },
         required: [
           "title",
@@ -221,7 +230,7 @@ Extract information from the given image(s) for:
 
 Each image is either a casting board or an event/perk notice. Classify each image using exactly one rule: does it pair actor names with role/character names (e.g. "엘리자벳", "토드" -- names from the show's own story), the way a cast list does?
 - Yes -> it is a casting board. Follow "Casting board rules" below and extract into "performances" and "dateTags". This stays true even if some dates also carry an inline badge — a badge never changes the classification.
-- No -> it is an event/perk notice. This covers anything tied to a date or date range that is not a role-labeled cast -- a giveaway, a discount, a signing/high-touch session, a special curtain call, a farewell greeting, a schedule/scene change notice, etc. Do not require specific keywords; judge by what the image is actually about. This also covers tables that list actor names grouped by something other than a role (e.g. by song/scene title, like a "special curtain call" lineup) -- treat those as an event tied to that date/range and capture only the title and dates, not a per-actor breakdown. Follow "Event rules" below and extract into "events". Only leave both arrays empty (and explain why in "reason") when the image is unreadable or has no date information at all.
+- No -> it is an event/perk notice. This covers anything tied to a date or date range that is not a role-labeled cast -- a giveaway, a discount, a signing/high-touch session, a special curtain call, a farewell greeting, a schedule/scene change notice, etc. Do not require specific keywords; judge by what the image is actually about. This also covers tables that list actor names grouped by something other than a role (e.g. by song/scene title, like a "special curtain call" lineup) -- treat those as an event tied to that date/range and capture only the title and dates, not a per-actor breakdown. An event notice does not need to look like a designed poster or table -- plain prose is just as valid a source, including a screenshot of a social media post (e.g. a fan account tweet) that lists one or more dated perks as sentences rather than a table. Follow "Event rules" below and extract into "events". Only leave both arrays empty (and explain why in "reason") when the image is unreadable or has no date information at all.
 
 Casting board rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
@@ -252,6 +261,7 @@ Event rules:
 - When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
 - When the notice separately excludes specific performance date+times from within the period range (e.g. "단, 10/2 20:00 회차 제외"), list each as a {date, time} pair in "excludedSlots".
 - Keep any such inclusion/exclusion wording in "title" or "description" as printed -- do not remove it just because you also structured it into "includedSlots"/"excludedSlots".
+- When the notice ties the event to specific performance times rather than every performance within the period (e.g. "9/12(토) 19시 회차에는 스페셜 커튼콜이 함께 진행됩니다" -- only the 19:00 show that day, not every show that day; or "4시&8시 회차에는 ~" naming two times on one day), list each such time in "exactTimes" as HH:mm. Leave "exactTimes" empty when the event applies to every performance within the period, same as most table-based notices do.
 
 Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
 If both "performances" and "events" end up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table or event notice found, header row missing).
@@ -631,6 +641,7 @@ export function unverifiedPoints(event: {
   printedEndWeekday: string;
   includedSlots?: EventSlotException[];
   excludedSlots?: EventSlotException[];
+  exactTimes?: string[];
 }): EventConfirmReason[] {
   const reasons: EventConfirmReason[] = [];
 
@@ -644,6 +655,10 @@ export function unverifiedPoints(event: {
 
   if (event.includedSlots?.length || event.excludedSlots?.length) {
     reasons.push("has_slot_exceptions");
+  }
+
+  if (event.exactTimes?.length) {
+    reasons.push("has_specific_times");
   }
 
   return reasons;
@@ -664,6 +679,7 @@ export function toPendingEvents(
       imageIndex,
       includedSlots,
       excludedSlots,
+      exactTimes,
     }) => ({
       title,
       description,
@@ -674,6 +690,7 @@ export function toPendingEvents(
       imageIndex,
       includedSlots,
       excludedSlots,
+      exactTimes,
       source: "notice" as const,
     }),
   );
@@ -766,6 +783,16 @@ const sanitizeSlotExceptions = (
   return cleaned.length > 0 ? cleaned : undefined;
 };
 
+const sanitizeExactTimes = (
+  times: string[] | undefined,
+): string[] | undefined => {
+  if (!times) return undefined;
+
+  const cleaned = [...new Set(times.filter((time) => TIME_PATTERN.test(time)))];
+
+  return cleaned.length > 0 ? cleaned : undefined;
+};
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizeEvents(
   events: ParsedEvent[],
@@ -810,6 +837,7 @@ function normalizeEvents(
       imageIndex: event.imageIndex,
       includedSlots: sanitizeSlotExceptions(event.includedSlots),
       excludedSlots: sanitizeSlotExceptions(event.excludedSlots),
+      exactTimes: sanitizeExactTimes(event.exactTimes),
     });
   }
 
@@ -1218,6 +1246,66 @@ async function insertEvent(
 
 const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
 
+// 이벤트가 실제로 적용되는 회차 id 목록을 기간 + 막대 외 포함/제외 회차로 계산한다.
+// 새로 저장할 때와 정정 제안으로 다시 계산할 때 모두 이 로직을 그대로 써야 한다
+export async function computeEventSlotIds(
+  admin: ReturnType<typeof createAdminClient>,
+  showId: string,
+  periodStart: string,
+  periodEnd: string,
+  includedSlots: EventSlotException[] = [],
+  excludedSlots: EventSlotException[] = [],
+  exactTimes?: string[],
+): Promise<number[]> {
+  const { data: periodSlots, error: periodSlotsErr } = await admin
+    .from("slots")
+    .select("id, date, time")
+    .eq("show_id", showId)
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
+
+  if (periodSlotsErr) throw periodSlotsErr;
+
+  const excludedKeys = new Set(
+    excludedSlots.map(({ date, time }) => slotKey(date, time)),
+  );
+
+  const exactTimeSet = exactTimes?.length
+    ? new Set(exactTimes.map((time) => time.slice(0, 5)))
+    : null;
+
+  const matchedSlotIds = new Set(
+    periodSlots
+      .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
+      .filter(
+        (slot) => !exactTimeSet || exactTimeSet.has(slot.time.slice(0, 5)),
+      )
+      .map(({ id }) => id),
+  );
+
+  if (includedSlots.length > 0) {
+    const { data: extraSlots, error: extraSlotsErr } = await admin
+      .from("slots")
+      .select("id, date, time")
+      .eq("show_id", showId)
+      .in("date", [...new Set(includedSlots.map(({ date }) => date))]);
+
+    if (extraSlotsErr) throw extraSlotsErr;
+
+    const includedKeys = new Set(
+      includedSlots.map(({ date, time }) => slotKey(date, time)),
+    );
+
+    for (const slot of extraSlots) {
+      if (includedKeys.has(slotKey(slot.date, slot.time))) {
+        matchedSlotIds.add(slot.id);
+      }
+    }
+  }
+
+  return [...matchedSlotIds];
+}
+
 export async function saveCastingBoard({
   showId,
   userId,
@@ -1385,50 +1473,17 @@ export async function saveCastingBoard({
     if (eventId) {
       eventCount += 1;
 
-      const { data: periodSlots, error: periodSlotsErr } = await admin
-        .from("slots")
-        .select("id, date, time")
-        .eq("show_id", showId)
-        .gte("date", event.periodStart)
-        .lte("date", event.periodEnd);
-
-      if (periodSlotsErr) throw periodSlotsErr;
-
-      const excludedKeys = new Set(
-        (event.excludedSlots ?? []).map(({ date, time }) =>
-          slotKey(date, time),
-        ),
+      const matchedSlotIds = await computeEventSlotIds(
+        admin,
+        showId,
+        event.periodStart,
+        event.periodEnd,
+        event.includedSlots,
+        event.excludedSlots,
+        event.exactTimes,
       );
 
-      const matchedSlotIds = new Set(
-        periodSlots
-          .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
-          .map(({ id }) => id),
-      );
-
-      const includedSlots = event.includedSlots ?? [];
-
-      if (includedSlots.length > 0) {
-        const { data: extraSlots, error: extraSlotsErr } = await admin
-          .from("slots")
-          .select("id, date, time")
-          .eq("show_id", showId)
-          .in("date", [...new Set(includedSlots.map(({ date }) => date))]);
-
-        if (extraSlotsErr) throw extraSlotsErr;
-
-        const includedKeys = new Set(
-          includedSlots.map(({ date, time }) => slotKey(date, time)),
-        );
-
-        for (const slot of extraSlots) {
-          if (includedKeys.has(slotKey(slot.date, slot.time))) {
-            matchedSlotIds.add(slot.id);
-          }
-        }
-      }
-
-      const eventSlots = [...matchedSlotIds].map((slotId) => ({
+      const eventSlots = matchedSlotIds.map((slotId) => ({
         event_id: eventId,
         slot_id: slotId,
       }));

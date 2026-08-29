@@ -125,6 +125,7 @@ export type ParsedEvent = {
   imageIndex: number;
   includedSlots?: EventSlotException[];
   excludedSlots?: EventSlotException[];
+  exactTimes?: string[];
 };
 
 export type EventSource = "badge" | "notice";
@@ -134,7 +135,8 @@ export type EventConfirmReason =
   | "range_badge"
   | "no_printed_weekday"
   | "overlaps_existing"
-  | "has_slot_exceptions";
+  | "has_slot_exceptions"
+  | "has_specific_times";
 
 export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
   range_badge: "캐스팅표 여백 라벨에서 읽어서 기간이 어긋날 수 있어요.",
@@ -142,6 +144,8 @@ export const EVENT_CONFIRM_MESSAGE: Record<EventConfirmReason, string> = {
   overlaps_existing: "이미 등록된 이벤트와 기간이 겹쳐요.",
   has_slot_exceptions:
     "지정된 이벤트 기간 외 포함/제외 회차가 있어요. 원본과 대조해 확인해주세요.",
+  has_specific_times:
+    "기간 내 특정 시간 회차에만 적용돼요. 원본과 대조해 확인해주세요.",
 };
 
 export type ExistingEvent = {
@@ -165,6 +169,8 @@ export type PendingEvent = {
   imageIndex: number;
   includedSlots?: EventSlotException[];
   excludedSlots?: EventSlotException[];
+  // 기간 내 특정 시간 회차에만 적용될 때. HH:mm
+  exactTimes?: string[];
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
   suggestedSameAsGroupId?: number;

@@ -34,6 +34,9 @@ export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
 const sameSlots = (a?: EventSlotException[], b?: EventSlotException[]) =>
   JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 
+const sameTimes = (a?: string[], b?: string[]) =>
+  JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+
 export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
   drafts
     .filter(({ include }) => include)
@@ -45,7 +48,8 @@ export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
         event.periodStart !== original.periodStart ||
         event.periodEnd !== original.periodEnd ||
         !sameSlots(event.includedSlots, original.includedSlots) ||
-        !sameSlots(event.excludedSlots, original.excludedSlots),
+        !sameSlots(event.excludedSlots, original.excludedSlots) ||
+        !sameTimes(event.exactTimes, original.exactTimes),
       replacesGroupId,
     }));
 
