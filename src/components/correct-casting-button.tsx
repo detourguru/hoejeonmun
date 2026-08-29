@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { correctSlotCasting } from "@/app/(main)/show/[id]/actions";
+import {
+  correctSlotCasting,
+  correctSlotDate,
+} from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -12,10 +15,14 @@ import { cn } from "@/lib/utils";
 export const CorrectCastingButton = ({
   showId,
   slotId,
+  date,
+  time,
   roles,
 }: {
   showId: string;
   slotId: number;
+  date: string;
+  time: string;
   roles: string[];
 }) => {
   const router = useRouter();
@@ -24,6 +31,8 @@ export const CorrectCastingButton = ({
   const [role, setRole] = useState<string | null>(null);
   const [newRole, setNewRole] = useState("");
   const [actor, setActor] = useState("");
+  const [newDate, setNewDate] = useState(date);
+  const [newTime, setNewTime] = useState(time);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -31,6 +40,8 @@ export const CorrectCastingButton = ({
     setRole(null);
     setNewRole("");
     setActor("");
+    setNewDate(date);
+    setNewTime(time);
     setError(null);
     setOpen(true);
   };
@@ -42,38 +53,52 @@ export const CorrectCastingButton = ({
   };
 
   const handleSubmit = () => {
-    if (!role) {
-      setError("배역을 선택해 주세요.");
+    const dateChanged = newDate !== date || newTime !== time;
+
+    if (!role && !dateChanged) {
+      setError("고칠 내용을 입력해 주세요.");
       return;
     }
 
     setError(null);
 
     startTransition(async () => {
-      const result = await correctSlotCasting(
-        showId,
-        slotId,
-        role,
-        newRole,
-        actor,
-      );
+      if (role) {
+        const result = await correctSlotCasting(
+          showId,
+          slotId,
+          role,
+          newRole,
+          actor,
+        );
 
-      if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+        if (!result.ok) {
+          if (result.message === "로그인이 필요해요.") {
+            router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+            return;
+          }
+
+          setError(result.message);
           return;
         }
+      }
 
-        setError(result.message);
-        return;
+      if (dateChanged) {
+        const result = await correctSlotDate(showId, slotId, newDate, newTime);
+
+        if (!result.ok) {
+          if (result.message === "로그인이 필요해요.") {
+            router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+            return;
+          }
+
+          setError(result.message);
+          return;
+        }
       }
 
       setOpen(false);
-      toast.success(
-        result.count > 1
-          ? `정정 제안이 반영됐어요. (${result.count}개 회차)`
-          : "정정 제안이 반영됐어요.",
-      );
+      toast.success("정정 제안이 반영됐어요.");
     });
   };
 
@@ -90,10 +115,31 @@ export const CorrectCastingButton = ({
       <BottomSheet open={open} onOpenChange={setOpen} title="배역 정정 제안">
         <div className="flex flex-col gap-4">
           <p className="text-text-muted text-center text-xs">
-            이미지 근거 없이 텍스트로 바로 반영돼요. 같은 캐스팅보드에서 올라간
-            모든 회차 중 같은 배역에 한 번에 적용되고, &quot;텍스트 제보&quot;로
-            표시돼요. 신고가 쌓이면 같은 기준으로 내려가요.
+            이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정은 같은
+            캐스팅보드에서 올라간 모든 회차 중 같은 배역에 한 번에 적용되고,
+            날짜/시간 정정은 이 회차만 옮겨요. 배역 정정은 &quot;텍스트
+            제보&quot;로 표시돼요. 신고가 쌓이면 같은 기준으로 내려가요.
           </p>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-text-muted text-[11px] font-bold">
+              날짜/시간 정정
+            </span>
+            <div className="flex items-center gap-1">
+              <Input
+                type="date"
+                value={newDate}
+                aria-label="날짜"
+                onChange={({ target }) => setNewDate(target.value)}
+              />
+              <Input
+                type="time"
+                value={newTime}
+                aria-label="시간"
+                onChange={({ target }) => setNewTime(target.value)}
+              />
+            </div>
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-text-muted text-[11px] font-bold">

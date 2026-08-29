@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MyEventButton } from "@/components/casting/my-event-button";
 import { OriginalImages } from "@/components/casting/original-images";
 import { CorrectEventTextButton } from "@/components/correct-event-text-button";
+import { DeleteMineButton } from "@/components/delete-mine-button";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
 import type { EventWithSlotTimes } from "@/lib/event-slots";
@@ -55,25 +56,43 @@ export const EventCard = ({
               eventId={event.id}
               initialTitle={event.title}
               initialDescription={event.description}
+              initialPeriodStart={event.periodStart}
+              initialPeriodEnd={event.periodEnd}
             />
 
-            <ReportButton
-              target={{ kind: "event", showId, eventId: event.id }}
-              reported={event.reported}
-              label={event.title}
-            />
+            {event.isMine ? (
+              <DeleteMineButton
+                target={{ kind: "event", showId, eventId: event.id }}
+                label={event.title}
+              />
+            ) : (
+              <ReportButton
+                target={{ kind: "event", showId, eventId: event.id }}
+                reported={event.reported}
+                label={event.title}
+              />
+            )}
           </>
         )}
       </div>
     </div>
 
+    {!readOnly && event.times && (
+      <div className="mt-1 flex flex-wrap items-center gap-1">
+        <span className="text-text text-xs font-bold">적용 회차</span>
+        {event.times.map((time) => (
+          <span
+            key={time}
+            className="bg-point text-text rounded-full px-2 py-0.5 text-[11px] font-bold"
+          >
+            {time}
+          </span>
+        ))}
+      </div>
+    )}
+
     {event.description && (
       <p className="text-text-muted mt-1 text-xs">{event.description}</p>
-    )}
-    {!readOnly && event.times && (
-      <p className="text-text-muted mt-1 text-[10px]">
-        적용 회차: {event.times.join(", ")}
-      </p>
     )}
 
     {!readOnly && (

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MySlotButton } from "@/components/casting/my-slot-button";
 import { OriginalImages } from "@/components/casting/original-images";
 import { CorrectCastingButton } from "@/components/correct-casting-button";
+import { DeleteMineButton } from "@/components/delete-mine-button";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
 import type { CastingSlotWithStatus } from "@/service/casting";
@@ -26,16 +27,24 @@ const ActorName = ({
     </Link>
   );
 
+export type SlotEventBadge = {
+  id: number;
+  title: string;
+};
+
 export const SlotCard = ({
   slot,
   showId,
   showDate = false,
+  events = [],
 }: {
   slot: CastingSlotWithStatus;
   showId: string;
   showDate?: boolean;
+  events?: SlotEventBadge[];
 }) => {
-  const { reported, bookmarked, images } = slot;
+  const { reported, bookmarked, images, isMine } = slot;
+  const slotLabel = `${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`;
 
   return (
     <li className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-3">
@@ -61,21 +70,48 @@ export const SlotCard = ({
           <CorrectCastingButton
             showId={showId}
             slotId={slot.id}
+            date={slot.date}
+            time={slot.time}
             roles={slot.casting.map(({ role }) => role)}
           />
 
-          <ReportButton
-            target={{
-              kind: "slot",
-              showId,
-              uploadId: slot.uploadId,
-              slotId: slot.id,
-            }}
-            reported={reported}
-            label={`${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`}
-          />
+          {isMine ? (
+            <DeleteMineButton
+              target={{
+                kind: "slot",
+                showId,
+                uploadId: slot.uploadId,
+                slotId: slot.id,
+              }}
+              label={slotLabel}
+            />
+          ) : (
+            <ReportButton
+              target={{
+                kind: "slot",
+                showId,
+                uploadId: slot.uploadId,
+                slotId: slot.id,
+              }}
+              reported={reported}
+              label={slotLabel}
+            />
+          )}
         </div>
       </div>
+
+      {events.length > 0 && (
+        <ul className="flex flex-wrap gap-1">
+          {events.map((event) => (
+            <li
+              key={event.id}
+              className="bg-point/20 text-text inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold"
+            >
+              {event.title}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <dl className="flex flex-col gap-1">
         {slot.casting.map(({ role, actor, actorId, verified }) => (
