@@ -14,6 +14,7 @@ import {
   SortKey,
   STATE,
   StateCode,
+  StateName,
 } from "@/type/show";
 
 const REVALIDATE = 60 * 60;
@@ -25,11 +26,24 @@ export const SHOWS_CACHE_TAG = "shows";
 
 export const showCacheTag = (id: string) => `show:${id}`;
 
+// 값이 작을수록 우선 노출. 공연중을 공연예정보다 위로 올린다
+const STATE_PRIORITY: Record<StateName, number> = {
+  공연중: 0,
+  공연예정: 1,
+};
+
+const compareState = (a: Show, b: Show) =>
+  STATE_PRIORITY[a.prfstate] - STATE_PRIORITY[b.prfstate];
+
 const SORT_COMPARATORS: Record<SortKey, (a: Show, b: Show) => number> = {
   openDate: (a, b) =>
-    a.prfpdfrom.localeCompare(b.prfpdfrom) || a.prfnm.localeCompare(b.prfnm),
+    compareState(a, b) ||
+    a.prfpdfrom.localeCompare(b.prfpdfrom) ||
+    a.prfnm.localeCompare(b.prfnm),
   closeDate: (a, b) =>
-    a.prfpdto.localeCompare(b.prfpdto) || a.prfnm.localeCompare(b.prfnm),
+    compareState(a, b) ||
+    a.prfpdto.localeCompare(b.prfpdto) ||
+    a.prfnm.localeCompare(b.prfnm),
 };
 
 export type ShowFilters = {
