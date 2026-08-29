@@ -12,7 +12,7 @@ export const ActorSlotCard = ({
 }) => (
   <li className="border-border bg-surface rounded-lg border p-3">
     <Link
-      href={`/show/${slot.showId}/castings`}
+      href={`/show/${slot.showId}/castings?month=${slot.date.slice(0, 7)}&date=${slot.date}`}
       className="flex flex-col gap-1"
     >
       <p className="text-text text-xs font-bold">
