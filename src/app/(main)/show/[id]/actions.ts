@@ -14,12 +14,20 @@ export type EventReportType = "wrong_event" | "other";
 export type ReportResult =
   { ok: true; hidden: boolean } | { ok: false; message: string };
 
+export type CorrectCastingResult =
+  { ok: true; count: number } | { ok: false; message: string };
+
 export async function correctSlotCasting(
   showId: string,
   slotId: number,
   role: string,
+  newRole: string,
   newActor: string,
-): Promise<ReportResult> {
+): Promise<CorrectCastingResult> {
+  const trimmedRole = newRole.trim();
+
+  if (!trimmedRole) return { ok: false, message: "배역명을 입력해 주세요." };
+
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
 
@@ -62,15 +70,27 @@ export async function correctSlotCasting(
   const { error: updateError, count } = await admin
     .from("assignments")
     .update(
-      { actor_name_raw: newActor, actor_id: actor.id, verified: false },
+      {
+        role_name_raw: trimmedRole,
+        actor_name_raw: newActor,
+        actor_id: actor.id,
+        verified: false,
+      },
       { count: "exact" },
     )
     .eq("upload_id", castingData.upload_id)
-    .eq("slot_id", slotId)
     .eq("role_name_raw", role);
 
   if (updateError) {
     console.error(updateError);
+
+    if (updateError.code === "23505") {
+      return {
+        ok: false,
+        message:
+          "이미 같은 배역명을 쓰는 회차가 있어요. 다른 이름을 입력해 주세요.",
+      };
+    }
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
@@ -80,7 +100,7 @@ export async function correctSlotCasting(
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
 
-  return { ok: true, hidden: false };
+  return { ok: true, count };
 }
 
 export async function reportSlot(
