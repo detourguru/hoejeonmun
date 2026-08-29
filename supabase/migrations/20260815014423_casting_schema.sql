@@ -10,7 +10,8 @@ create table uploads (
   user_id uuid not null references auth.users(id) on delete cascade,
   -- 파싱 유사도 미달 시 원문을 보관한다
   raw_text text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  source text not null default 'user' check (source in ('user', 'system'))
 );
 
 create index uploads_show_id_idx on uploads (show_id);
@@ -226,8 +227,11 @@ where not exists (
 order by a.slot_id, a.upload_id desc;
 
 -- 화면에서 읽는 최종 캐스팅
+-- uploads는 "read own uploads"로 SELECT가 user_id = auth.uid()로 제한돼 있어
+-- security_invoker면 익명 방문자에게 캐스팅 자체가 안 보인다. uploads.source만 노출하려고
+-- definer로 우회한다 (hidden_castings와 같은 이유)
 create view slot_castings
-with (security_invoker = true) as
+with (security_invoker = false) as
 select
   s.id as slot_id,
   s.show_id,
@@ -238,10 +242,12 @@ select
   a.actor_name_raw,
   a.actor_id,
   a.verified,
-  a.id as assignment_id
+  a.id as assignment_id,
+  u.source as upload_source
 from slots s
 join current_castings c on c.slot_id = s.id
-join assignments a on a.slot_id = s.id and a.upload_id = c.upload_id;
+join assignments a on a.slot_id = s.id and a.upload_id = c.upload_id
+join uploads u on u.id = a.upload_id;
 
 -- 신고 5건이 쌓여 목록에서 내려간 이벤트 (hidden_castings와 동일한 임계치, ADR-008)
 create view hidden_events

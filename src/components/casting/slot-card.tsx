@@ -40,7 +40,7 @@ export const SlotCard = ({
   return (
     <li className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-text text-xs font-bold">
+        <p className="text-text flex items-center gap-1.5 text-xs font-bold">
           {showDate && (
             <span className="text-text-muted">
               {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}
@@ -48,6 +48,11 @@ export const SlotCard = ({
             </span>
           )}
           {slot.time}
+          {slot.uploadSource === "system" && (
+            <span className="border-border text-text-muted inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-normal">
+              시스템 업로드
+            </span>
+          )}
         </p>
 
         <div className="flex items-center gap-1">
