@@ -72,9 +72,7 @@ export const InstallGuideButton = () => {
         <span className="bg-text-muted/10 flex size-9 shrink-0 items-center justify-center rounded-full">
           <Download className="text-text-muted size-4" />
         </span>
-        <span className="text-text flex-1 text-sm font-bold">
-          앱 설치하기
-        </span>
+        <span className="text-text flex-1 text-sm font-bold">앱 설치하기</span>
         <ChevronRight className="text-text-muted size-4 shrink-0" />
       </button>
 
@@ -100,6 +98,10 @@ export const InstallGuideButton = () => {
             <GuideStep index={1}>브라우저 메뉴(⋮ 또는 …)를 여세요</GuideStep>
             <GuideStep index={2}>
               &quot;앱 설치&quot; 또는 &quot;홈 화면에 추가&quot;를 선택하세요
+            </GuideStep>
+            <GuideStep index={3}>
+              카카오톡 브라우저에서는 위 기능을 지원하지 않으므로 앱 설치는 다른
+              브라우저를 이용해주세요
             </GuideStep>
           </ol>
         )}
