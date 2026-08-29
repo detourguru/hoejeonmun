@@ -63,6 +63,15 @@ export const AREA_NAMES_BY_CODE: Record<AreaCode, readonly string[]> = {
  * 시설 정보를 자체 DB에 미러링한 뒤 붙일 것
  */
 
+export const SHOW_FEED_TAB = createCodeTable([
+  { value: "favorite", label: "최애배우" },
+  { value: "recent", label: "최근소식" },
+]);
+
+export type ShowFeedTab = CodeOf<typeof SHOW_FEED_TAB>;
+
+export const DEFAULT_SHOW_FEED_TAB: ShowFeedTab = "favorite";
+
 // Kopis 제공 코드 아님
 export const SORT = createCodeTable([
   { value: "openDate", label: "개막일순" },
