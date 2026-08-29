@@ -1,16 +1,35 @@
 "use server";
 
 import { sendBugReportEmail } from "@/lib/resend";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { BUG_REPORT_IMAGE_BUCKET } from "@/type/bug-report";
+import { SIGNED_URL_TTL_SECONDS } from "@/type/casting";
 
 export type BugReportResult = { ok: true } | { ok: false; message: string };
 
 const RESUBMIT_COOLDOWN_MS = 30_000;
 
+async function getSignedImageUrls(paths: string[]) {
+  if (paths.length === 0) return [];
+
+  const { data, error } = await createAdminClient()
+    .storage.from(BUG_REPORT_IMAGE_BUCKET)
+    .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return data.flatMap((entry) => (entry.signedUrl ? [entry.signedUrl] : []));
+}
+
 export async function submitBugReport(
   message: string,
   url: string,
   userAgent: string,
+  imagePaths: string[] = [],
 ): Promise<BugReportResult> {
   const trimmed = message.trim();
 
@@ -43,7 +62,8 @@ export async function submitBugReport(
     message: trimmed,
     url,
     user_agent: userAgent,
-    commit_sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    commit_sha: process.env.APP_COMMIT_SHA || null,
+    image_paths: imagePaths,
   });
 
   if (error) {
@@ -52,10 +72,12 @@ export async function submitBugReport(
   }
 
   await sendBugReportEmail({
+    userId,
     message: trimmed,
     url,
     userAgent,
-    commitSha: process.env.VERCEL_GIT_COMMIT_SHA,
+    commitSha: process.env.APP_COMMIT_SHA || null,
+    imageUrls: await getSignedImageUrls(imagePaths),
   });
 
   return { ok: true };

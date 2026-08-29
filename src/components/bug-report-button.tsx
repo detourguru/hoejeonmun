@@ -2,21 +2,37 @@
 
 import { MessageSquareWarning } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { submitBugReport } from "@/app/(main)/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
+import { ImageZoom } from "@/components/image-zoom";
+import { createClient } from "@/lib/supabase/client";
+import {
+  BUG_REPORT_IMAGE_BUCKET,
+  MAX_BUG_REPORT_IMAGE_BYTES,
+  MAX_BUG_REPORT_IMAGE_COUNT,
+} from "@/type/bug-report";
 
 const DRAFT_KEY = "bugReportDraft";
+
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 export const BugReportButton = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -31,12 +47,65 @@ export const BugReportButton = () => {
     setOpen(true);
   }, []);
 
-  if (pathname === "/login") return null;
+  const resetFiles = () => {
+    previewUrls.forEach(URL.revokeObjectURL);
+    setFiles([]);
+    setPreviewUrls([]);
+  };
 
   const openSheet = () => {
     setMessage("");
     setError(null);
+    resetFiles();
     setOpen(true);
+  };
+
+  const addFiles = (newFiles: File[]) => {
+    const valid: File[] = [];
+    const tooLarge: string[] = [];
+
+    for (const file of newFiles) {
+      if (file.size > MAX_BUG_REPORT_IMAGE_BYTES) tooLarge.push(file.name);
+      else valid.push(file);
+    }
+
+    const room = Math.max(0, MAX_BUG_REPORT_IMAGE_COUNT - files.length);
+    const accepted = valid.slice(0, room);
+    const overflowCount = valid.length - accepted.length;
+    const messages: string[] = [];
+
+    if (tooLarge.length > 0) {
+      messages.push(`${tooLarge.join(", ")} 파일이 10MB를 초과해 제외됐어요.`);
+    }
+
+    if (overflowCount > 0) {
+      messages.push(
+        `사진은 최대 ${MAX_BUG_REPORT_IMAGE_COUNT}장까지 첨부할 수 있어요.`,
+      );
+    }
+
+    setError(messages.length > 0 ? messages.join(" ") : null);
+
+    if (accepted.length === 0) return;
+
+    setFiles((current) => [...current, ...accepted]);
+    setPreviewUrls((current) => [
+      ...current,
+      ...accepted.map(URL.createObjectURL),
+    ]);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    if (picked.length > 0) addFiles(picked);
+  };
+
+  const removeFile = (index: number) => {
+    URL.revokeObjectURL(previewUrls[index]);
+    setFiles((current) => current.filter((_, at) => at !== index));
+    setPreviewUrls((current) => current.filter((_, at) => at !== index));
   };
 
   const handleSubmit = () => {
@@ -46,7 +115,41 @@ export const BugReportButton = () => {
       const query = searchParams.toString();
       const url = query ? `${pathname}?${query}` : pathname;
 
-      const result = await submitBugReport(message, url, navigator.userAgent);
+      const imagePaths: string[] = [];
+
+      if (files.length > 0) {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getClaims();
+        const userId = data?.claims?.sub;
+
+        if (!userId) {
+          sessionStorage.setItem(DRAFT_KEY, message);
+          router.push(`/login?next=${encodeURIComponent(url)}`);
+          return;
+        }
+
+        for (const file of files) {
+          const extension = EXTENSIONS[file.type] ?? "jpg";
+          const storagePath = `${userId}/${crypto.randomUUID()}.${extension}`;
+          const { error: uploadError } = await supabase.storage
+            .from(BUG_REPORT_IMAGE_BUCKET)
+            .upload(storagePath, file, { contentType: file.type });
+
+          if (uploadError) {
+            setError("사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
+            return;
+          }
+
+          imagePaths.push(storagePath);
+        }
+      }
+
+      const result = await submitBugReport(
+        message,
+        url,
+        navigator.userAgent,
+        imagePaths,
+      );
 
       if (!result.ok) {
         if (result.message === "로그인이 필요해요.") {
@@ -61,6 +164,7 @@ export const BugReportButton = () => {
 
       setOpen(false);
       setMessage("");
+      resetFiles();
       toast.success("요청이 전달되었어요. 최대한 빠르게 확인해볼게요.");
     });
   };
@@ -78,18 +182,52 @@ export const BugReportButton = () => {
 
       <BottomSheet open={open} onOpenChange={setOpen} title="문의 · 버그신고">
         <div className="flex flex-col gap-4">
-          <p className="text-text-muted text-center text-xs">
-            화면이 이상하거나 궁금한 점을 알려주세요. 새로운 기능에 대한 요청도
-            환영입니다.
-          </p>
-
           <textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder="어떤 문제가 있었는지 알려주세요"
+            placeholder="무엇이든 문의하세요"
             rows={4}
             className="border-border bg-surface text-text placeholder:text-text-muted w-full rounded-lg border p-2 text-left text-xs"
           />
+
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {previewUrls.length > 0 && (
+            <ul className="flex flex-wrap justify-center gap-2">
+              {previewUrls.map((url, index) => (
+                <li key={url} className="flex w-16 flex-col gap-1">
+                  <ImageZoom
+                    src={url}
+                    alt={`첨부한 ${index + 1}번째 사진`}
+                    className="h-16 w-full rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="text-text-muted text-[11px] underline underline-offset-2"
+                  >
+                    빼기
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={files.length >= MAX_BUG_REPORT_IMAGE_COUNT}
+            className="border-border text-text-muted mx-auto inline-flex rounded-4xl border px-3 py-1 text-xs disabled:opacity-40"
+          >
+            사진 추가 ({files.length}/{MAX_BUG_REPORT_IMAGE_COUNT})
+          </button>
 
           {error && <p className="text-destructive text-xs">{error}</p>}
 
