@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Share, SquarePlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { BottomSheet } from "@/components/bottom-sheet";
 
@@ -10,21 +10,25 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+const noSubscription = () => () => {};
+
 const getIsIOS = () =>
-  typeof navigator !== "undefined" &&
-  /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-  !("MSStream" in window);
+  /iPad|iPhone|iPod/.test(navigator.userAgent) && !("MSStream" in window);
 
 const getIsStandalone = () =>
-  typeof window !== "undefined" &&
-  (window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone ===
-      true);
+  window.matchMedia("(display-mode: standalone)").matches ||
+  (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+
+const useIsIOS = () =>
+  useSyncExternalStore(noSubscription, getIsIOS, () => false);
+
+const useIsStandalone = () =>
+  useSyncExternalStore(noSubscription, getIsStandalone, () => false);
 
 export const InstallGuideButton = () => {
   const [open, setOpen] = useState(false);
-  const [isIOS] = useState(getIsIOS);
-  const [isStandalone] = useState(getIsStandalone);
+  const isIOS = useIsIOS();
+  const isStandalone = useIsStandalone();
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
@@ -46,9 +50,12 @@ export const InstallGuideButton = () => {
 
   const handleClick = async () => {
     if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") setDeferredPrompt(null);
+      try {
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+      } finally {
+        setDeferredPrompt(null);
+      }
       return;
     }
 
@@ -62,8 +69,7 @@ export const InstallGuideButton = () => {
         onClick={handleClick}
         className="border-border text-text-muted hover:border-primary/40 hover:text-primary flex w-full items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-colors"
       >
-        <Download className="size-3.5" />
-        앱 설치하기
+        <Download className="size-3.5" />앱 설치하기
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="앱 설치 방법">
@@ -71,14 +77,17 @@ export const InstallGuideButton = () => {
           <ol className="flex flex-col gap-3">
             <GuideStep index={1}>
               하단 메뉴에서 공유 버튼(
-              <Share className="text-text mx-1 inline size-4" />)을 탭하세요
+              <Share className="text-text mx-1 inline size-4" />
+              )을 탭하세요
             </GuideStep>
             <GuideStep index={2}>
               메뉴에서 &quot;홈 화면에 추가&quot;(
-              <SquarePlus className="text-text mx-1 inline size-4" />)를
-              선택하세요
+              <SquarePlus className="text-text mx-1 inline size-4" />
+              )를 선택하세요
             </GuideStep>
-            <GuideStep index={3}>오른쪽 위 &quot;추가&quot;를 눌러 완료하세요</GuideStep>
+            <GuideStep index={3}>
+              오른쪽 위 &quot;추가&quot;를 눌러 완료하세요
+            </GuideStep>
           </ol>
         ) : (
           <ol className="flex flex-col gap-3">
@@ -104,8 +113,6 @@ const GuideStep = ({
     <span className="bg-point/40 text-primary flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
       {index}
     </span>
-    <span className="text-text pt-0.5 text-sm leading-relaxed">
-      {children}
-    </span>
+    <span className="text-text pt-0.5 text-sm leading-relaxed">{children}</span>
   </li>
 );
