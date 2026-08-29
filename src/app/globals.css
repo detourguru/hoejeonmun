@@ -169,4 +169,13 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  @keyframes ring-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .animate-ring-spin {
+    animation: ring-spin 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
 }
