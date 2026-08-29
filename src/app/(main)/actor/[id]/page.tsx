@@ -39,11 +39,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const actorId = parseId(id);
   const actor = actorId && (await getActor(actorId));
 
-  if (!actor) return { title: "배우를 찾을 수 없습니다 | 회전문" };
+  if (!actor) return { title: "배우를 찾을 수 없습니다" };
+
+  const title = `${actor.name} 공연 일정`;
+  const description = `${actor.name}의 회차별 공연 일정`;
 
   return {
-    title: `${actor.name} 공연 일정 | 회전문`,
-    description: `${actor.name}의 회차별 공연 일정`,
+    title,
+    description,
+    alternates: { canonical: `/actor/${id}` },
+    openGraph: { title, description },
   };
 }
 

@@ -49,11 +49,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const show = await getShow(id);
 
-  if (!show) return { title: "공연을 찾을 수 없습니다 | 회전문" };
+  if (!show) return { title: "공연을 찾을 수 없습니다" };
+
+  const title = `${show.prfnm} 캐스팅 일정`;
+  const description = `${show.prfnm}의 회차별 캐스팅`;
 
   return {
-    title: `${show.prfnm} 캐스팅 일정 | 회전문`,
-    description: `${show.prfnm}의 회차별 캐스팅`,
+    title,
+    description,
+    alternates: { canonical: `/show/${id}/castings` },
+    openGraph: {
+      title,
+      description,
+      images: show.poster ? [show.poster] : undefined,
+    },
   };
 }
 
@@ -133,7 +142,6 @@ export default async function Page({ params, searchParams }: Props) {
 
       <CastingViews
         showId={id}
-        isLoggedIn={Boolean(auth.data?.claims)}
         month={month}
         initialView={view}
         initialDate={initialDate}

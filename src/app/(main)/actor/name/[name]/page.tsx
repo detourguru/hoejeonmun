@@ -10,7 +10,10 @@ type Props = { params: Promise<{ name: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
 
-  return { title: `${decodeURIComponent(name)} | 회전문` };
+  return {
+    title: decodeURIComponent(name),
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function Page({ params }: Props) {

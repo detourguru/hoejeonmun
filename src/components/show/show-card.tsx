@@ -44,10 +44,13 @@ export const ShowCard = ({
           {show.prfpdfrom} - {show.prfpdto}
         </p>
         {lastUpdatedAt !== undefined && (
-          <Badge variant={lastUpdatedAt ? "secondary" : "outline"} className="mt-1">
+          <Badge
+            variant={lastUpdatedAt ? "secondary" : "outline"}
+            className="mt-1"
+          >
             {lastUpdatedAt
               ? `캐스팅보드 ${formatShortDate(lastUpdatedAt)} 업데이트`
-              : "아직 캐스팅보드 없음"}
+              : "캐스팅보드 없음"}
           </Badge>
         )}
       </div>
