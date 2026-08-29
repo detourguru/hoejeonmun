@@ -17,7 +17,7 @@ export const RecentCastingCard = ({
 }) => {
   return (
     <Link
-      href={`/show/${show.mt20id}/castings`}
+      href={`/show/${show.mt20id}`}
       className="group border-border bg-surface hover:border-primary/40 flex gap-3 rounded-xl border p-3 transition-all hover:shadow-md"
     >
       <div className="bg-point/40 h-32 w-24 shrink-0 overflow-hidden rounded-lg">

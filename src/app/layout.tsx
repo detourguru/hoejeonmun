@@ -28,6 +28,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
+      <head>
+        {/* next/font는 한글(Hangul) 서브셋을 지원하지 않아 Gowun Batang은 직접 링크로 로드 */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- 루트 layout 전역 적용이라 해당 없음 */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap"
+        />
+      </head>
       <Analytics />
       <body className="bg-primary">
         <SerwistProvider swUrl="/serwist/sw.js">

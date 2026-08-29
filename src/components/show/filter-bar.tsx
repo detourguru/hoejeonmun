@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarDays, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -57,18 +58,23 @@ export const FilterBar = () => {
     if (isTyping || isClearing) event.preventDefault();
   };
 
+  const [query, setQuery] = useState(searchParams.get("shprfnm") ?? "");
+
   const searchByName = useDebouncedCallback(
     (shprfnm: string) => updateSearchParams({ shprfnm }),
     300,
   );
 
+  const dateFieldClassName =
+    "h-auto w-auto min-w-0 shrink-0 rounded-none border-0 bg-transparent p-0 text-[13px] font-semibold text-text shadow-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50";
+
   return (
-    <div className="flex flex-col gap-2 py-2">
+    <div className="flex flex-col gap-2.5 pb-2">
       <div className="relative">
         <div
           ref={chipsRef}
           onScroll={updateScrollFade}
-          className="flex items-center justify-end gap-2 overflow-x-scroll py-2"
+          className="scrollbar-hide flex items-center gap-2 overflow-x-scroll"
         >
           <SelectBox
             name="prfstate"
@@ -76,16 +82,13 @@ export const FilterBar = () => {
             options={STATE.options}
           />
 
-          <SelectBox
-            name="shcate"
-            placeholder="장르"
-            options={GENRE.options}
-          />
+          <SelectBox name="shcate" placeholder="장르" options={GENRE.options} />
 
           <SelectBox
             name="sort"
-            placeholder="개막일순"
+            placeholder="종료일순"
             options={SORT_OPTIONS}
+            alwaysActive
           />
 
           <SelectBox
@@ -96,15 +99,17 @@ export const FilterBar = () => {
         </div>
 
         {canScrollLeft && (
-          <div className="from-sub pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r to-transparent" />
+          <div className="from-sub pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r to-transparent" />
         )}
 
         {canScrollRight && (
-          <div className="from-sub pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l to-transparent" />
+          <div className="from-sub pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l to-transparent" />
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="border-border bg-surface focus-within:border-primary/40 flex items-center gap-2.5 rounded-4xl border px-3.5 py-2.5 transition-colors">
+        <CalendarDays className="text-primary size-4 shrink-0" />
+
         <Input
           type="date"
           value={from}
@@ -112,10 +117,10 @@ export const FilterBar = () => {
           max={limit}
           onKeyDown={blockTyping}
           onChange={(event) => updatePeriod("from", event.target.value)}
-          className="[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50"
+          className={dateFieldClassName}
         />
 
-        <span className="text-text-muted">~</span>
+        <span className="text-text-muted text-xs">~</span>
 
         <Input
           type="date"
@@ -124,16 +129,24 @@ export const FilterBar = () => {
           max={limit}
           onKeyDown={blockTyping}
           onChange={(event) => updatePeriod("to", event.target.value)}
-          className="[&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50"
+          className={dateFieldClassName}
         />
       </div>
 
       {/* TODO: 배우 이름 검색 기능 추가 */}
-      <Input
-        defaultValue={searchParams.get("shprfnm") ?? ""}
-        onChange={(search) => searchByName(search.target.value)}
-        placeholder="공연명으로 검색"
-      />
+      <div className="border-border bg-surface focus-within:border-primary/40 flex items-center gap-2.5 rounded-full border px-4 py-2.5 transition-colors">
+        <Search className="text-text-muted size-4 shrink-0" />
+
+        <Input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            searchByName(event.target.value);
+          }}
+          placeholder="공연명으로 검색"
+          className="h-auto min-w-0 rounded-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+        />
+      </div>
     </div>
   );
 };
