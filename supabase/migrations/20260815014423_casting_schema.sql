@@ -73,6 +73,16 @@ create table vandal_reports (
   unique (user_id, upload_id, slot_id)
 );
 
+create table bug_reports (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  message text not null,
+  url text not null,
+  user_agent text not null,
+  commit_sha text,
+  created_at timestamptz not null default now()
+);
+
 create table event_groups (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now()
@@ -286,7 +296,7 @@ alter table show_title_aliases enable row level security;
 alter table event_slots enable row level security;
 alter table my_slots enable row level security;
 alter table my_event_groups enable row level security;
-
+alter table bug_reports enable row level security;
 
 create policy "actors are public" on actors for select using (true);
 create policy "slots are public" on slots for select using (true);
@@ -342,6 +352,15 @@ create policy "remove own vandal reports" on vandal_reports
 
 alter table vandal_reports add constraint vandal_reports_context_required_check
   check (type <> 'other' or context is not null);
+
+create policy "add own bug reports" on bug_reports
+  for insert to authenticated with check (user_id = auth.uid());
+
+create policy "read own bug reports" on bug_reports
+  for select to authenticated using (user_id = auth.uid());
+
+alter table bug_reports add constraint bug_reports_message_required_check
+  check (length(trim(message)) > 0);
 
 create policy "read own event reports" on event_reports
   for select to authenticated using (user_id = auth.uid());

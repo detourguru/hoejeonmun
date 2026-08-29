@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { BugReportButton } from "@/components/bug-report-button";
 import { FooterNav } from "@/components/footer-nav";
 import { SearchBar } from "@/components/search/search-bar";
 
@@ -35,6 +36,10 @@ export default function MainLayout({
       <main className="flex w-full max-w-4xl flex-1 flex-col p-4 pb-24">
         {children}
       </main>
+
+      <Suspense fallback={null}>
+        <BugReportButton />
+      </Suspense>
 
       <footer className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full sm:max-w-md">
         <FooterNav />
