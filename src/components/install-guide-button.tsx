@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Share, SquarePlus } from "lucide-react";
+import { ChevronRight, Download, Share, SquarePlus } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -67,9 +67,15 @@ export const InstallGuideButton = () => {
       <button
         type="button"
         onClick={handleClick}
-        className="border-border text-text-muted hover:border-primary/40 hover:text-primary flex w-full items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium transition-colors"
+        className="hover:bg-sub flex w-full items-center gap-3 p-3 text-left transition-colors"
       >
-        <Download className="size-3.5" />앱 설치하기
+        <span className="bg-text-muted/10 flex size-9 shrink-0 items-center justify-center rounded-full">
+          <Download className="text-text-muted size-4" />
+        </span>
+        <span className="text-text flex-1 text-sm font-bold">
+          앱 설치하기
+        </span>
+        <ChevronRight className="text-text-muted size-4 shrink-0" />
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="앱 설치 방법">

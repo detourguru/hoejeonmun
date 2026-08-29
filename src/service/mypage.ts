@@ -56,6 +56,46 @@ export async function getMyUploads(userId: string): Promise<MyUpload[]> {
   );
 }
 
+export type MyContributionStats = {
+  favoriteActorCount: number;
+  uploadCount: number;
+  reportedSlotCount: number;
+};
+
+export async function getMyContributionStats(
+  userId: string,
+): Promise<MyContributionStats> {
+  const supabase = await createClient();
+
+  const [favorites, uploads, assignments] = await Promise.all([
+    supabase
+      .from("favorites")
+      .select("actor_id", { count: "exact", head: true }),
+    supabase
+      .from("uploads")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase
+      .from("assignments")
+      .select("slot_id, uploads!inner(user_id)")
+      .eq("uploads.user_id", userId),
+  ]);
+
+  if (favorites.error) throw favorites.error;
+  if (uploads.error) throw uploads.error;
+  if (assignments.error) throw assignments.error;
+
+  const reportedSlotCount = new Set(
+    (assignments.data as { slot_id: number }[]).map(({ slot_id }) => slot_id),
+  ).size;
+
+  return {
+    favoriteActorCount: favorites.count ?? 0,
+    uploadCount: uploads.count ?? 0,
+    reportedSlotCount,
+  };
+}
+
 export type MySlot = {
   id: number;
   showId: string;
