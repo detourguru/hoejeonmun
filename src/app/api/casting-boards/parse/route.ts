@@ -114,7 +114,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { performances, dateTags, events, skippedCount, reason } =
+    const { performances, dateTags, events, skipped, reason } =
       await parseCastingBoard(images, show);
 
     lap(`표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건)`);
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     return Response.json({
       performances,
       events: pendingEvents,
-      skippedCount,
+      skipped,
     });
   } catch (error) {
     lap("예외로 중단");

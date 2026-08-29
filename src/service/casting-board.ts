@@ -25,6 +25,8 @@ import {
   ParsedEvent,
   ParsedPerformance,
   PendingEvent,
+  PerformanceSkipReason,
+  SkippedPerformance,
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
@@ -315,6 +317,36 @@ export function hasKnownCastOverlap(
   });
 }
 
+function skipReason(
+  performance: ParsedPerformance,
+  date: string,
+  time: string,
+  casting: Record<string, string>,
+  key: string,
+  seen: Set<string>,
+  from: string,
+  to: string,
+  imageCount: number,
+): PerformanceSkipReason | null {
+  if (!DATE_PATTERN.test(date)) return "invalid_date";
+  if (!TIME_PATTERN.test(time)) return "invalid_time";
+  if (date < from || date > to) return "out_of_range";
+  if (getWeekday(date) !== performance.weekday?.trim())
+    return "weekday_mismatch";
+  if (Object.keys(casting).length === 0) return "empty_casting";
+  if (seen.has(key)) return "duplicate";
+
+  if (
+    !Number.isInteger(performance.imageIndex) ||
+    performance.imageIndex < 0 ||
+    performance.imageIndex >= imageCount
+  ) {
+    return "invalid_image_index";
+  }
+
+  return null;
+}
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizePerformances(
   performances: ParsedPerformance[],
@@ -325,8 +357,7 @@ function normalizePerformances(
 
   const seen = new Set<string>();
   const valid: ParsedPerformance[] = [];
-
-  let skippedCount = 0;
+  const skipped: SkippedPerformance[] = [];
 
   for (const performance of performances) {
     const date = performance.date?.trim() ?? "";
@@ -346,20 +377,24 @@ function normalizePerformances(
 
     const key = `${date} ${time}`;
 
-    const isValid =
-      DATE_PATTERN.test(date) &&
-      TIME_PATTERN.test(time) &&
-      date >= from &&
-      date <= to &&
-      getWeekday(date) === performance.weekday?.trim() &&
-      Object.keys(casting).length > 0 &&
-      !seen.has(key) &&
-      Number.isInteger(performance.imageIndex) &&
-      performance.imageIndex >= 0 &&
-      performance.imageIndex < imageCount;
+    const reason = skipReason(
+      performance,
+      date,
+      time,
+      casting,
+      key,
+      seen,
+      from,
+      to,
+      imageCount,
+    );
 
-    if (!isValid) {
-      skippedCount += 1;
+    if (reason) {
+      skipped.push({
+        imageIndex: performance.imageIndex,
+        raw: performance,
+        reason,
+      });
       continue;
     }
 
@@ -374,7 +409,7 @@ function normalizePerformances(
     });
   }
 
-  return { performances: valid, skippedCount };
+  return { performances: valid, skipped };
 }
 
 function mergeSameDateTags(dateTags: ParsedDateTag[]): ParsedDateTag[] {
@@ -1002,7 +1037,7 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
 
   const normalizeStart = performance.now();
 
-  const { performances, skippedCount } = normalizePerformances(
+  const { performances, skipped } = normalizePerformances(
     parsed.performances,
     show,
     imageBlocks.length,
@@ -1010,7 +1045,7 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
 
   const result = {
     performances,
-    skippedCount,
+    skipped,
     dateTags: normalizeDateTags(
       parsed.dateTags,
       show,
@@ -1189,14 +1224,14 @@ export async function saveCastingBoard({
   storagePaths,
   performances,
   events,
-  skippedCount,
+  skipped,
 }: {
   showId: string;
   userId: string;
   storagePaths: string[];
   performances: ParsedPerformance[];
   events: ConfirmedEvent[];
-  skippedCount: number;
+  skipped: SkippedPerformance[];
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
 
@@ -1412,6 +1447,7 @@ export async function saveCastingBoard({
     slotCount: performances.length,
     actorCount: actorNames.length,
     eventCount,
-    skippedCount,
+    skippedCount: skipped.length,
+    skipped,
   };
 }

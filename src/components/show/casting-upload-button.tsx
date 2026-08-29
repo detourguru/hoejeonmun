@@ -27,14 +27,16 @@ import {
   MAX_IMAGE_COUNT,
   ParsedPerformance,
   PendingEvent,
+  PERFORMANCE_SKIP_MESSAGE,
   ReportTypeTab,
+  SkippedPerformance,
   UploadStatus,
 } from "@/type/casting";
 
 type ParsedUpload = {
   storagePaths: string[];
   performances: ParsedPerformance[];
-  skippedCount: number;
+  skipped: SkippedPerformance[];
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -74,6 +76,7 @@ export const CastingUploadButton = ({
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
   const [knownDates, setKnownDates] = useState<Set<string>>(new Set());
+  const [showSkipped, setShowSkipped] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
     DEFAULT_REPORT_TYPE_TAB,
   );
@@ -143,6 +146,7 @@ export const CastingUploadButton = ({
     setDrafts([]);
     setCastingDrafts([]);
     setKnownDates(new Set());
+    setShowSkipped(false);
     setStatus("idle");
   };
 
@@ -215,13 +219,12 @@ export const CastingUploadButton = ({
       return;
     }
 
-    const { performances, events, skippedCount } =
-      (await parseResponse.json()) as {
-        performances: ParsedPerformance[];
-        events: PendingEvent[];
-        skippedCount: number;
-      };
-    const upload = { storagePaths, performances, skippedCount };
+    const { performances, events, skipped } = (await parseResponse.json()) as {
+      performances: ParsedPerformance[];
+      events: PendingEvent[];
+      skipped: SkippedPerformance[];
+    };
+    const upload = { storagePaths, performances, skipped };
 
     if (performances.length === 0 && events.length === 0) {
       await save(upload, []);
@@ -415,13 +418,39 @@ export const CastingUploadButton = ({
       )}
 
       {status === "done" && result && (
-        <p className="text-text text-xs">
-          회차 {result.slotCount}개, 배우 {result.actorCount}명, 이벤트{" "}
-          {result.eventCount}
-          건을 저장했어요.
-          {result.skippedCount > 0 &&
-            ` 읽지 못한 행 ${result.skippedCount}개는 건너뛰었어요.`}
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="text-text text-xs">
+            회차 {result.slotCount}개, 배우 {result.actorCount}명, 이벤트{" "}
+            {result.eventCount}건을 저장했어요.
+          </p>
+
+          {result.skippedCount > 0 && (
+            <div className="text-text-muted flex flex-col gap-1 text-xs">
+              <p>
+                {result.skippedCount}개 행은 확인하지 못해 제외했어요.{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowSkipped((prev) => !prev)}
+                  className="underline underline-offset-2"
+                >
+                  {showSkipped ? "접기" : "보기"}
+                </button>
+              </p>
+
+              {showSkipped && (
+                <ul className="flex flex-col gap-1 text-[11px]">
+                  {result.skipped.map((row, index) => (
+                    <li key={index}>
+                      {row.imageIndex + 1}번째 이미지 — {row.raw.date || "날짜"}{" "}
+                      {row.raw.time || ""}·{" "}
+                      {PERFORMANCE_SKIP_MESSAGE[row.reason]}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
