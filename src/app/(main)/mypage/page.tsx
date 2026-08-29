@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { InstallGuideButton } from "@/components/install-guide-button";
+import { DonateButton } from "@/components/mypage/donate-button";
 import { MyUploadsSection } from "@/components/mypage/my-uploads-section";
 import { SignOutButton } from "@/components/mypage/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +41,7 @@ export default async function Page() {
       <MyUploadsSection userId={userId} />
 
       <div className="mt-2 flex flex-col gap-2">
+        <DonateButton />
         <InstallGuideButton />
         <SignOutButton />
       </div>
