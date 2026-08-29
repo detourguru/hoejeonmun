@@ -1,6 +1,6 @@
 "use client";
 
-import { LifeBuoy } from "lucide-react";
+import { MessageSquareWarning } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -70,10 +70,10 @@ export const BugReportButton = () => {
       <button
         type="button"
         onClick={openSheet}
-        className="bg-primary fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-white shadow-lg"
+        aria-label="문의하기"
+        className="bg-primary fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 inline-flex size-12 items-center justify-center rounded-full text-white shadow-lg shadow-black/15 transition-all hover:opacity-90 hover:shadow-xl active:scale-95"
       >
-        <LifeBuoy className="size-4" />
-        문의
+        <MessageSquareWarning className="size-5" />
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="문의 · 버그신고">
