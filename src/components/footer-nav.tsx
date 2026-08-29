@@ -15,8 +15,6 @@ const TABS = [
 export const FooterNav = () => {
   const pathname = usePathname();
 
-  if (pathname === "/login") return null;
-
   return (
     <nav className="border-border bg-surface flex w-full items-center justify-around border-t px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {TABS.map(({ href, label, icon: Icon }) => {

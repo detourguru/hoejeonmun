@@ -1,11 +1,24 @@
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { Analytics } from "@vercel/analytics/next";
+import localFont from "next/font/local";
 
 import { Toaster } from "@/components/toaster";
 
 import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
+
+const maruBuri = localFont({
+  src: [
+    { path: "./fonts/MaruBuri-ExtraLight.ttf", weight: "200", style: "normal" },
+    { path: "./fonts/MaruBuri-Light.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/MaruBuri-Regular.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/MaruBuri-SemiBold.ttf", weight: "600", style: "normal" },
+    { path: "./fonts/MaruBuri-Bold.ttf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-maruburi",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "회전문 | Hoejeonmun",
@@ -27,21 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
-      <head>
-        {/* next/font는 한글(Hangul) 서브셋을 지원하지 않아 Gowun Batang은 직접 링크로 로드 */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font -- 루트 layout 전역 적용이라 해당 없음 */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap"
-        />
-      </head>
+    <html lang="ko" className={maruBuri.variable}>
       <Analytics />
       <body className="bg-primary">
         <SerwistProvider swUrl="/serwist/sw.js">
