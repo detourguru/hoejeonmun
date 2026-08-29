@@ -5,6 +5,7 @@ import { FavoriteActorShowCard } from "@/components/show/favorite-actor-show-car
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { getShowsWithFavoritedActors } from "@/service/actor";
 import {
@@ -21,7 +22,11 @@ type Props = { searchParams: Promise<{ tab?: string }> };
 
 export default async function Page({ searchParams }: Props) {
   const { tab: rawTab } = await searchParams;
-  const tab = SHOW_FEED_TAB.isCode(rawTab) ? rawTab : DEFAULT_SHOW_FEED_TAB;
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getClaims();
+  const isLoggedIn = Boolean(auth?.claims);
+  const defaultTab = isLoggedIn ? DEFAULT_SHOW_FEED_TAB : "recent";
+  const tab = SHOW_FEED_TAB.isCode(rawTab) ? rawTab : defaultTab;
 
   return (
     <div className="flex flex-col gap-4">
