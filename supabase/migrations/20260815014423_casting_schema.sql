@@ -80,6 +80,7 @@ create table bug_reports (
   url text not null,
   user_agent text not null,
   commit_sha text,
+  image_paths text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 
@@ -386,5 +387,17 @@ create policy "users upload own casting boards" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'casting-boards'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- 버그 리포트 첨부 이미지는 사용자 화면 캡처라 비공개로 유지
+insert into storage.buckets (id, name, public)
+values ('bug-report-images', 'bug-report-images', false)
+on conflict (id) do nothing;
+
+create policy "users upload own bug report images" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'bug-report-images'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
