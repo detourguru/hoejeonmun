@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -15,6 +15,10 @@ export const SearchBar = () => {
   const searchParams = useSearchParams();
 
   const [keyword, setKeyword] = useState(searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    setKeyword(searchParams.get("q") ?? "");
+  }, [searchParams]);
 
   if (HIDE_ON_PATHS.includes(pathname)) return null;
 
