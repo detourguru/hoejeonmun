@@ -17,6 +17,13 @@ import {
 } from "@/components/show/event-confirm-list";
 import { UploadConfirmSheet } from "@/components/show/upload-confirm-sheet";
 import { UploadProgress } from "@/components/show/upload-progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -45,6 +52,8 @@ const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
+
+const TUTORIAL_SEEN_KEY = "uploadTutorialSeen";
 
 const STATUS_LABEL: Record<UploadStatus, string> = {
   idle: "캐스팅보드/이벤트 제보하기",
@@ -78,6 +87,7 @@ export const CastingUploadButton = ({
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
   const [knownDates, setKnownDates] = useState<Set<string>>(new Set());
   const [showSkipped, setShowSkipped] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
     DEFAULT_REPORT_TYPE_TAB,
   );
@@ -90,6 +100,13 @@ export const CastingUploadButton = ({
     () => () => previewUrlsRef.current.forEach(URL.revokeObjectURL),
     [],
   );
+
+  useEffect(() => {
+    if (isLoggedIn && !localStorage.getItem(TUTORIAL_SEEN_KEY)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowTutorial(true);
+    }
+  }, [isLoggedIn]);
 
   const addFiles = (newFiles: File[]) => {
     const valid: File[] = [];
@@ -159,6 +176,11 @@ export const CastingUploadButton = ({
 
     if (status === "done") reset();
     inputRef.current?.click();
+  };
+
+  const handleTutorialConfirm = () => {
+    localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+    setShowTutorial(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -398,6 +420,37 @@ export const CastingUploadButton = ({
           </div>
         </div>
       )}
+
+      <Dialog open={showTutorial} onOpenChange={setShowTutorial}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>캐스팅/이벤트 제보하는 방법</DialogTitle>
+          </DialogHeader>
+
+          <ol className="text-text list-decimal space-y-1 pl-4 text-left text-sm">
+            <li>캐스팅보드나 이벤트 이미지를 선택하면</li>
+            <li>AI가 사진을 읽어서 자동으로 정리하고</li>
+            <li>회원님이 내용을 확인/수정한 뒤</li>
+            <li>저장하면 바로 반영돼요</li>
+            <li>잘못된 정보는 정정하거나 신고할 수 있어요</li>
+          </ol>
+
+          <p className="text-text-muted text-xs">
+            AI가 사진을 읽다 보니 정확도가 아직 완벽하진 않아요. 계속
+            개선하고 있으니 양해 부탁드려요.
+          </p>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={handleTutorialConfirm}
+              className="border-border bg-point text-text rounded-lg border px-3 py-1 text-xs font-bold"
+            >
+              확인했어요
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {(status === "confirming" || (status === "saving" && !!parsed)) && (
         <UploadConfirmSheet
