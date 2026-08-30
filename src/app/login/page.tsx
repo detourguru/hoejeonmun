@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { KakaoLoginButton } from "@/components/auth/kakao-login-button";
 import { createClient } from "@/lib/supabase/server";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "로그인",
+  robots: { index: false, follow: true },
+};
+
 const ERROR_MESSAGE: Record<string, string> = {
   cancelled: "로그인을 취소했어요.",
   failed: "로그인에 실패했어요. 다시 시도해 주세요.",

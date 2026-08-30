@@ -16,6 +16,12 @@ import {
 import { getShow, getShows } from "@/service/show";
 import { DEFAULT_SHOW_FEED_TAB, SHOW_FEED_TAB, type Show } from "@/type/show";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/show" },
+};
+
 const FEED_LIMIT = 10;
 
 type Props = { searchParams: Promise<{ tab?: string }> };

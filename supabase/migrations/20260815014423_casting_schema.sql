@@ -24,8 +24,7 @@ create table upload_images (
   upload_id bigint not null references uploads(id) on delete cascade,
   show_id text,
   image_hash text,
-  -- 직접 입력일 때만 null
-  storage_path text,
+  storage_path text not null,
   -- 같은 업로드 내 이미지 순서
   position smallint not null,
   created_at timestamptz not null default now(),

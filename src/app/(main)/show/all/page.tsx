@@ -5,6 +5,14 @@ import { ShowList } from "@/components/show/show-list";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { parseShowFilters } from "@/service/show";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "공연 전체 목록",
+  description: "진행중·개막예정 뮤지컬·연극을 필터로 찾아보세요",
+  alternates: { canonical: "/show/all" },
+};
+
 export default async function Page({
   searchParams,
 }: {

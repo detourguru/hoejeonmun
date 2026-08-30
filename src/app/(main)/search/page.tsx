@@ -6,11 +6,19 @@ import { searchShows } from "@/service/show";
 
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "검색 | 회전문",
-};
-
 type Props = { searchParams: Promise<{ q?: string }> };
+
+export async function generateMetadata({
+  searchParams,
+}: Props): Promise<Metadata> {
+  const { q } = await searchParams;
+  const keyword = q?.trim();
+
+  return {
+    title: keyword ? `'${keyword}' 검색 결과` : "검색",
+    robots: { index: false, follow: true },
+  };
+}
 
 const Section = ({
   title,
@@ -59,7 +67,7 @@ export default async function Page({ searchParams }: Props) {
           href="/show"
           className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
         >
-          공연 찾아서 캐스팅보드 올리러 가기
+          공연 검색하기
         </Link>
       </div>
     );

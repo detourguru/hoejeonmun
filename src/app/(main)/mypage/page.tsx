@@ -11,7 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "마이페이지 | 회전문",
+  title: "마이페이지",
+  robots: { index: false, follow: false },
 };
 
 type KakaoUserMetadata = {
