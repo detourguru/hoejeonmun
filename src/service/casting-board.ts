@@ -298,17 +298,18 @@ function parseCastNames(prfcast?: string): Set<string> {
   return new Set(splitActorNames(prfcast));
 }
 
-export function hasKnownCastOverlap(
+// 다른 공연의 캐스팅표가 섞여있는 이미지를 이미지 단위로 골라낸다
+function findCastMismatchImageIndexes(
   performances: ParsedPerformance[],
   show: ShowDetail,
-) {
+): Set<number> {
   // 오픈런은 prfcast가 개막 당시 캐스팅이라 수년 지나면 지금 캐스팅과 안 겹칠 수 있어 대조 자체를 건너뛴다
-  if (show.openrun === "Y") return true;
+  if (show.openrun === "Y") return new Set();
 
   const known = parseCastNames(show.prfcast);
 
   // 겹치는 이름이 하나도 없을 때 다른 공연의 캐스트로 판단
-  if (known.size === 0) return true;
+  if (known.size === 0) return new Set();
 
   const byImage = new Map<number, ParsedPerformance[]>();
 
@@ -319,12 +320,24 @@ export function hasKnownCastOverlap(
     ]);
   }
 
-  // 하나라도 다른 공연 사진이 섞여있다면 거부
-  return [...byImage.values()].every((group) => {
+  const mismatched = new Set<number>();
+
+  for (const [imageIndex, group] of byImage) {
     const names = group.flatMap(({ casting }) => Object.values(casting));
 
-    return names.some((name) => known.has(normalizeName(name)));
-  });
+    if (!names.some((name) => known.has(normalizeName(name)))) {
+      mismatched.add(imageIndex);
+    }
+  }
+
+  return mismatched;
+}
+
+export function hasKnownCastOverlap(
+  performances: ParsedPerformance[],
+  show: ShowDetail,
+) {
+  return findCastMismatchImageIndexes(performances, show).size === 0;
 }
 
 function skipReason(
@@ -419,7 +432,22 @@ function normalizePerformances(
     });
   }
 
-  return { performances: valid, skipped };
+  // 이미지별로 판단 -- 여러 장 중 한 장만 다른 공연이어도 그 장만 걸러내고 나머지는 살린다
+  const mismatchedImages = findCastMismatchImageIndexes(valid, show);
+
+  const matched = valid.filter((performance) => {
+    if (!mismatchedImages.has(performance.imageIndex)) return true;
+
+    skipped.push({
+      imageIndex: performance.imageIndex,
+      raw: performance,
+      reason: "cast_mismatch",
+    });
+
+    return false;
+  });
+
+  return { performances: matched, skipped };
 }
 
 function mergeSameDateTags(dateTags: ParsedDateTag[]): ParsedDateTag[] {
