@@ -23,6 +23,27 @@ const performanceSchema = z.object({
   confidence: z.number(),
 });
 
+const cancelledSlotSchema = z.object({
+  date: z.string().regex(ISO_DATE),
+  time: z.string(),
+  imageIndex: z.number(),
+});
+
+const castingChangeSchema = z.object({
+  date: z.string().regex(ISO_DATE),
+  time: z.string(),
+  role: z.string().min(1),
+  actor: z.string().min(1),
+  imageIndex: z.number(),
+});
+
+const cancelledEventSchema = z.object({
+  title: z.string().min(1),
+  periodStart: z.string().regex(ISO_DATE),
+  periodEnd: z.string().regex(ISO_DATE),
+  imageIndex: z.number(),
+});
+
 const skippedPerformanceSchema = z.object({
   imageIndex: z.number(),
   raw: performanceSchema,
@@ -95,9 +116,17 @@ const bodySchema = z
     performances: z.array(performanceSchema),
     events: z.array(eventSchema),
     skipped: z.array(skippedPerformanceSchema),
+    cancelledSlots: z.array(cancelledSlotSchema).default([]),
+    castingChanges: z.array(castingChangeSchema).default([]),
+    cancelledEvents: z.array(cancelledEventSchema).default([]),
   })
   .refine(
-    ({ performances, events }) => performances.length > 0 || events.length > 0,
+    ({ performances, events, cancelledSlots, castingChanges, cancelledEvents }) =>
+      performances.length > 0 ||
+      events.length > 0 ||
+      cancelledSlots.length > 0 ||
+      castingChanges.length > 0 ||
+      cancelledEvents.length > 0,
     { message: "저장할 캐스팅이나 이벤트가 없어요." },
   );
 
@@ -113,7 +142,16 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, storagePaths, performances, events, skipped } = body.data;
+  const {
+    showId,
+    storagePaths,
+    performances,
+    events,
+    skipped,
+    cancelledSlots,
+    castingChanges,
+    cancelledEvents,
+  } = body.data;
 
   if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
     return fail(403, "잘못된 요청이에요.");
@@ -141,6 +179,9 @@ export async function POST(request: Request) {
             confirmReasons.length === 0 || confirmed,
         ),
       skipped,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
     });
 
     revalidateTag(CASTING_FEED_CACHE_TAG, { expire: 0 });
