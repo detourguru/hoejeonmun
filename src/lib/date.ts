@@ -1,6 +1,5 @@
 /**
- * vercel 서버 타임존과 한국 타임존이 상이해 서울 기준 날짜를 구해주기 위한 헬퍼
- * 시간은 구할 수 없다
+ * vercel 서버 타임존과 한국 타임존이 상이해 서울 기준 날짜/시각을 구해주기 위한 헬퍼
  */
 
 const TIME_ZONE = "Asia/Seoul";
@@ -12,6 +11,7 @@ const formatter = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
+// 날짜만 필요한 곳에서 쓰므로 시각은 버리고 UTC 자정으로 맞춘 Date를 반환한다
 export function getToday(): Date {
   const parts = formatter.formatToParts(new Date());
 
@@ -21,6 +21,18 @@ export function getToday(): Date {
   return new Date(
     Date.UTC(valueOf("year"), valueOf("month") - 1, valueOf("day")),
   );
+}
+
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// HH:mm, 서울 기준 현재 시각
+export function getNowTime(): string {
+  return timeFormatter.format(new Date());
 }
 
 export function addMonths(date: Date, months: number): Date {

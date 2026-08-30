@@ -202,3 +202,31 @@ export async function searchShows(keyword: string): Promise<Show[]> {
 
   return sortShows(matched).slice(0, SEARCH_TERM_LIMIT);
 }
+
+export async function getShowNames(
+  showIds: string[],
+): Promise<Map<string, string>> {
+  const shows = await Promise.all(showIds.map((id) => getShow(id)));
+
+  return new Map(
+    showIds.map((id, index) => [id, shows[index]?.prfnm ?? "알 수 없는 공연"]),
+  );
+}
+
+export type ShowSummary = { name: string; poster: string };
+
+export async function getShowSummaries(
+  showIds: string[],
+): Promise<Map<string, ShowSummary>> {
+  const shows = await Promise.all(showIds.map((id) => getShow(id)));
+
+  return new Map(
+    showIds.map((id, index) => [
+      id,
+      {
+        name: shows[index]?.prfnm ?? "알 수 없는 공연",
+        poster: shows[index]?.poster ?? "",
+      },
+    ]),
+  );
+}
