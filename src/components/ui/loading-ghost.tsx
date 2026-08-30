@@ -15,13 +15,19 @@ export const LoadingGhost = ({
       className,
     )}
   >
-    <Image
-      src="/logo.png"
-      alt=""
-      width={64}
-      height={64}
-      className="size-16 animate-spin"
-    />
+    <div className="relative flex size-20 items-center justify-center">
+      <div
+        className="border-t-point border-r-point/35 animate-ring-spin absolute inset-0 rounded-full border-[3px] border-transparent"
+        aria-hidden
+      />
+      <Image
+        src="/logo.png"
+        alt=""
+        width={56}
+        height={56}
+        className="size-14"
+      />
+    </div>
     <p className="text-text-muted text-base font-medium">{label}</p>
   </div>
 );

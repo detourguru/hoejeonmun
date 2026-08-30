@@ -428,7 +428,8 @@ export const CastingUploadButton = ({
           </DialogHeader>
 
           <ol className="text-text list-decimal space-y-1 pl-4 text-left text-sm">
-            <li>캐스팅보드나 이벤트 이미지를 선택하면</li>
+            <li>페이지 하단의 캐스팅보드/이벤트 제보하기 버튼을 누릅니다</li>
+            <li>캐스팅보드나 이벤트 이미지를 첨부하면</li>
             <li>AI가 사진을 읽어서 자동으로 정리하고</li>
             <li>회원님이 내용을 확인/수정한 뒤</li>
             <li>저장하면 바로 반영돼요</li>
@@ -436,8 +437,8 @@ export const CastingUploadButton = ({
           </ol>
 
           <p className="text-text-muted text-xs">
-            AI가 사진을 읽다 보니 정확도가 아직 완벽하진 않아요. 계속
-            개선하고 있으니 양해 부탁드려요.
+            AI가 사진을 읽다 보니 정확도가 아직 완벽하진 않아요. 계속 개선하고
+            있으니 양해 부탁드려요.
           </p>
 
           <DialogFooter>
