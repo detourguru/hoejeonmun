@@ -6,15 +6,7 @@ import {
   getUploadImages,
   ShowEvent,
 } from "@/service/casting";
-import { getShow } from "@/service/show";
-
-async function getShowNames(showIds: string[]) {
-  const shows = await Promise.all(showIds.map((id) => getShow(id)));
-
-  return new Map(
-    showIds.map((id, index) => [id, shows[index]?.prfnm ?? "알 수 없는 공연"]),
-  );
-}
+import { getShowNames } from "@/service/show";
 
 export type MyUpload = {
   id: number;
