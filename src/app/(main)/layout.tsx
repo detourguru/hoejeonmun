@@ -37,6 +37,11 @@ export default function MainLayout({
         <main className="flex w-full max-w-4xl flex-1 flex-col p-4">
           {children}
         </main>
+
+        <p className="text-text-muted px-4 py-3 text-center text-[10px]">
+          (재)예술경영지원센터 공연예술통합전산망(www.kopis.or.kr) 데이터를
+          이용중인 서비스입니다.
+        </p>
       </div>
 
       <Suspense fallback={null}>
@@ -44,10 +49,6 @@ export default function MainLayout({
       </Suspense>
 
       <footer className="w-full">
-        <p className="bg-surface text-text-muted px-4 py-1 text-center text-[10px]">
-          (재)예술경영지원센터 공연예술통합전산망(www.kopis.or.kr) 데이터를
-          이용중인 서비스입니다.
-        </p>
         <FooterNav />
       </footer>
     </div>
