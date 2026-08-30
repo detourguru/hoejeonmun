@@ -77,34 +77,29 @@ export const InstallGuideButton = () => {
       </button>
 
       <BottomSheet open={open} onOpenChange={setOpen} title="앱 설치 방법">
-        {isIOS ? (
-          <ol className="flex flex-col gap-3">
-            <GuideStep index={1}>
-              하단 메뉴에서 공유 버튼(
-              <Share className="text-text mx-1 inline size-4" />
-              )을 탭하세요
-            </GuideStep>
-            <GuideStep index={2}>
-              메뉴에서 &quot;홈 화면에 추가&quot;(
-              <SquarePlus className="text-text mx-1 inline size-4" />
-              )를 선택하세요
-            </GuideStep>
-            <GuideStep index={3}>
-              오른쪽 위 &quot;추가&quot;를 눌러 완료하세요
-            </GuideStep>
-          </ol>
-        ) : (
-          <ol className="flex flex-col gap-3">
-            <GuideStep index={1}>브라우저 메뉴(⋮ 또는 …)를 여세요</GuideStep>
+        <ol className="flex flex-col gap-3">
+          <GuideStep index={1}>브라우저 메뉴(⋮ 또는 …)를 여세요</GuideStep>
+          {isIOS ? (
+            <>
+              <GuideStep index={2}>
+                &quot;공유(
+                <SquarePlus className="text-text mx-1 inline size-4" />
+                )&quot; &gt; &quot;더보기&quot; &gt; &quot;홈 화면에 추가&quot;
+              </GuideStep>
+              <GuideStep index={3}>
+                오른쪽 위 &quot;추가&quot;를 눌러 완료하세요
+              </GuideStep>
+            </>
+          ) : (
             <GuideStep index={2}>
               &quot;앱 설치&quot; 또는 &quot;홈 화면에 추가&quot;를 선택하세요
             </GuideStep>
-            <GuideStep index={3}>
-              카카오톡 브라우저에서는 위 기능을 지원하지 않으므로 앱 설치는 다른
-              브라우저를 이용해주세요
-            </GuideStep>
-          </ol>
-        )}
+          )}
+        </ol>
+        <p className="text-text-muted mt-3 text-xs leading-relaxed">
+          카카오톡 브라우저에서는 위 기능을 지원하지 않으므로 앱 설치는 다른
+          브라우저를 이용해주세요
+        </p>
       </BottomSheet>
     </>
   );
