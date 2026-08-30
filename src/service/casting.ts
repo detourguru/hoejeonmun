@@ -1,7 +1,9 @@
 import { unstable_cache } from "next/cache";
 
+import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getShowSummaries } from "@/service/show";
 import { CASTING_BOARD_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/type/casting";
 
 const REVALIDATE = 60 * 5;
@@ -498,6 +500,118 @@ export async function getUploadImages(
   const rows = data as Pick<UploadImageRow, "storage_path">[];
 
   return signPaths(rows.map(({ storage_path }) => storage_path));
+}
+
+export async function getEventsBySlotIds(
+  supabase: Pick<Awaited<ReturnType<typeof createClient>>, "from">,
+  slotIds: number[],
+): Promise<Map<number, { id: number; title: string }[]>> {
+  if (slotIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("event_slots")
+    .select("event_id, slot_id")
+    .in("slot_id", slotIds);
+
+  if (error) throw error;
+
+  const rows = data as { event_id: number; slot_id: number }[];
+  const eventIds = [...new Set(rows.map(({ event_id }) => event_id))];
+
+  if (eventIds.length === 0) return new Map();
+
+  const { data: events, error: eventsError } = await supabase
+    .from("current_events")
+    .select("id, title")
+    .in("id", eventIds);
+
+  if (eventsError) throw eventsError;
+
+  const titleById = new Map(
+    (events as { id: number; title: string }[]).map(({ id, title }) => [
+      id,
+      title,
+    ]),
+  );
+
+  const eventsBySlot = new Map<number, { id: number; title: string }[]>();
+
+  for (const { event_id, slot_id } of rows) {
+    const title = titleById.get(event_id);
+
+    if (!title) continue;
+
+    eventsBySlot.set(slot_id, [
+      ...(eventsBySlot.get(slot_id) ?? []),
+      { id: event_id, title },
+    ]);
+  }
+
+  return eventsBySlot;
+}
+
+export type TodayShowSlot = {
+  id: number;
+  showId: string;
+  showName: string;
+  poster: string;
+  // HH:mm
+  time: string;
+  events: { id: number; title: string }[];
+};
+
+export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
+  const admin = createAdminClient();
+  const today = toInputDate(getToday());
+
+  const { data, error } = await admin
+    .from("slot_castings")
+    .select("slot_id, show_id, time")
+    .eq("date", today)
+    .order("time");
+
+  if (error) throw error;
+
+  const rows = data as { slot_id: number; show_id: string; time: string }[];
+  const slotsById = new Map<
+    number,
+    { id: number; showId: string; time: string }
+  >();
+
+  for (const row of rows) {
+    if (slotsById.has(row.slot_id)) continue;
+
+    slotsById.set(row.slot_id, {
+      id: row.slot_id,
+      showId: row.show_id,
+      time: row.time.slice(0, 5),
+    });
+  }
+
+  const slots = [...slotsById.values()].sort((a, b) =>
+    a.time.localeCompare(b.time),
+  );
+
+  if (slots.length === 0) return [];
+
+  const [eventsBySlot, showSummaryById] = await Promise.all([
+    getEventsBySlotIds(
+      admin,
+      slots.map(({ id }) => id),
+    ),
+    getShowSummaries([...new Set(slots.map(({ showId }) => showId))]),
+  ]);
+
+  return slots.map((slot) => {
+    const summary = showSummaryById.get(slot.showId);
+
+    return {
+      ...slot,
+      showName: summary?.name ?? "알 수 없는 공연",
+      poster: summary?.poster ?? "",
+      events: eventsBySlot.get(slot.id) ?? [],
+    };
+  });
 }
 
 export type CastingSlotWithStatus = CastingSlot & {

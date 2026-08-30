@@ -64,13 +64,14 @@ export const AREA_NAMES_BY_CODE: Record<AreaCode, readonly string[]> = {
  */
 
 export const SHOW_FEED_TAB = createCodeTable([
+  { value: "today", label: "오늘의 공연" },
   { value: "favorite", label: "애정배우" },
   { value: "recent", label: "최근소식" },
 ]);
 
 export type ShowFeedTab = CodeOf<typeof SHOW_FEED_TAB>;
 
-export const DEFAULT_SHOW_FEED_TAB: ShowFeedTab = "favorite";
+export const DEFAULT_SHOW_FEED_TAB: ShowFeedTab = "today";
 
 // Kopis 제공 코드 아님
 export const SORT = createCodeTable([

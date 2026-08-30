@@ -4,13 +4,22 @@ import { Suspense } from "react";
 import { FavoriteActorShowCard } from "@/components/show/favorite-actor-show-card";
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
+import { TodayShowList } from "@/components/show/today-show-list";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
-import { createClient } from "@/lib/supabase/server";
+import {
+  formatShortDate,
+  getNowTime,
+  getToday,
+  getWeekday,
+  toInputDate,
+  toMonth,
+} from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { getShowsWithFavoritedActors } from "@/service/actor";
 import {
   getRecentEvents,
   getRecentUploadedShows,
+  getTodayShowSlots,
   RecentEvent,
 } from "@/service/casting";
 import { getShow, getShows } from "@/service/show";
@@ -28,11 +37,7 @@ type Props = { searchParams: Promise<{ tab?: string }> };
 
 export default async function Page({ searchParams }: Props) {
   const { tab: rawTab } = await searchParams;
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getClaims();
-  const isLoggedIn = Boolean(auth?.claims);
-  const defaultTab = isLoggedIn ? DEFAULT_SHOW_FEED_TAB : "recent";
-  const tab = SHOW_FEED_TAB.isCode(rawTab) ? rawTab : defaultTab;
+  const tab = SHOW_FEED_TAB.isCode(rawTab) ? rawTab : DEFAULT_SHOW_FEED_TAB;
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,7 +88,13 @@ export default async function Page({ searchParams }: Props) {
       </div>
 
       <Suspense key={tab} fallback={<LoadingGhost />}>
-        {tab === "favorite" ? <FavoriteActorFeed /> : <RecentFeed />}
+        {tab === "today" ? (
+          <TodayFeed />
+        ) : tab === "favorite" ? (
+          <FavoriteActorFeed />
+        ) : (
+          <RecentFeed />
+        )}
       </Suspense>
     </div>
   );
@@ -111,6 +122,30 @@ async function fillMissingShows(
   });
 
   return merged;
+}
+
+async function TodayFeed() {
+  const slots = await getTodayShowSlots();
+
+  if (slots.length === 0) return <EmptyTodayFeed />;
+
+  const today = toInputDate(getToday());
+  const month = toMonth(getToday());
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-text-muted -mt-1 text-xs">
+        {formatShortDate(`${today}T00:00:00Z`)} ({getWeekday(today)})
+      </p>
+
+      <TodayShowList
+        slots={slots}
+        now={getNowTime()}
+        today={today}
+        month={month}
+      />
+    </div>
+  );
 }
 
 async function FavoriteActorFeed() {
@@ -214,6 +249,22 @@ const EmptyFeed = () => (
     <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
     <p className="text-text font-medium">아직 아무것도 올라오지 않았어요</p>
     <p className="text-text-muted mb-2 text-sm">첫 번째 제보자가 되어볼까요?</p>
+    <Link
+      href="/show/all"
+      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
+    >
+      전체 공연 목록 둘러보기
+    </Link>
+  </div>
+);
+
+const EmptyTodayFeed = () => (
+  <div className="flex flex-col items-center gap-1 py-16 text-center">
+    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
+    <p className="text-text font-medium">오늘 등록된 회차가 없어요</p>
+    <p className="text-text-muted mb-2 text-sm">
+      캐스팅보드를 올려서 오늘의 공연을 알려주세요
+    </p>
     <Link
       href="/show/all"
       className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"

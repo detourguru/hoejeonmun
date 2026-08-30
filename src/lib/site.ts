@@ -9,8 +9,7 @@ export const SITE_URL = PRODUCTION_URL
 export const SITE_DESCRIPTION =
   "한눈에 확인하는 뮤지컬/연극 캐스팅 및 이벤트 정보";
 
-export const CURRENT_UPDATE_ID = "2026-08-30-event-info";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (8/30 14:00)]
-- 키보드 닫기 시 뒤로가기가 눌리던 현상
-- 이벤트가 회차별로 생성되던 현상
-- 불필요한 버튼 정리`;
+export const CURRENT_UPDATE_ID = "2026-08-31-event-info";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (8/31 00:00)]
+- 공연 상세로 넘어가던 애정배우 작품 배지를 해당 공연 필터로 수정했어요
+- 오늘의 공연 피드가 생겼어요`;
