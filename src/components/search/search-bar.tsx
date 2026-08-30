@@ -43,7 +43,9 @@ export const SearchBar = () => {
       <Search className="text-text-muted size-4 shrink-0" />
 
       <Input
-        type="search"
+        type="text"
+        inputMode="search"
+        enterKeyHint="search"
         value={keyword}
         onChange={(event) => setKeyword(event.target.value)}
         placeholder="공연 또는 배우 검색"
