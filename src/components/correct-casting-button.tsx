@@ -33,6 +33,7 @@ export const CorrectCastingButton = ({
   const [actor, setActor] = useState("");
   const [newDate, setNewDate] = useState(date);
   const [newTime, setNewTime] = useState(time);
+  const [applyToAllSlots, setApplyToAllSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -42,6 +43,7 @@ export const CorrectCastingButton = ({
     setActor("");
     setNewDate(date);
     setNewTime(time);
+    setApplyToAllSlots(false);
     setError(null);
     setOpen(true);
   };
@@ -70,6 +72,7 @@ export const CorrectCastingButton = ({
           role,
           newRole,
           actor,
+          applyToAllSlots,
         );
 
         if (!result.ok) {
@@ -115,9 +118,11 @@ export const CorrectCastingButton = ({
       <BottomSheet open={open} onOpenChange={setOpen} title="배역 정정 제안">
         <div className="flex flex-col gap-4">
           <p className="text-text-muted text-center text-xs">
-            이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정은 같은
-            캐스팅보드에서 올라간 모든 회차 중 같은 배역에 한 번에 적용되고,
-            날짜/시간 정정은 이 회차만 옮겨요. 배역 정정은 &quot;텍스트
+            이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정은{" "}
+            {applyToAllSlots
+              ? "같은 캐스팅보드에서 올라간 모든 회차 중 같은 배역에 한 번에 적용되고"
+              : "이 회차에만 적용되고"}
+            , 날짜/시간 정정은 이 회차만 옮겨요. 배역 정정은 &quot;텍스트
             제보&quot;로 표시돼요. 신고가 쌓이면 같은 기준으로 내려가요.
           </p>
 
@@ -189,6 +194,16 @@ export const CorrectCastingButton = ({
               disabled={!role}
             />
           </div>
+
+          <label className="text-text-muted flex items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={applyToAllSlots}
+              onChange={({ target }) => setApplyToAllSlots(target.checked)}
+              disabled={!role}
+            />
+            같은 배역, 다른 회차에도 적용
+          </label>
 
           {error && <p className="text-destructive text-xs">{error}</p>}
 

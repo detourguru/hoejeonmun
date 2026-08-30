@@ -54,6 +54,7 @@ export async function correctSlotCasting(
   role: string,
   newRole: string,
   newActor: string,
+  applyToAllSlots: boolean,
 ): Promise<CorrectCastingResult> {
   const trimmedRole = newRole.trim();
 
@@ -98,7 +99,7 @@ export async function correctSlotCasting(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  const { error: updateError, count } = await admin
+  let updateQuery = admin
     .from("assignments")
     .update(
       {
@@ -111,6 +112,10 @@ export async function correctSlotCasting(
     )
     .eq("upload_id", castingData.upload_id)
     .eq("role_name_raw", role);
+
+  if (!applyToAllSlots) updateQuery = updateQuery.eq("slot_id", slotId);
+
+  const { error: updateError, count } = await updateQuery;
 
   if (updateError) {
     console.error(updateError);
