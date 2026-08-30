@@ -90,6 +90,9 @@ const eventSchema = z
     includedSlots: z.array(slotExceptionSchema).optional(),
     excludedSlots: z.array(slotExceptionSchema).optional(),
     exactTimes: z.array(z.string().regex(TIME_REGEX)).optional(),
+    listedSlots: z.array(slotExceptionSchema).optional(),
+    periodStartCutoffTime: z.string().regex(TIME_REGEX).optional(),
+    periodEndCutoffTime: z.string().regex(TIME_REGEX).optional(),
     confirmReasons: z.array(
       z.enum([
         "range_badge",

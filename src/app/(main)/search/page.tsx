@@ -61,13 +61,13 @@ export default async function Page({ searchParams }: Props) {
           &lsquo;{keyword}&rsquo; 검색 결과가 없어요.
         </p>
         <p className="text-text-muted text-xs">
-          배우는 제보된 캐스팅보드에 등장한 이름만 검색돼요.
+          아직 회전문에 공연/배우 정보가 등록되지 않았을 수 있어요.
         </p>
         <Link
           href="/show"
           className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
         >
-          공연 검색하기
+          다른 공연 둘러보기
         </Link>
       </div>
     );

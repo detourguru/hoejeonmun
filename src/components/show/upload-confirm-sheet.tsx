@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_REPORT_TYPE_TAB,
   EVENT_CONFIRM_MESSAGE,
+  EventSlotException,
   REPORT_TYPE_TAB,
   ReportTypeTab,
 } from "@/type/casting";
@@ -24,6 +25,7 @@ export const UploadConfirmSheet = ({
   castingDrafts,
   eventDrafts,
   knownDates,
+  knownSlots,
   previewUrls,
   saving,
   error,
@@ -37,6 +39,7 @@ export const UploadConfirmSheet = ({
   castingDrafts: CastingDraft[];
   eventDrafts: EventDraft[];
   knownDates: Set<string>;
+  knownSlots: { date: string; time: string }[];
   previewUrls: string[];
   saving: boolean;
   error: string | null;
@@ -126,6 +129,7 @@ export const UploadConfirmSheet = ({
             index={eventIndex}
             count={eventDrafts.length}
             knownDates={knownDates}
+            knownSlots={knownSlots}
             previewUrl={previewUrls[draft.event.imageIndex]}
             onDraftChange={updateEventDraft}
             onEventChange={updateEvent}
@@ -208,56 +212,93 @@ export const UploadConfirmSheet = ({
   );
 };
 
-const ExactTimesEditor = ({
-  times,
+const slotKey = (slot: { date: string; time: string }) =>
+  `${slot.date} ${slot.time}`;
+
+const SlotChecklist = ({
+  slots,
+  excludedSlots,
+  exactTimes,
+  listedSlots,
+  periodStart,
+  periodEnd,
+  periodStartCutoffTime,
+  periodEndCutoffTime,
   disabled,
   onChange,
 }: {
-  times: string[];
+  slots: { date: string; time: string }[];
+  excludedSlots: EventSlotException[];
+  exactTimes?: string[];
+  listedSlots?: EventSlotException[];
+  periodStart: string;
+  periodEnd: string;
+  periodStartCutoffTime?: string;
+  periodEndCutoffTime?: string;
   disabled: boolean;
-  onChange: (times: string[]) => void;
-}) => (
-  <div className="flex flex-col gap-1">
-    <span className="text-text-muted text-xs">
-      기간 내 특정 시간 회차에만 적용 (원본과 대조해주세요, 비우면 전체 적용)
-    </span>
+  onChange: (excludedSlots: EventSlotException[]) => void;
+}) => {
+  const excludedKeys = new Set(excludedSlots.map(slotKey));
+  const exactTimeSet = exactTimes?.length ? new Set(exactTimes) : null;
+  const listedKeys = listedSlots?.length
+    ? new Set(listedSlots.map(slotKey))
+    : null;
 
-    <ul className="flex flex-col gap-1">
-      {times.map((time, index) => (
-        <li key={index} className="flex items-center gap-1">
-          <Input
-            type="time"
-            value={time}
-            disabled={disabled}
-            aria-label="시간"
-            onChange={({ target }) =>
-              onChange(
-                times.map((item, at) => (at === index ? target.value : item)),
-              )
-            }
-          />
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(times.filter((_, at) => at !== index))}
-            className="text-destructive shrink-0 text-xs disabled:opacity-40"
-          >
-            삭제
-          </button>
-        </li>
-      ))}
-    </ul>
+  const isChecked = (slot: { date: string; time: string }) =>
+    !excludedKeys.has(slotKey(slot)) &&
+    (!exactTimeSet || exactTimeSet.has(slot.time)) &&
+    (!listedKeys || listedKeys.has(slotKey(slot))) &&
+    (!periodStartCutoffTime ||
+      slot.date !== periodStart ||
+      slot.time >= periodStartCutoffTime) &&
+    (!periodEndCutoffTime ||
+      slot.date !== periodEnd ||
+      slot.time <= periodEndCutoffTime);
 
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onChange([...times, ""])}
-      className="border-border text-text-muted w-fit rounded-lg border px-2 py-1 text-[10px] disabled:opacity-40"
-    >
-      + 시간 추가
-    </button>
-  </div>
-);
+  const toggle = (slot: { date: string; time: string }) => {
+    const nextExcluded = new Set(
+      slots.filter((item) => !isChecked(item)).map(slotKey),
+    );
+    const key = slotKey(slot);
+
+    if (nextExcluded.has(key)) nextExcluded.delete(key);
+    else nextExcluded.add(key);
+
+    onChange(
+      slots
+        .filter((item) => nextExcluded.has(slotKey(item)))
+        .map(({ date, time }) => ({ date, time })),
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-text-muted text-xs">
+        적용 회차 (기본 전체 적용, 빠지는 회차만 체크 해제해주세요)
+      </span>
+
+      {slots.length === 0 ? (
+        <p className="text-text-muted text-xs">기간 내 등록된 회차가 없어요.</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {slots.map((slot) => (
+            <li key={slotKey(slot)}>
+              <label className="text-text flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={isChecked(slot)}
+                  disabled={disabled}
+                  onChange={() => toggle(slot)}
+                />
+                {toShortDate(slot.date)} {slot.time}
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 // periodStart~periodEnd 중 공연이 없는 날
 function datesWithoutSchedule(
@@ -285,11 +326,24 @@ function datesWithoutSchedule(
 const toShortDate = (iso: string) =>
   `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}`;
 
+function slotsWithinPeriod(
+  periodStart: string,
+  periodEnd: string,
+  knownSlots: { date: string; time: string }[],
+): { date: string; time: string }[] {
+  return knownSlots
+    .filter(({ date }) => date >= periodStart && date <= periodEnd)
+    .sort(
+      (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time),
+    );
+}
+
 const EventReview = ({
   draft,
   index,
   count,
   knownDates,
+  knownSlots,
   previewUrl,
   onDraftChange,
   onEventChange,
@@ -298,6 +352,7 @@ const EventReview = ({
   index: number;
   count: number;
   knownDates: Set<string>;
+  knownSlots: { date: string; time: string }[];
   previewUrl?: string;
   onDraftChange: (next: Partial<EventDraft>) => void;
   onEventChange: (next: Partial<EventDraft["event"]>) => void;
@@ -307,6 +362,11 @@ const EventReview = ({
     event.periodStart,
     event.periodEnd,
     knownDates,
+  );
+  const slotsInPeriod = slotsWithinPeriod(
+    event.periodStart,
+    event.periodEnd,
+    knownSlots,
   );
   const replacing = event.overlapping.find(
     ({ groupId }) => groupId === replacesGroupId,
@@ -407,19 +467,24 @@ const EventReview = ({
             onChange={(items) => onEventChange({ includedSlots: items })}
           />
 
-          <SlotExceptionEditor
-            label="기간 안에서 제외되는 회차 (원본과 대조해주세요)"
-            items={event.excludedSlots ?? []}
+          <SlotChecklist
+            slots={slotsInPeriod}
+            excludedSlots={event.excludedSlots ?? []}
+            exactTimes={event.exactTimes}
+            listedSlots={event.listedSlots}
+            periodStart={event.periodStart}
+            periodEnd={event.periodEnd}
+            periodStartCutoffTime={event.periodStartCutoffTime}
+            periodEndCutoffTime={event.periodEndCutoffTime}
             disabled={!include}
-            onChange={(items) => onEventChange({ excludedSlots: items })}
-          />
-
-          <ExactTimesEditor
-            times={event.exactTimes ?? []}
-            disabled={!include}
-            onChange={(times) =>
+            onChange={(excludedSlots) =>
               onEventChange({
-                exactTimes: times.length > 0 ? times : undefined,
+                excludedSlots:
+                  excludedSlots.length > 0 ? excludedSlots : undefined,
+                exactTimes: undefined,
+                listedSlots: undefined,
+                periodStartCutoffTime: undefined,
+                periodEndCutoffTime: undefined,
               })
             }
           />
