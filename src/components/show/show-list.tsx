@@ -1,5 +1,6 @@
 import { Pagination } from "@/components/pagination";
 import { ShowCard } from "@/components/show/show-card";
+import { getLatestUploadsByShowIds } from "@/service/casting";
 import {
   filterShows,
   getShows,
@@ -22,11 +23,19 @@ export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
     );
   }
 
+  const latestUploads = await getLatestUploadsByShowIds(
+    items.map((show) => show.mt20id),
+  );
+
   return (
     <>
       <div className="flex-1">
         {items.map((show) => (
-          <ShowCard key={show.mt20id} show={show} />
+          <ShowCard
+            key={show.mt20id}
+            show={show}
+            lastUpdatedAt={latestUploads.get(show.mt20id) ?? null}
+          />
         ))}
       </div>
 

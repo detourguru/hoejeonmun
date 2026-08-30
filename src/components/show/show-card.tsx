@@ -1,13 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { formatShortDate } from "@/lib/date";
 import { Show } from "@/type/show";
 
 import { Badge } from "../ui/badge";
 
 import { StateBadge } from "./state-badge";
 
-export const ShowCard = ({ show }: { show: Show }) => {
+export const ShowCard = ({
+  show,
+  lastUpdatedAt,
+}: {
+  show: Show;
+  lastUpdatedAt?: string | null;
+}) => {
   return (
     <Link
       href={`/show/${show.mt20id}`}
@@ -36,6 +43,13 @@ export const ShowCard = ({ show }: { show: Show }) => {
         <p className="text-muted-foreground text-xs">
           {show.prfpdfrom} - {show.prfpdto}
         </p>
+        {lastUpdatedAt !== undefined && (
+          <Badge variant={lastUpdatedAt ? "secondary" : "outline"} className="mt-1">
+            {lastUpdatedAt
+              ? `캐스팅보드 ${formatShortDate(lastUpdatedAt)} 업데이트`
+              : "아직 캐스팅보드 없음"}
+          </Badge>
+        )}
       </div>
     </Link>
   );

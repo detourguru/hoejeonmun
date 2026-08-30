@@ -277,6 +277,33 @@ export async function getRecentUploadedShows(
   return recent;
 }
 
+export async function getLatestUploadsByShowIds(
+  showIds: string[],
+): Promise<Map<string, string>> {
+  if (showIds.length === 0) return new Map();
+
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("uploads")
+    .select("show_id, created_at")
+    .in("show_id", showIds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  const latestByShowId = new Map<string, string>();
+
+  for (const { show_id, created_at } of data as {
+    show_id: string;
+    created_at: string;
+  }[]) {
+    if (!latestByShowId.has(show_id)) latestByShowId.set(show_id, created_at);
+  }
+
+  return latestByShowId;
+}
+
 export type RecentEvent = ShowEvent & {
   showId: string;
   createdAt: string;

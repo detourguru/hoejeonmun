@@ -107,6 +107,17 @@ export function getCalendarCells(month: Date): (string | null)[] {
   ];
 }
 
+const shortDateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: TIME_ZONE,
+  month: "long",
+  day: "numeric",
+});
+
+// timestamptz -> "8월 30일"
+export function formatShortDate(value: string): string {
+  return shortDateFormatter.format(new Date(value));
+}
+
 export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 // 날짜만 있으면 타임존과 무관하므로 UTC로 계산한다
