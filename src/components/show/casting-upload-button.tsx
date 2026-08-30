@@ -34,6 +34,9 @@ import {
   DEFAULT_REPORT_TYPE_TAB,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_COUNT,
+  ParsedCancelledEvent,
+  ParsedCancelledSlot,
+  ParsedCastingChange,
   ParsedPerformance,
   PendingEvent,
   PERFORMANCE_SKIP_MESSAGE,
@@ -46,6 +49,9 @@ type ParsedUpload = {
   storagePaths: string[];
   performances: ParsedPerformance[];
   skipped: SkippedPerformance[];
+  cancelledSlots: ParsedCancelledSlot[];
+  castingChanges: ParsedCastingChange[];
+  cancelledEvents: ParsedCancelledEvent[];
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -87,6 +93,9 @@ export const CastingUploadButton = ({
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
   const [knownDates, setKnownDates] = useState<Set<string>>(new Set());
+  const [knownSlots, setKnownSlots] = useState<
+    { date: string; time: string }[]
+  >([]);
   const [showSkipped, setShowSkipped] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
@@ -165,6 +174,7 @@ export const CastingUploadButton = ({
     setDrafts([]);
     setCastingDrafts([]);
     setKnownDates(new Set());
+    setKnownSlots([]);
     setShowSkipped(false);
     setStatus("idle");
   };
@@ -233,23 +243,43 @@ export const CastingUploadButton = ({
     });
 
     if (!parseResponse.ok) {
-      const { message, duplicateIndexes: duplicates } = await parseResponse
-        .json()
-        .catch(() => ({ message: "분석에 실패했어요." }));
+      const {
+        message,
+        duplicateIndexes: duplicates,
+        retained,
+      } = await parseResponse.json().catch(() => ({ message: "분석에 실패했어요." }));
 
       setStatus("selecting");
       setError(message);
       setDuplicateIndexes(duplicates ?? []);
-      void discardUploadImages(storagePaths);
+      // 실패 원인 조사를 위해 서버가 보존하기로 한 이미지는 지우지 않는다
+      if (!retained) void discardUploadImages(storagePaths);
       return;
     }
 
-    const { performances, events, skipped } = (await parseResponse.json()) as {
+    const {
+      performances,
+      events,
+      skipped,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
+    } = (await parseResponse.json()) as {
       performances: ParsedPerformance[];
       events: PendingEvent[];
       skipped: SkippedPerformance[];
+      cancelledSlots: ParsedCancelledSlot[];
+      castingChanges: ParsedCastingChange[];
+      cancelledEvents: ParsedCancelledEvent[];
     };
-    const upload = { storagePaths, performances, skipped };
+    const upload = {
+      storagePaths,
+      performances,
+      skipped,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
+    };
 
     if (performances.length === 0 && events.length === 0) {
       await save(upload, []);
@@ -258,14 +288,22 @@ export const CastingUploadButton = ({
 
     if (events.length > 0) {
       const dates = new Set(performances.map(({ date }) => date));
+      const slots = performances.map(({ date, time }) => ({
+        date,
+        time: time.slice(0, 5),
+      }));
       const { data: existingSlots } = await supabase
         .from("slots")
-        .select("date")
+        .select("date, time")
         .eq("show_id", showId);
 
-      for (const { date } of existingSlots ?? []) dates.add(date);
+      for (const { date, time } of existingSlots ?? []) {
+        dates.add(date);
+        slots.push({ date, time: time.slice(0, 5) });
+      }
 
       setKnownDates(dates);
+      setKnownSlots(slots);
     }
 
     setParsed(upload);
@@ -459,6 +497,7 @@ export const CastingUploadButton = ({
           castingDrafts={castingDrafts}
           eventDrafts={drafts}
           knownDates={knownDates}
+          knownSlots={knownSlots}
           previewUrls={previewUrls}
           saving={status === "saving"}
           error={error}
@@ -484,6 +523,16 @@ export const CastingUploadButton = ({
             회차 {result.slotCount}개, 배우 {result.actorCount}명, 이벤트{" "}
             {result.eventCount}건을 저장했어요.
           </p>
+
+          {(result.cancelledSlotCount > 0 ||
+            result.castingChangeCount > 0 ||
+            result.cancelledEventCount > 0) && (
+            <p className="text-text-muted text-xs">
+              취소된 회차 {result.cancelledSlotCount}개, 변경된 캐스팅{" "}
+              {result.castingChangeCount}건, 취소된 이벤트{" "}
+              {result.cancelledEventCount}건을 반영했어요.
+            </p>
+          )}
 
           {result.skippedCount > 0 && (
             <div className="text-text-muted flex flex-col gap-1 text-xs">

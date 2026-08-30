@@ -14,6 +14,10 @@ create table uploads (
   -- 파싱 유사도 미달 시 원문을 보관한다
   raw_text text,
   created_at timestamptz not null default now(),
+  show_title text not null default '',
+  show_poster text,
+  show_genre text not null default '',
+  show_venue text not null default '',
   source text not null default 'user' check (source in ('user', 'system'))
 );
 
@@ -43,6 +47,8 @@ create table slots (
   date date not null,
   time time not null,
   created_at timestamptz not null default now(),
+  -- 공연 취소 공지로 취소 처리된 회차. null이면 정상 노출
+  cancelled_at timestamptz,
   unique (show_id, date, time)
 );
 
@@ -117,6 +123,8 @@ create table events (
   -- 제보 확인 화면에서 기간이나 제목을 고친 사용자. 값은 화면에 노출하지 않는다
   edited_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
+  -- 이벤트 취소 공지로 취소 처리됨. null이면 정상 노출
+  cancelled_at timestamptz,
   check (period_start <= period_end)
 );
 
@@ -250,7 +258,8 @@ select
 from slots s
 join current_castings c on c.slot_id = s.id
 join assignments a on a.slot_id = s.id and a.upload_id = c.upload_id
-join uploads u on u.id = a.upload_id;
+join uploads u on u.id = a.upload_id
+where s.cancelled_at is null;
 
 -- 신고 5건이 쌓여 목록에서 내려간 이벤트 (hidden_castings와 동일한 임계치, ADR-008)
 create view hidden_events
@@ -277,13 +286,19 @@ select
   e.source,
   -- 누가 고쳤는지는 내보내지 않고 고쳐졌다는 사실만 내보낸다
   e.edited_by is not null as edited,
-  e.created_at
+  e.created_at,
+  u.show_title,
+  u.show_poster,
+  u.show_genre,
+  u.show_venue
 from events e
-where not exists (
-  select 1
-  from hidden_events h
-  where h.event_id = e.id
-);
+join uploads u on u.id = e.upload_id
+where e.cancelled_at is null
+  and not exists (
+    select 1
+    from hidden_events h
+    where h.event_id = e.id
+  );
 
 -- 화면에서 보여지는 최종 목록
 create view current_events
