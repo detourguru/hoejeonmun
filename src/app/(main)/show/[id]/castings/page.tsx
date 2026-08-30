@@ -188,17 +188,11 @@ export default async function Page({ params, searchParams }: Props) {
             <p className="text-text-muted text-xs">
               회원님이 캐스팅보드를 올려서 채워보시겠어요?
             </p>
-            <a
-              href="#casting-upload"
-              className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
-            >
-              캐스팅보드 올리러 가기
-            </a>
           </div>
         }
       />
 
-      <div id="casting-upload" className="border-border border-t pt-4">
+      <div className="border-border border-t pt-4">
         <CastingUploadButton
           showId={id}
           isLoggedIn={Boolean(auth.data?.claims)}
