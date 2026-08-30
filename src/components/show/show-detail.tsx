@@ -9,6 +9,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { splitActorNames } from "@/lib/actor-name";
 import { toArray } from "@/lib/kopis";
@@ -19,6 +20,7 @@ import { getShow } from "@/service/show";
 import { ShowRelate } from "@/type/show";
 
 import { Badge } from "../ui/badge";
+import { LoadingGhost } from "../ui/loading-ghost";
 
 const RelateLink = ({ relatenm, relateurl }: ShowRelate) => (
   <a
@@ -45,20 +47,59 @@ const Section = ({
   </section>
 );
 
+const CastSection = async ({
+  id,
+  prfcast,
+}: {
+  id: string;
+  prfcast?: string;
+}) => {
+  const { actors: registeredActors } = await getShowFilterData(id);
+  const cast =
+    registeredActors.length > 0 ? registeredActors : splitActorNames(prfcast);
+
+  if (cast.length === 0) return null;
+
+  const actorIds = await getActorIdsByNames(cast);
+
+  return (
+    <Section title="출연진">
+      <ul className="flex flex-wrap gap-1">
+        {cast.map((name) => {
+          const actorId = actorIds.get(name);
+
+          return (
+            <li key={name}>
+              <Link
+                href={
+                  actorId
+                    ? `/actor/${actorId}`
+                    : `/actor/name/${encodeURIComponent(name)}`
+                }
+              >
+                <Badge
+                  variant="outline"
+                  className={
+                    actorId ? "border-primary text-primary" : undefined
+                  }
+                >
+                  {name}
+                </Badge>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
+  );
+};
+
 export const ShowDetail = async ({ id }: { id: string }) => {
   const show = await getShow(id);
 
   if (!show) notFound();
 
-  // 제보된 캐스팅보드가 있으면 캐스트들 / fallback: kopis 제공
-  const { actors: registeredActors } = await getShowFilterData(id);
-  const usingKopisCast = registeredActors.length === 0;
-  const cast = usingKopisCast
-    ? splitActorNames(show.prfcast)
-    : registeredActors;
-
   const crew = splitActorNames(show.prfcrew);
-  const actorIds = await getActorIdsByNames(cast);
   const relates = toArray(show.relates?.relate);
   const styurls = toArray(show.styurls?.styurl);
 
@@ -163,36 +204,13 @@ export const ShowDetail = async ({ id }: { id: string }) => {
           </Section>
         )}
 
-        {cast.length > 0 && (
-          <Section title="출연진">
-            <ul className="flex flex-wrap gap-1">
-              {cast.map((name) => {
-                const actorId = actorIds.get(name);
-
-                return (
-                  <li key={name}>
-                    <Link
-                      href={
-                        actorId
-                          ? `/actor/${actorId}`
-                          : `/actor/name/${encodeURIComponent(name)}`
-                      }
-                    >
-                      <Badge
-                        variant="outline"
-                        className={
-                          actorId ? "border-primary text-primary" : undefined
-                        }
-                      >
-                        {name}
-                      </Badge>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </Section>
-        )}
+        <Suspense
+          fallback={
+            <LoadingGhost className="py-6" label="출연진 불러오는 중..." />
+          }
+        >
+          <CastSection id={id} prfcast={show.prfcast} />
+        </Suspense>
 
         {crew.length > 0 && (
           <Section title="제작진">
@@ -218,6 +236,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
                   alt={`${show.prfnm} 소개 이미지`}
                   width="800"
                   height="1200"
+                  sizes="(min-width: 448px) 448px, 100vw"
                   className="h-auto w-full rounded"
                 />
               ))}

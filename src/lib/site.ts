@@ -6,4 +6,5 @@ export const SITE_NAME = "회전문";
 export const SITE_URL = PRODUCTION_URL
   ? `https://${PRODUCTION_URL}`
   : "http://localhost:3000";
-export const SITE_DESCRIPTION = "티켓팅 전에 확인하는 뮤지컬/연극 캐스팅 정보";
+export const SITE_DESCRIPTION =
+  "한눈에 확인하는 뮤지컬/연극 캐스팅 및 이벤트 정보";
