@@ -78,7 +78,8 @@ export type PerformanceSkipReason =
   | "weekday_mismatch"
   | "empty_casting"
   | "duplicate"
-  | "invalid_image_index";
+  | "invalid_image_index"
+  | "cast_mismatch";
 
 export const PERFORMANCE_SKIP_MESSAGE: Record<PerformanceSkipReason, string> = {
   invalid_date: "날짜 형식을 읽지 못했어요.",
@@ -88,6 +89,7 @@ export const PERFORMANCE_SKIP_MESSAGE: Record<PerformanceSkipReason, string> = {
   empty_casting: "캐스팅 정보를 읽지 못했어요.",
   duplicate: "같은 날짜·시간이 이미 있어요.",
   invalid_image_index: "이미지 번호를 확인하지 못했어요.",
+  cast_mismatch: "이 공연 캐스팅과 겹치는 배우가 없어요.",
 };
 
 export type SkippedPerformance = {

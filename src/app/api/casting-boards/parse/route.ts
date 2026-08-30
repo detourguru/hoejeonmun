@@ -9,7 +9,6 @@ import {
   attachSuggestedDuplicates,
   findDuplicateReasons,
   hashImages,
-  hasKnownCastOverlap,
   logParseFailure,
   parseCastingBoard,
   toPendingEvents,
@@ -120,33 +119,27 @@ export async function POST(request: Request) {
     lap(`표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건)`);
 
     if (performances.length === 0 && events.length === 0) {
+      const isCastMismatch = skipped.some(
+        ({ reason: skipReason }) => skipReason === "cast_mismatch",
+      );
+
       await logParseFailure({
         admin,
         showId,
         userId,
         storagePaths,
-        type: "no_table_found",
+        type: isCastMismatch ? "cast_mismatch" : "no_table_found",
         reason,
       });
 
       return fail(
         422,
-        reason
-          ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
-          : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
+        isCastMismatch
+          ? "이 공연의 캐스팅보드가 맞는지 확인해 주세요."
+          : reason
+            ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
+            : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
       );
-    }
-
-    if (performances.length > 0 && !hasKnownCastOverlap(performances, show)) {
-      await logParseFailure({
-        admin,
-        showId,
-        userId,
-        storagePaths,
-        type: "cast_mismatch",
-      });
-
-      return fail(422, "이 공연의 캐스팅보드가 맞는지 확인해 주세요.");
     }
 
     const overlapping = await attachOverlappingEvents(
