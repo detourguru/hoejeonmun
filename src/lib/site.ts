@@ -8,3 +8,9 @@ export const SITE_URL = PRODUCTION_URL
   : "http://localhost:3000";
 export const SITE_DESCRIPTION =
   "한눈에 확인하는 뮤지컬/연극 캐스팅 및 이벤트 정보";
+
+export const CURRENT_UPDATE_ID = "2026-08-30-event-info";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (8/30 14:00)]
+- 키보드 닫기 시 뒤로가기가 눌리던 현상
+- 이벤트가 회차별로 생성되던 현상
+- 불필요한 버튼 정리`;

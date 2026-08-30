@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 
 import { Toaster } from "@/components/toaster";
+import { UpdateToast } from "@/components/update-toast";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 import type { Metadata, Viewport } from "next";
@@ -96,6 +97,7 @@ export default function RootLayout({
         <SerwistProvider swUrl="/serwist/sw.js">
           {children}
           <Toaster />
+          <UpdateToast />
         </SerwistProvider>
       </body>
     </html>
