@@ -24,6 +24,30 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
+async function deleteUploadIfEmpty(
+  admin: ReturnType<typeof createAdminClient>,
+  uploadId: number,
+) {
+  const [{ count: assignmentCount }, { count: eventCount }] = await Promise.all(
+    [
+      admin
+        .from("assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("upload_id", uploadId),
+      admin
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .eq("upload_id", uploadId),
+    ],
+  );
+
+  if (assignmentCount || eventCount) return;
+
+  const { error } = await admin.from("uploads").delete().eq("id", uploadId);
+
+  if (error) console.error("빈 업로드 정리 실패", error);
+}
+
 export async function correctSlotCasting(
   showId: string,
   slotId: number,
@@ -246,6 +270,8 @@ export async function deleteMySlotCasting(
   }
 
   if (!count) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  await deleteUploadIfEmpty(admin, uploadId);
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
@@ -589,6 +615,8 @@ export async function deleteMyEvent(
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
+
+  await deleteUploadIfEmpty(admin, event.upload_id);
 
   revalidatePath(`/show/${showId}`);
   updateTag(CASTING_FEED_CACHE_TAG);
