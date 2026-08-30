@@ -955,7 +955,7 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const client = new GoogleGenAI({});
 
   const requestStart = performance.now();
-  const GEMINI_TIMEOUT_MS = 40000;
+  const GEMINI_TIMEOUT_MS = 60_000;
   const GEMINI_MAX_ATTEMPTS = 2;
 
   console.log(
@@ -1225,6 +1225,7 @@ export async function saveCastingBoard({
   performances,
   events,
   skipped,
+  source = "user",
 }: {
   showId: string;
   userId: string;
@@ -1232,6 +1233,7 @@ export async function saveCastingBoard({
   performances: ParsedPerformance[];
   events: ConfirmedEvent[];
   skipped: SkippedPerformance[];
+  source?: "user" | "system";
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
 
@@ -1239,7 +1241,7 @@ export async function saveCastingBoard({
 
   const { data: upload, error: uploadError } = await admin
     .from("uploads")
-    .insert({ show_id: showId, user_id: userId })
+    .insert({ show_id: showId, user_id: userId, source })
     .select("id")
     .single();
 
