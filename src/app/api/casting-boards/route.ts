@@ -54,6 +54,8 @@ const slotExceptionSchema = z.object({
   time: z.string(),
 });
 
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const eventSchema = z
   .object({
     title: z.string().trim().min(1),
@@ -66,12 +68,14 @@ const eventSchema = z
     imageIndex: z.number(),
     includedSlots: z.array(slotExceptionSchema).optional(),
     excludedSlots: z.array(slotExceptionSchema).optional(),
+    exactTimes: z.array(z.string().regex(TIME_REGEX)).optional(),
     confirmReasons: z.array(
       z.enum([
         "range_badge",
         "no_printed_weekday",
         "overlaps_existing",
         "has_slot_exceptions",
+        "has_specific_times",
       ]),
     ),
     overlapping: z.array(existingEventSchema),
