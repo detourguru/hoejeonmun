@@ -110,6 +110,7 @@ export type ParsedDateTag = {
   // HH:mm. 그 날짜 중 이 배지가 찍힌 한 회차에만 적용될 때만 채워짐, 그 외엔 ""
   time: string;
   imageIndex: number;
+  slots?: EventSlotException[];
 };
 
 // 기간 범위 내에 존재하지 않는 날짜의 이벤트의 경우 예외로 처리한다

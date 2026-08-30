@@ -581,44 +581,103 @@ function mergeSameDateTags(dateTags: ParsedDateTag[]): ParsedDateTag[] {
   const groups = new Map<string, ParsedDateTag[]>();
 
   for (const dateTag of dateTags) {
-    const groupKey = `${dateTag.tag}::${dateTag.time}`;
-    const group = groups.get(groupKey) ?? [];
+    const group = groups.get(dateTag.tag) ?? [];
 
     group.push(dateTag);
-    groups.set(groupKey, group);
+    groups.set(dateTag.tag, group);
   }
 
   const merged: ParsedDateTag[] = [];
 
   for (const group of groups.values()) {
-    // 특정 회차 하나에만 붙은 배지는 그 회차 단독 표시이므로 날짜 범위로 묶지 않는다
-    if (group[0].time !== "") {
-      merged.push(...group);
+    merged.push(
+      ...mergeWholeDayRuns(group.filter((dateTag) => dateTag.time === "")),
+    );
+    merged.push(
+      ...mergePerSlotRuns(group.filter((dateTag) => dateTag.time !== "")),
+    );
+  }
+
+  return merged;
+}
+
+function mergeWholeDayRuns(dateTags: ParsedDateTag[]): ParsedDateTag[] {
+  if (dateTags.length === 0) return [];
+
+  const merged: ParsedDateTag[] = [];
+
+  const [first, ...rest] = dateTags.sort((a, b) =>
+    a.startDate.localeCompare(b.startDate),
+  );
+
+  let run = first;
+
+  for (const dateTag of rest) {
+    if (isNextDay(run.endDate, dateTag.startDate)) {
+      run = {
+        ...run,
+        endDate: dateTag.endDate,
+        printedEndWeekday: dateTag.printedEndWeekday,
+      };
       continue;
     }
 
-    const [first, ...rest] = group.sort((a, b) =>
-      a.startDate.localeCompare(b.startDate),
-    );
+    merged.push(run);
+    run = dateTag;
+  }
 
-    let run = first;
+  merged.push(run);
 
-    for (const dateTag of rest) {
-      if (isNextDay(run.endDate, dateTag.startDate)) {
-        run = {
-          ...run,
-          endDate: dateTag.endDate,
-          printedEndWeekday: dateTag.printedEndWeekday,
-        };
-        continue;
-      }
+  return merged;
+}
 
-      merged.push(run);
-      run = dateTag;
+function mergePerSlotRuns(dateTags: ParsedDateTag[]): ParsedDateTag[] {
+  if (dateTags.length === 0) return [];
+
+  const merged: ParsedDateTag[] = [];
+
+  const sorted = dateTags.sort(
+    (a, b) =>
+      a.startDate.localeCompare(b.startDate) || a.time.localeCompare(b.time),
+  );
+
+  let run = [sorted[0]];
+
+  const flushRun = () => {
+    const [runFirst] = run;
+
+    if (run.length === 1) {
+      merged.push(runFirst);
+      return;
     }
 
-    merged.push(run);
+    const runLast = run[run.length - 1];
+
+    merged.push({
+      ...runFirst,
+      endDate: runLast.startDate,
+      printedEndWeekday: runLast.printedStartWeekday,
+      time: "",
+      slots: run.map(({ startDate, time }) => ({ date: startDate, time })),
+    });
+  };
+
+  for (const dateTag of sorted.slice(1)) {
+    const runEndDate = run[run.length - 1].startDate;
+
+    if (
+      dateTag.startDate !== runEndDate &&
+      !isNextDay(runEndDate, dateTag.startDate)
+    ) {
+      flushRun();
+      run = [dateTag];
+      continue;
+    }
+
+    run.push(dateTag);
   }
+
+  flushRun();
 
   return merged;
 }
@@ -881,13 +940,14 @@ export function toPendingEvents(
   );
 
   const fromBadges = dateTags.map(
-    ({ tag, startDate, endDate, time, ...dateTag }) => ({
+    ({ tag, startDate, endDate, time, slots, ...dateTag }) => ({
       ...dateTag,
       title: tag,
       periodStart: startDate,
       periodEnd: endDate,
       // 회차 하나에만 붙은 배지는 그 회차에만 적용되게 exactTimes로 좁힌다
-      exactTimes: time ? [time] : undefined,
+      exactTimes: !slots && time ? [time] : undefined,
+      listedSlots: slots,
       source: "badge" as const,
     }),
   );
