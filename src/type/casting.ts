@@ -132,6 +132,9 @@ export type ParsedEvent = {
   includedSlots?: EventSlotException[];
   excludedSlots?: EventSlotException[];
   exactTimes?: string[];
+  listedSlots?: EventSlotException[];
+  periodStartCutoffTime?: string;
+  periodEndCutoffTime?: string;
 };
 
 export type ParsedCancelledSlot = {
@@ -198,6 +201,9 @@ export type PendingEvent = {
   excludedSlots?: EventSlotException[];
   // 기간 내 특정 시간 회차에만 적용될 때. HH:mm
   exactTimes?: string[];
+  listedSlots?: EventSlotException[];
+  periodStartCutoffTime?: string;
+  periodEndCutoffTime?: string;
   confirmReasons: EventConfirmReason[];
   overlapping: ExistingEvent[];
   suggestedSameAsGroupId?: number;

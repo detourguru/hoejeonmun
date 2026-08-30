@@ -206,7 +206,6 @@ create table parse_failures (
   type text not null,
   reason text,
   created_at timestamptz not null default now(),
-  -- 보존 기간이 지나 storage 원본을 정리한 시각 (null이면 아직 보관 중)
   image_purged_at timestamptz
 );
 

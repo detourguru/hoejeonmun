@@ -207,6 +207,29 @@ export const castingJsonSchema = {
             description:
               'When the notice ties this event to specific performance times rather than every performance within the period (e.g. "9/12(토) 19시 회차에는 ~", or "4시&8시 회차에는 ~" naming two times on the same day), list each such time here in HH:mm. This applies to every date in the period, not just one. Omit or leave empty when the event applies to every performance within the period.',
           },
+          listedSlots: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: "YYYY-MM-DD" },
+                time: { type: "string", description: "HH:mm" },
+              },
+              required: ["date", "time"],
+            },
+            description:
+              'Only when this event is printed as a table with one row per exact date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds), list every one of those rows here as {date, time} -- all of them, including ones already covered by periodStart/periodEnd. This is the literal set of rounds the notice names, used to tell them apart from other same-day performances it does NOT mention. Omit entirely when the notice instead describes a continuous period in prose (e.g. "전 회차", a plain date range) rather than enumerating individual rows.',
+          },
+          periodStartCutoffTime: {
+            type: "string",
+            description:
+              'HH:mm. Fill this only when a time is printed directly next to periodStart as part of the period label itself (e.g. "9/5(토) 6시 – 9/6(일)" -> periodStart is 9/5 and this is "18:00"), meaning the event applies only from that time onward on periodStart\'s own date, not that date\'s earlier performances. Just copy the printed time -- do not guess which of that date\'s other performances it excludes. Omit when periodStart carries no such attached time.',
+          },
+          periodEndCutoffTime: {
+            type: "string",
+            description:
+              'HH:mm. Fill this only when a time is printed directly next to periodEnd as part of the period label itself (e.g. "9/1(화) - 9/5(토) 2시" -> periodEnd is 9/5 and this is "14:00"), meaning the event applies only up to and including that time on periodEnd\'s own date, not that date\'s later performances. Just copy the printed time -- do not guess which of that date\'s other performances it excludes. Omit when periodEnd carries no such attached time.',
+          },
         },
         required: [
           "title",
@@ -357,13 +380,14 @@ Event rules:
 - A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range. (This is different from an entire performance being cancelled or a previously-announced event being called off entirely -- those belong in the cancellation/change notice category above, not here.)
 - A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
-- When the notice is a table with one row per date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds), read every row before deciding the range -- set "periodStart" to the earliest date among all rows and "periodEnd" to the latest, not just the first row you see. Prefer a separately printed period label (e.g. "진행기간") over inferring the range from the table rows when both are present. Do not collapse a multi-date table into a single date just because you are also skipping the per-row actor breakdown.
+- When the notice is a table with one row per date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds), read every row before deciding the range -- set "periodStart" to the earliest date among all rows and "periodEnd" to the latest, not just the first row you see. Prefer a separately printed period label (e.g. "진행기간") over inferring the range from the table rows when both are present. Do not collapse a multi-date table into a single date just because you are also skipping the per-row actor breakdown. Also list every one of those rows in "listedSlots" -- the table's date range often includes another same-day performance the table simply does not mention (e.g. an afternoon show with no evening curtain call), and "listedSlots" is how that gets told apart from periodStart/periodEnd alone.
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 - When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
 - When the notice separately excludes specific performance date+times from within the period range (e.g. "단, 10/2 20:00 회차 제외"), list each as a {date, time} pair in "excludedSlots".
 - Keep any such inclusion/exclusion wording in "title" or "description" as printed -- do not remove it just because you also structured it into "includedSlots"/"excludedSlots".
 - When the notice ties the event to specific performance times rather than every performance within the period (e.g. "9/12(토) 19시 회차에는 스페셜 커튼콜이 함께 진행됩니다" -- only the 19:00 show that day, not every show that day; or "4시&8시 회차에는 ~" naming two times on one day), list each such time in "exactTimes" as HH:mm. Leave "exactTimes" empty when the event applies to every performance within the period, same as most table-based notices do.
+- Do NOT confuse this with a time printed right next to periodStart or periodEnd as part of the period label itself (e.g. "진행기간 | 9/5(토) 6시 – 9/6(일)", or "9/1(화) - 9/5(토) 2시"). That time marks a cutoff on just that one boundary date -- it says nothing about every date in the period sharing that time, so it never belongs in "exactTimes" (a real observed bug: reading "9/1(화) - 9/5(토) 2시" as exactTimes=["14:00"] wrongly matched only the one coincidental 14:00 show in the whole period and dropped every other date, when the notice's actual scope was "everything from 9/1 through the 9/5 14:00 show"). Instead, when such a time is printed next to periodStart, put it in "periodStartCutoffTime" (meaning: only from that time onward on periodStart's own date); when printed next to periodEnd, put it in "periodEndCutoffTime" (meaning: only up to and including that time on periodEnd's own date). Just copy the printed HH:mm as-is -- you do not need to know what other performances that date has; matching it against the real schedule happens separately. Leave both empty when no such boundary-attached time is printed.
 
 Cancellation/change rules:
 - "cancelledSlots": one entry per already-scheduled performance date+time that the notice says will not take place at all. Resolve the year using the run above, like casting board dates. Do not use this for a scene/segment inside a performance not happening -- only for the whole performance being cancelled.
@@ -788,6 +812,9 @@ export function unverifiedPoints(event: {
   includedSlots?: EventSlotException[];
   excludedSlots?: EventSlotException[];
   exactTimes?: string[];
+  listedSlots?: EventSlotException[];
+  periodStartCutoffTime?: string;
+  periodEndCutoffTime?: string;
 }): EventConfirmReason[] {
   const reasons: EventConfirmReason[] = [];
 
@@ -799,7 +826,13 @@ export function unverifiedPoints(event: {
     reasons.push("no_printed_weekday");
   }
 
-  if (event.includedSlots?.length || event.excludedSlots?.length) {
+  if (
+    event.includedSlots?.length ||
+    event.excludedSlots?.length ||
+    event.listedSlots?.length ||
+    event.periodStartCutoffTime ||
+    event.periodEndCutoffTime
+  ) {
     reasons.push("has_slot_exceptions");
   }
 
@@ -826,6 +859,9 @@ export function toPendingEvents(
       includedSlots,
       excludedSlots,
       exactTimes,
+      listedSlots,
+      periodStartCutoffTime,
+      periodEndCutoffTime,
     }) => ({
       title,
       description,
@@ -837,6 +873,9 @@ export function toPendingEvents(
       includedSlots,
       excludedSlots,
       exactTimes,
+      listedSlots,
+      periodStartCutoffTime,
+      periodEndCutoffTime,
       source: "notice" as const,
     }),
   );
@@ -941,6 +980,12 @@ const sanitizeExactTimes = (
   return cleaned.length > 0 ? cleaned : undefined;
 };
 
+const sanitizeCutoffTime = (time: string | undefined): string | undefined => {
+  const trimmed = time?.trim() ?? "";
+
+  return TIME_PATTERN.test(trimmed) ? trimmed : undefined;
+};
+
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
 function normalizeEvents(
   events: ParsedEvent[],
@@ -986,6 +1031,9 @@ function normalizeEvents(
       includedSlots: sanitizeSlotExceptions(event.includedSlots),
       excludedSlots: sanitizeSlotExceptions(event.excludedSlots),
       exactTimes: sanitizeExactTimes(event.exactTimes),
+      listedSlots: sanitizeSlotExceptions(event.listedSlots),
+      periodStartCutoffTime: sanitizeCutoffTime(event.periodStartCutoffTime),
+      periodEndCutoffTime: sanitizeCutoffTime(event.periodEndCutoffTime),
     });
   }
 
@@ -1475,7 +1523,6 @@ export async function logParseFailure({
   if (error) console.error("parse_failures insert 실패", error);
 }
 
-// 실패 원인 조사를 위해 원본 이미지를 이 기간만큼 보존한 뒤 정리한다
 export const PARSE_FAILURE_RETENTION_DAYS = 7;
 
 export async function purgeExpiredParseFailureImages(
@@ -1575,6 +1622,9 @@ export async function computeEventSlotIds(
   includedSlots: EventSlotException[] = [],
   excludedSlots: EventSlotException[] = [],
   exactTimes?: string[],
+  listedSlots: EventSlotException[] = [],
+  periodStartCutoffTime?: string,
+  periodEndCutoffTime?: string,
 ): Promise<number[]> {
   const { data: periodSlots, error: periodSlotsErr } = await admin
     .from("slots")
@@ -1594,11 +1644,30 @@ export async function computeEventSlotIds(
     ? new Set(exactTimes.map((time) => time.slice(0, 5)))
     : null;
 
+  const listedKeys = listedSlots.length
+    ? new Set(listedSlots.map(({ date, time }) => slotKey(date, time)))
+    : null;
+
   const matchedSlotIds = new Set(
     periodSlots
+      .filter(
+        (slot) => !listedKeys || listedKeys.has(slotKey(slot.date, slot.time)),
+      )
       .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
       .filter(
         (slot) => !exactTimeSet || exactTimeSet.has(slot.time.slice(0, 5)),
+      )
+      .filter(
+        (slot) =>
+          !periodStartCutoffTime ||
+          slot.date !== periodStart ||
+          slot.time.slice(0, 5) >= periodStartCutoffTime,
+      )
+      .filter(
+        (slot) =>
+          !periodEndCutoffTime ||
+          slot.date !== periodEnd ||
+          slot.time.slice(0, 5) <= periodEndCutoffTime,
       )
       .map(({ id }) => id),
   );
@@ -1951,6 +2020,9 @@ export async function saveCastingBoard({
         event.includedSlots,
         event.excludedSlots,
         event.exactTimes,
+        event.listedSlots,
+        event.periodStartCutoffTime,
+        event.periodEndCutoffTime,
       );
 
       const eventSlots = matchedSlotIds.map((slotId) => ({
