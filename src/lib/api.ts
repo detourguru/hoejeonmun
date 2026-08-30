@@ -1,5 +1,8 @@
-export const fail = (status: number, message: string) =>
-  Response.json({ message }, { status });
+export const fail = (
+  status: number,
+  message: string,
+  extra?: Record<string, unknown>,
+) => Response.json({ message, ...extra }, { status });
 
 export const errorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;

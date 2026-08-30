@@ -149,6 +149,7 @@ export async function POST(request: Request) {
         reason
           ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
           : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
+        { retained: true },
       );
     }
 
@@ -187,6 +188,7 @@ export async function POST(request: Request) {
     return fail(
       500,
       "캐스팅보드를 분석하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      { retained: true },
     );
   }
 }

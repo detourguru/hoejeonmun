@@ -247,12 +247,13 @@ export const CastingUploadButton = ({
         message,
         duplicateIndexes: duplicates,
         retained,
-      } = await parseResponse.json().catch(() => ({ message: "분석에 실패했어요." }));
+      } = await parseResponse
+        .json()
+        .catch(() => ({ message: "분석에 실패했어요." }));
 
       setStatus("selecting");
       setError(message);
       setDuplicateIndexes(duplicates ?? []);
-      // 실패 원인 조사를 위해 서버가 보존하기로 한 이미지는 지우지 않는다
       if (!retained) void discardUploadImages(storagePaths);
       return;
     }
@@ -484,7 +485,10 @@ export const CastingUploadButton = ({
           </p>
 
           <DialogFooter>
-            <Button onClick={handleTutorialConfirm} className="w-full font-bold">
+            <Button
+              onClick={handleTutorialConfirm}
+              className="w-full font-bold"
+            >
               확인했어요
             </Button>
           </DialogFooter>

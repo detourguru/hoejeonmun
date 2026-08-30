@@ -632,9 +632,7 @@ function normalizeDateTags(
       agreesWithPrintedWeekday(endDate, printedEndWeekday) &&
       // 회차 하나에만 붙은 배지는 그 회차가 실제로 있어야 하고, 날짜 범위가 아니라 그 하루여야 한다
       (time === ""
-        ? performances.some(
-            ({ date }) => date >= startDate && date <= endDate,
-          )
+        ? performances.some(({ date }) => date >= startDate && date <= endDate)
         : TIME_PATTERN.test(time) &&
           startDate === endDate &&
           performances.some(
@@ -1477,6 +1475,51 @@ export async function logParseFailure({
   if (error) console.error("parse_failures insert 실패", error);
 }
 
+// 실패 원인 조사를 위해 원본 이미지를 이 기간만큼 보존한 뒤 정리한다
+export const PARSE_FAILURE_RETENTION_DAYS = 7;
+
+export async function purgeExpiredParseFailureImages(
+  admin: ReturnType<typeof createAdminClient>,
+) {
+  const cutoff = new Date(
+    Date.now() - PARSE_FAILURE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data, error } = await admin
+    .from("parse_failures")
+    .select("id, storage_path")
+    .is("image_purged_at", null)
+    .lt("created_at", cutoff);
+
+  if (error) throw error;
+
+  const rows = data as { id: number; storage_path: string }[];
+
+  if (rows.length === 0) return { purged: 0 };
+
+  const storagePaths = [
+    ...new Set(rows.map(({ storage_path }) => storage_path)),
+  ];
+
+  const { error: removeError } = await admin.storage
+    .from(CASTING_BOARD_BUCKET)
+    .remove(storagePaths);
+
+  if (removeError) throw removeError;
+
+  const { error: updateError } = await admin
+    .from("parse_failures")
+    .update({ image_purged_at: new Date().toISOString() })
+    .in(
+      "id",
+      rows.map(({ id }) => id),
+    );
+
+  if (updateError) throw updateError;
+
+  return { purged: rows.length };
+}
+
 type EventRow = {
   group_id: number;
   show_id: string;
@@ -1871,16 +1914,15 @@ export async function saveCastingBoard({
 
     let groupId: number;
 
-    if (event.replacesGroupId === undefined) {
-      groupId = await createEventGroup(admin);
-    } else {
-      const isApprovedGroup = event.overlapping.some(
+    if (
+      event.replacesGroupId !== undefined &&
+      event.overlapping.some(
         ({ groupId: candidateId }) => candidateId === event.replacesGroupId,
-      );
-
-      if (!isApprovedGroup) continue;
-
+      )
+    ) {
       groupId = event.replacesGroupId;
+    } else {
+      groupId = await createEventGroup(admin);
     }
 
     const row: EventRow = {

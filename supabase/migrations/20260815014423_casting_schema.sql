@@ -205,7 +205,9 @@ create table parse_failures (
   -- show_mismatch: 포스터 공연명이 다름 / exception: 그 외 오류
   type text not null,
   reason text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- 보존 기간이 지나 storage 원본을 정리한 시각 (null이면 아직 보관 중)
+  image_purged_at timestamptz
 );
 
 create index parse_failures_show_id_idx on parse_failures (show_id);
