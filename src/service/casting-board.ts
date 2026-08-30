@@ -21,6 +21,9 @@ import {
   EventSlotException,
   EventSource,
   ExistingEvent,
+  ParsedCancelledEvent,
+  ParsedCancelledSlot,
+  ParsedCastingChange,
   ParsedDateTag,
   ParsedEvent,
   ParsedPerformance,
@@ -110,6 +113,11 @@ export const castingJsonSchema = {
             description:
               'The weekday printed on the board next to endDate, copied as-is. Return "" when the board prints no weekday there. Never derive this from endDate.',
           },
+          time: {
+            type: "string",
+            description:
+              'HH:mm. Fill this in only when startDate has more than one performance that day and this badge is printed on just one of those rows, not on every row for that date (e.g. a "첫공" badge on only the 16:00 row while a later 20:00 show the same day carries no badge). Return "" when the badge marks the whole date -- including when that date only has a single performance.',
+          },
           imageIndex: {
             type: "integer",
             description:
@@ -122,6 +130,7 @@ export const castingJsonSchema = {
           "endDate",
           "printedStartWeekday",
           "printedEndWeekday",
+          "time",
           "imageIndex",
         ],
       },
@@ -209,13 +218,95 @@ export const castingJsonSchema = {
         ],
       },
     },
+    cancelledSlots: {
+      type: "array",
+      description:
+        "Every already-scheduled performance date+time that a cancellation notice says will NOT take place at all (the whole performance is cancelled, not just a segment within it).",
+      items: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD" },
+          time: { type: "string", description: "HH:mm" },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this cancellation was read from.",
+          },
+        },
+        required: ["date", "time", "imageIndex"],
+      },
+    },
+    castingChanges: {
+      type: "array",
+      description:
+        "A cast swap announced for a specific already-scheduled performance date+time (e.g. a notice saying a named role will be played by a different actor on one date), as opposed to a full new casting table.",
+      items: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD" },
+          time: { type: "string", description: "HH:mm" },
+          role: {
+            type: "string",
+            description: "The role/character name being recast.",
+          },
+          actor: {
+            type: "string",
+            description: "The new actor's name.",
+          },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this change was read from.",
+          },
+        },
+        required: ["date", "time", "role", "actor", "imageIndex"],
+      },
+    },
+    cancelledEvents: {
+      type: "array",
+      description:
+        "A previously-announced perk/event that this notice says is cancelled or will not proceed.",
+      items: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The cancelled event's Korean title, as printed.",
+          },
+          periodStart: {
+            type: "string",
+            description:
+              "YYYY-MM-DD. Best-guess start date of the cancelled event, even if only approximately stated.",
+          },
+          periodEnd: {
+            type: "string",
+            description:
+              "YYYY-MM-DD. Same as periodStart when it ran a single day.",
+          },
+          imageIndex: {
+            type: "integer",
+            description:
+              "0-based index of which image (in the order provided) this cancellation was read from.",
+          },
+        },
+        required: ["title", "periodStart", "periodEnd", "imageIndex"],
+      },
+    },
     reason: {
       type: "string",
       description:
-        "Korean explanation for why both performances and events are empty or clearly incomplete (e.g. image too blurry to read, no table or event notice found, header row missing). Omit when parsing succeeded normally.",
+        'Korean, always filled in -- never leave this empty. When performances/dateTags/events/cancelledSlots/castingChanges/cancelledEvents all end up empty or clearly incomplete, explain why in one short sentence (e.g. "이미지가 흐려서 표를 읽지 못함", "캐스팅 표나 이벤트 안내 없음", "헤더 행 누락"). Otherwise, briefly state what was extracted (e.g. "회차 12건, 이벤트 2건 추출"). A human reviewing a failed upload later relies on this field alone, since by then the source image is gone.',
     },
   },
-  required: ["performances", "dateTags", "events"],
+  required: [
+    "performances",
+    "dateTags",
+    "events",
+    "cancelledSlots",
+    "castingChanges",
+    "cancelledEvents",
+    "reason",
+  ],
 } satisfies z.core.JSONSchema.JSONSchema;
 
 const castingSchema = z.fromJSONSchema(castingJsonSchema);
@@ -228,9 +319,19 @@ Extract information from the given image(s) for:
 - Title: ${show.prfnm}
 - Run: ${from} ~ ${to}
 
-Each image is either a casting board or an event/perk notice. Classify each image using exactly one rule: does it pair actor names with role/character names (e.g. "엘리자벳", "토드" -- names from the show's own story), the way a cast list does?
-- Yes -> it is a casting board. Follow "Casting board rules" below and extract into "performances" and "dateTags". This stays true even if some dates also carry an inline badge — a badge never changes the classification.
-- No -> it is an event/perk notice. This covers anything tied to a date or date range that is not a role-labeled cast -- a giveaway, a discount, a signing/high-touch session, a special curtain call, a farewell greeting, a schedule/scene change notice, etc. Do not require specific keywords; judge by what the image is actually about. This also covers tables that list actor names grouped by something other than a role (e.g. by song/scene title, like a "special curtain call" lineup) -- treat those as an event tied to that date/range and capture only the title and dates, not a per-actor breakdown. An event notice does not need to look like a designed poster or table -- plain prose is just as valid a source, including a screenshot of a social media post (e.g. a fan account tweet) that lists one or more dated perks as sentences rather than a table. Follow "Event rules" below and extract into "events". Only leave both arrays empty (and explain why in "reason") when the image is unreadable or has no date information at all.
+Each image is one of three kinds: a casting board, an event/perk notice, or a cancellation/change notice about something already scheduled or already announced elsewhere. Check in this order:
+
+1. Cancellation/change notice -- does the image announce any of these about a performance or event that was already scheduled/announced (not a fresh schedule being introduced for the first time)?
+   - An entire performance date+time will NOT take place (e.g. an apology notice saying a given date and time's performance is cancelled).
+   - A specific already-scheduled performance date+time gets a cast swap (e.g. "a named role will be played by someone else on one date"), as opposed to a full new casting table.
+   - A previously-announced perk/event will no longer happen.
+   If yes -> it is a cancellation/change notice. Follow "Cancellation/change rules" below and extract into "cancelledSlots" / "castingChanges" / "cancelledEvents" as appropriate. Do not also duplicate this into "performances" or "events".
+
+2. Otherwise, does it pair actor names with role/character names (e.g. "엘리자벳", "토드" -- names from the show's own story), the way a cast list does?
+   - Yes -> it is a casting board. Follow "Casting board rules" below and extract into "performances" and "dateTags". This stays true even if some dates also carry an inline badge — a badge never changes the classification.
+   - No -> it is an event/perk notice. This covers anything tied to a date or date range that is not a role-labeled cast -- a giveaway, a discount, a signing/high-touch session, a special curtain call, a farewell greeting, a schedule/scene change notice, etc. Do not require specific keywords; judge by what the image is actually about. This also covers tables that list actor names grouped by something other than a role (e.g. by song/scene title, like a "special curtain call" lineup) -- treat those as an event tied to that date/range and capture only the title and dates, not a per-actor breakdown. An event notice does not need to look like a designed poster or table -- plain prose is just as valid a source, including a screenshot of a social media post (e.g. a fan account tweet) that lists one or more dated perks as sentences rather than a table. Follow "Event rules" below and extract into "events".
+
+Only leave every array empty when the image is unreadable or has no date information at all -- and when you do, always explain why in "reason" (see its schema description; this field is required and must never be left empty).
 
 Casting board rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
@@ -245,7 +346,7 @@ Casting board rules:
 - Omit a cell from "casting" when it is empty or a placeholder such as "-".
 - If no casting table exists, return an empty performances array.
 - If multiple tables exist, use only the largest and most complete one.
-- Separately, scan every date in the table (not just a sample) for an inline badge next to or on the date, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and add one "dateTags" entry per badge with "startDate" and "endDate" both set to that date -- once per date, even when that date has multiple performance times. This is a distinct pass from building "performances": go date by date in order and check each one individually, since it is easy to skip one in a long list, especially when neighboring dates look visually identical. Do not skip a date just because nearby dates already got the same tag.
+- Separately, scan every row in the table (not just a sample) for an inline badge next to or on that row, such as "Preview"/"프리뷰", "막공", or a curtain-call marker, and add one "dateTags" entry per badge occurrence, with "startDate" and "endDate" both set to that row's date. When a date has more than one performance time, check each row on that date individually rather than assuming the badge covers all of them -- if the badge is printed on only one of those rows, set "time" to that row's HH:mm so it does not get misapplied to the date's other performances (a real observed bug: a "첫공" badge printed only on a date's 16:00 row was wrongly applied to that same date's unrelated 20:00 show too). Leave "time" as "" when the badge is printed once for the whole date rather than repeated per row, or when that date only has a single performance. This is a distinct pass from building "performances": go row by row in order, since it is easy to skip one in a long list, especially when neighboring rows look visually identical. Do not skip a row just because nearby rows already got the same tag.
 - Some boards instead mark a whole run of dates at once, e.g. a colored label in the margin spanning several rows (such as "더블적립위크" or "장면시연위크" covering a week). Add a single "dateTags" entry for the whole run: "startDate" is the first date the label covers and "endDate" is the last. Do not expand a run into one entry per day.
 - A single date can carry more than one badge at once (e.g. a closing performance that is also a curtain-call day). In that case, add a separate "dateTags" entry for each badge on that date, rather than picking just one.
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the board prints next to that date. Never derive a weekday from the date; return "" when the board prints none there.
@@ -253,9 +354,10 @@ Casting board rules:
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
-- A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range.
+- A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range. (This is different from an entire performance being cancelled or a previously-announced event being called off entirely -- those belong in the cancellation/change notice category above, not here.)
 - A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
+- When the notice is a table with one row per date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds), read every row before deciding the range -- set "periodStart" to the earliest date among all rows and "periodEnd" to the latest, not just the first row you see. Prefer a separately printed period label (e.g. "진행기간") over inferring the range from the table rows when both are present. Do not collapse a multi-date table into a single date just because you are also skipping the per-row actor breakdown.
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 - When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
@@ -263,8 +365,14 @@ Event rules:
 - Keep any such inclusion/exclusion wording in "title" or "description" as printed -- do not remove it just because you also structured it into "includedSlots"/"excludedSlots".
 - When the notice ties the event to specific performance times rather than every performance within the period (e.g. "9/12(토) 19시 회차에는 스페셜 커튼콜이 함께 진행됩니다" -- only the 19:00 show that day, not every show that day; or "4시&8시 회차에는 ~" naming two times on one day), list each such time in "exactTimes" as HH:mm. Leave "exactTimes" empty when the event applies to every performance within the period, same as most table-based notices do.
 
+Cancellation/change rules:
+- "cancelledSlots": one entry per already-scheduled performance date+time that the notice says will not take place at all. Resolve the year using the run above, like casting board dates. Do not use this for a scene/segment inside a performance not happening -- only for the whole performance being cancelled.
+- "castingChanges": one entry per {date, time, role, actor} where an already-scheduled performance's cast is being swapped. "role" is the character name, "actor" is the new actor's name. When several roles change for the same date+time, add one entry per role.
+- "cancelledEvents": one entry per previously-announced perk/event that the notice says will no longer happen. Give its Korean title as printed/referenced, and your best-guess date range even if only approximately stated (use the same date for both when it ran a single day) -- this only needs to be good enough to match against what's already saved, not exact.
+- These notices sometimes give only a rough or partial date (e.g. referring to "this weekend's performance"); make your best guess resolving against the run above, same as other rules.
+
 Make your best guess for ambiguous text, but never invent a performance or event that is not visible.
-If both "performances" and "events" end up empty or clearly incomplete, briefly explain why in Korean in "reason" (e.g. image too blurry, no table or event notice found, header row missing).
+Always fill in "reason" as described in its schema, whether parsing succeeded or not.
 `;
 };
 
@@ -432,20 +540,15 @@ function normalizePerformances(
     });
   }
 
-  // 이미지별로 판단 -- 여러 장 중 한 장만 다른 공연이어도 그 장만 걸러내고 나머지는 살린다
   const mismatchedImages = findCastMismatchImageIndexes(valid, show);
 
-  const matched = valid.filter((performance) => {
-    if (!mismatchedImages.has(performance.imageIndex)) return true;
-
-    skipped.push({
-      imageIndex: performance.imageIndex,
-      raw: performance,
-      reason: "cast_mismatch",
-    });
-
-    return false;
-  });
+  // 완전히 걸러내지 않고 표시만 해서 검수 화면까지 보낸다 -- KOPIS prfcast는
+  // 개막 시점 스냅샷이라 실제로는 맞는 캐스팅보드도 걸릴 수 있다
+  const matched = valid.map((performance) =>
+    mismatchedImages.has(performance.imageIndex)
+      ? { ...performance, castMismatch: true }
+      : performance,
+  );
 
   return { performances: matched, skipped };
 }
@@ -454,15 +557,22 @@ function mergeSameDateTags(dateTags: ParsedDateTag[]): ParsedDateTag[] {
   const groups = new Map<string, ParsedDateTag[]>();
 
   for (const dateTag of dateTags) {
-    const group = groups.get(dateTag.tag) ?? [];
+    const groupKey = `${dateTag.tag}::${dateTag.time}`;
+    const group = groups.get(groupKey) ?? [];
 
     group.push(dateTag);
-    groups.set(dateTag.tag, group);
+    groups.set(groupKey, group);
   }
 
   const merged: ParsedDateTag[] = [];
 
   for (const group of groups.values()) {
+    // 특정 회차 하나에만 붙은 배지는 그 회차 단독 표시이므로 날짜 범위로 묶지 않는다
+    if (group[0].time !== "") {
+      merged.push(...group);
+      continue;
+    }
+
     const [first, ...rest] = group.sort((a, b) =>
       a.startDate.localeCompare(b.startDate),
     );
@@ -507,8 +617,9 @@ function normalizeDateTags(
     const endDate = dateTag.endDate?.trim() ?? "";
     const printedStartWeekday = dateTag.printedStartWeekday?.trim() ?? "";
     const printedEndWeekday = dateTag.printedEndWeekday?.trim() ?? "";
+    const time = dateTag.time?.trim() ?? "";
 
-    const key = `${startDate}~${endDate}::${tag}`;
+    const key = `${startDate}~${endDate}::${tag}::${time}`;
 
     const isValid =
       tag.length > 0 &&
@@ -519,8 +630,16 @@ function normalizeDateTags(
       endDate <= to &&
       agreesWithPrintedWeekday(startDate, printedStartWeekday) &&
       agreesWithPrintedWeekday(endDate, printedEndWeekday) &&
-      // 표의 행에 붙은 배지이므로 그 구간에 회차가 하나도 없으면 잘못 읽은 것이다
-      performances.some(({ date }) => date >= startDate && date <= endDate) &&
+      // 회차 하나에만 붙은 배지는 그 회차가 실제로 있어야 하고, 날짜 범위가 아니라 그 하루여야 한다
+      (time === ""
+        ? performances.some(
+            ({ date }) => date >= startDate && date <= endDate,
+          )
+        : TIME_PATTERN.test(time) &&
+          startDate === endDate &&
+          performances.some(
+            ({ date, time: pTime }) => date === startDate && pTime === time,
+          )) &&
       !seen.has(key) &&
       Number.isInteger(dateTag.imageIndex) &&
       dateTag.imageIndex >= 0 &&
@@ -535,6 +654,7 @@ function normalizeDateTags(
       endDate,
       printedStartWeekday,
       printedEndWeekday,
+      time,
       imageIndex: dateTag.imageIndex,
     });
   }
@@ -724,11 +844,13 @@ export function toPendingEvents(
   );
 
   const fromBadges = dateTags.map(
-    ({ tag, startDate, endDate, ...dateTag }) => ({
+    ({ tag, startDate, endDate, time, ...dateTag }) => ({
       ...dateTag,
       title: tag,
       periodStart: startDate,
       periodEnd: endDate,
+      // 회차 하나에만 붙은 배지는 그 회차에만 적용되게 exactTimes로 좁힌다
+      exactTimes: time ? [time] : undefined,
       source: "badge" as const,
     }),
   );
@@ -867,6 +989,114 @@ function normalizeEvents(
       excludedSlots: sanitizeSlotExceptions(event.excludedSlots),
       exactTimes: sanitizeExactTimes(event.exactTimes),
     });
+  }
+
+  return valid;
+}
+
+function normalizeCancelledSlots(
+  slots: ParsedCancelledSlot[],
+  show: ShowDetail,
+  imageCount: number,
+) {
+  const { from, to } = resolveRunWindow(show);
+
+  const seen = new Set<string>();
+  const valid: ParsedCancelledSlot[] = [];
+
+  for (const slot of slots) {
+    const date = slot.date?.trim() ?? "";
+    const time = slot.time?.trim() ?? "";
+    const key = `${date} ${time}`;
+
+    const isValid =
+      DATE_PATTERN.test(date) &&
+      TIME_PATTERN.test(time) &&
+      date >= from &&
+      date <= to &&
+      !seen.has(key) &&
+      Number.isInteger(slot.imageIndex) &&
+      slot.imageIndex >= 0 &&
+      slot.imageIndex < imageCount;
+
+    if (!isValid) continue;
+
+    seen.add(key);
+    valid.push({ date, time, imageIndex: slot.imageIndex });
+  }
+
+  return valid;
+}
+
+// Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
+function normalizeCastingChanges(
+  changes: ParsedCastingChange[],
+  show: ShowDetail,
+  imageCount: number,
+) {
+  const { from, to } = resolveRunWindow(show);
+
+  const seen = new Set<string>();
+  const valid: ParsedCastingChange[] = [];
+
+  for (const change of changes) {
+    const date = change.date?.trim() ?? "";
+    const time = change.time?.trim() ?? "";
+    const role = normalizeName(change.role ?? "");
+    const actor = normalizeActorName(change.actor ?? "");
+    const key = `${date} ${time} ${role}`;
+
+    const isValid =
+      DATE_PATTERN.test(date) &&
+      TIME_PATTERN.test(time) &&
+      date >= from &&
+      date <= to &&
+      role.length > 0 &&
+      actor.length > 0 &&
+      !PLACEHOLDER_NAMES.has(actor.toLowerCase()) &&
+      !seen.has(key) &&
+      Number.isInteger(change.imageIndex) &&
+      change.imageIndex >= 0 &&
+      change.imageIndex < imageCount;
+
+    if (!isValid) continue;
+
+    seen.add(key);
+    valid.push({ date, time, role, actor, imageIndex: change.imageIndex });
+  }
+
+  return valid;
+}
+
+// Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
+function normalizeCancelledEvents(
+  events: ParsedCancelledEvent[],
+  show: ShowDetail,
+  imageCount: number,
+) {
+  const { from, to } = resolveRunWindow(show);
+
+  const valid: ParsedCancelledEvent[] = [];
+
+  for (const event of events) {
+    const title = event.title?.trim() ?? "";
+    const periodStart = event.periodStart?.trim() ?? "";
+    const periodEnd = event.periodEnd?.trim() ?? "";
+
+    const isValid =
+      title.length > 0 &&
+      DATE_PATTERN.test(periodStart) &&
+      DATE_PATTERN.test(periodEnd) &&
+      periodStart <= periodEnd &&
+      periodStart <= to &&
+      periodEnd >= from &&
+      Number.isInteger(event.imageIndex) &&
+      event.imageIndex >= 0 &&
+      event.imageIndex < imageCount;
+
+    if (!isValid) continue;
+
+    valid.push({ title, periodStart, periodEnd, imageIndex: event.imageIndex });
   }
 
   return valid;
@@ -1084,7 +1314,10 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     performances: ParsedPerformance[];
     dateTags: ParsedDateTag[];
     events: ParsedEvent[];
-    reason?: string;
+    cancelledSlots: ParsedCancelledSlot[];
+    castingChanges: ParsedCastingChange[];
+    cancelledEvents: ParsedCancelledEvent[];
+    reason: string;
   };
 
   console.log(
@@ -1110,6 +1343,21 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     ),
     events: await dedupeEvents(
       normalizeEvents(parsed.events, show, imageBlocks.length),
+    ),
+    cancelledSlots: normalizeCancelledSlots(
+      parsed.cancelledSlots,
+      show,
+      imageBlocks.length,
+    ),
+    castingChanges: normalizeCastingChanges(
+      parsed.castingChanges,
+      show,
+      imageBlocks.length,
+    ),
+    cancelledEvents: normalizeCancelledEvents(
+      parsed.cancelledEvents,
+      show,
+      imageBlocks.length,
     ),
     reason: parsed.reason,
   };
@@ -1290,7 +1538,8 @@ export async function computeEventSlotIds(
     .select("id, date, time")
     .eq("show_id", showId)
     .gte("date", periodStart)
-    .lte("date", periodEnd);
+    .lte("date", periodEnd)
+    .is("cancelled_at", null);
 
   if (periodSlotsErr) throw periodSlotsErr;
 
@@ -1316,7 +1565,8 @@ export async function computeEventSlotIds(
       .from("slots")
       .select("id, date, time")
       .eq("show_id", showId)
-      .in("date", [...new Set(includedSlots.map(({ date }) => date))]);
+      .in("date", [...new Set(includedSlots.map(({ date }) => date))])
+      .is("cancelled_at", null);
 
     if (extraSlotsErr) throw extraSlotsErr;
 
@@ -1334,6 +1584,150 @@ export async function computeEventSlotIds(
   return [...matchedSlotIds];
 }
 
+// 이미 등록된 회차를 취소 처리한다 (삭제하지 않고 cancelled_at만 채워 이력을 남긴다)
+async function applyCancelledSlots(
+  admin: ReturnType<typeof createAdminClient>,
+  showId: string,
+  cancelledSlots: ParsedCancelledSlot[],
+): Promise<number> {
+  let count = 0;
+
+  for (const { date, time } of cancelledSlots) {
+    const { error, count: updated } = await admin
+      .from("slots")
+      .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
+      .eq("show_id", showId)
+      .eq("date", date)
+      .eq("time", time)
+      .is("cancelled_at", null);
+
+    if (error) throw error;
+
+    count += updated ?? 0;
+  }
+
+  return count;
+}
+
+async function applyCastingChanges(
+  admin: ReturnType<typeof createAdminClient>,
+  showId: string,
+  castingChanges: ParsedCastingChange[],
+): Promise<number> {
+  let count = 0;
+
+  for (const { date, time, role, actor } of castingChanges) {
+    const { data: slot, error: slotError } = await admin
+      .from("slots")
+      .select("id")
+      .eq("show_id", showId)
+      .eq("date", date)
+      .eq("time", time)
+      .is("cancelled_at", null)
+      .maybeSingle();
+
+    if (slotError) throw slotError;
+    if (!slot) continue;
+
+    const { data: casting, error: castingError } = await admin
+      .from("current_castings")
+      .select("upload_id")
+      .eq("slot_id", slot.id)
+      .maybeSingle();
+
+    if (castingError) throw castingError;
+    if (!casting) continue;
+
+    const { data: actorRow, error: actorError } = await admin
+      .from("actors")
+      .upsert([{ name: actor }], {
+        onConflict: "name",
+        ignoreDuplicates: false,
+      })
+      .select("id")
+      .single();
+
+    if (actorError) throw actorError;
+
+    const { error: updateError, count: updated } = await admin
+      .from("assignments")
+      .update(
+        { actor_name_raw: actor, actor_id: actorRow.id, verified: false },
+        { count: "exact" },
+      )
+      .eq("upload_id", casting.upload_id)
+      .eq("role_name_raw", role);
+
+    if (updateError) throw updateError;
+
+    count += updated ?? 0;
+  }
+
+  return count;
+}
+
+const PUNCT_PATTERN = /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~·・]/g;
+
+// events.title_key 생성 규칙과 동일하게 공백/문장부호를 지운 키로 대조한다
+const toTitleKey = (title: string) =>
+  title.trim().toLowerCase().replace(/\s+/g, "").replace(PUNCT_PATTERN, "");
+
+async function applyCancelledEvents(
+  admin: ReturnType<typeof createAdminClient>,
+  showId: string,
+  cancelledEvents: ParsedCancelledEvent[],
+): Promise<number> {
+  if (cancelledEvents.length === 0) return 0;
+
+  const from = cancelledEvents.map(({ periodStart }) => periodStart).sort()[0];
+  const to = cancelledEvents
+    .map(({ periodEnd }) => periodEnd)
+    .sort()
+    .at(-1)!;
+
+  const { data, error } = await admin
+    .from("current_events")
+    .select("id, title_key, period_start, period_end")
+    .eq("show_id", showId)
+    .lte("period_start", to)
+    .gte("period_end", from);
+
+  if (error) throw error;
+
+  const candidates = data as {
+    id: number;
+    title_key: string;
+    period_start: string;
+    period_end: string;
+  }[];
+
+  let count = 0;
+
+  for (const cancelled of cancelledEvents) {
+    const key = toTitleKey(cancelled.title);
+
+    const match = candidates.find(
+      (candidate) =>
+        candidate.title_key === key &&
+        candidate.period_start <= cancelled.periodEnd &&
+        cancelled.periodStart <= candidate.period_end,
+    );
+
+    if (!match) continue;
+
+    const { error: updateError, count: updated } = await admin
+      .from("events")
+      .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
+      .eq("id", match.id);
+
+    if (updateError) throw updateError;
+
+    count += updated ?? 0;
+  }
+
+  return count;
+}
+
 export async function saveCastingBoard({
   showId,
   userId,
@@ -1341,6 +1735,9 @@ export async function saveCastingBoard({
   performances,
   events,
   skipped,
+  cancelledSlots = [],
+  castingChanges = [],
+  cancelledEvents = [],
   source = "user",
 }: {
   showId: string;
@@ -1349,6 +1746,9 @@ export async function saveCastingBoard({
   performances: ParsedPerformance[];
   events: ConfirmedEvent[];
   skipped: SkippedPerformance[];
+  cancelledSlots?: ParsedCancelledSlot[];
+  castingChanges?: ParsedCastingChange[];
+  cancelledEvents?: ParsedCancelledEvent[];
   source?: "user" | "system";
 }): Promise<CastingBoardResult> {
   const admin = createAdminClient();
@@ -1527,6 +1927,22 @@ export async function saveCastingBoard({
     }
   }
 
+  const cancelledSlotCount = await applyCancelledSlots(
+    admin,
+    showId,
+    cancelledSlots,
+  );
+  const castingChangeCount = await applyCastingChanges(
+    admin,
+    showId,
+    castingChanges,
+  );
+  const cancelledEventCount = await applyCancelledEvents(
+    admin,
+    showId,
+    cancelledEvents,
+  );
+
   return {
     uploadId: upload.id,
     slotCount: performances.length,
@@ -1534,5 +1950,8 @@ export async function saveCastingBoard({
     eventCount,
     skippedCount: skipped.length,
     skipped,
+    cancelledSlotCount,
+    castingChangeCount,
+    cancelledEventCount,
   };
 }
