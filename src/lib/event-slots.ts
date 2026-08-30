@@ -1,14 +1,21 @@
 import type { EventWithReportStatus } from "@/service/casting";
 import type { CalendarSlot } from "@/type/casting";
 
-// 이벤트 기간(막대)뿐 아니라 막대 밖에서 추가로 포함된 회차(slotIds)까지
-// 봐야 그 날짜에 이벤트가 걸려 있는지 정확히 판단할 수 있다
 export function eventAppliesToDate(
-  event: Pick<EventWithReportStatus, "periodStart" | "periodEnd" | "slotIds">,
+  event: Pick<
+    EventWithReportStatus,
+    "periodStart" | "periodEnd" | "sparseDates" | "slotIds"
+  >,
   date: string,
   slotsOnDate: Pick<CalendarSlot, "id">[],
 ): boolean {
-  if (event.periodStart <= date && date <= event.periodEnd) return true;
+  if (
+    !event.sparseDates &&
+    event.periodStart <= date &&
+    date <= event.periodEnd
+  ) {
+    return true;
+  }
 
   return slotsOnDate.some((slot) => event.slotIds.includes(slot.id));
 }
