@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -15,10 +15,12 @@ export const SearchBar = () => {
   const searchParams = useSearchParams();
 
   const [keyword, setKeyword] = useState(searchParams.get("q") ?? "");
+  const [prevSearchParams, setPrevSearchParams] = useState(searchParams);
 
-  useEffect(() => {
+  if (searchParams !== prevSearchParams) {
+    setPrevSearchParams(searchParams);
     setKeyword(searchParams.get("q") ?? "");
-  }, [searchParams]);
+  }
 
   if (HIDE_ON_PATHS.includes(pathname)) return null;
 
@@ -46,7 +48,7 @@ export const SearchBar = () => {
         onChange={(event) => setKeyword(event.target.value)}
         placeholder="공연 또는 배우 검색"
         aria-label="공연 또는 배우 검색"
-        className="h-auto min-w-0 rounded-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+        className="h-auto min-w-0 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm"
       />
     </form>
   );
