@@ -113,32 +113,42 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { performances, dateTags, events, skipped, reason } =
-      await parseCastingBoard(images, show);
+    const {
+      performances,
+      dateTags,
+      events,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
+      skipped,
+      reason,
+    } = await parseCastingBoard(images, show);
 
-    lap(`표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건)`);
+    lap(
+      `표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건, 취소 회차 ${cancelledSlots.length}건, 캐스팅 변경 ${castingChanges.length}건, 취소 이벤트 ${cancelledEvents.length}건)`,
+    );
 
-    if (performances.length === 0 && events.length === 0) {
-      const isCastMismatch = skipped.some(
-        ({ reason: skipReason }) => skipReason === "cast_mismatch",
-      );
-
+    if (
+      performances.length === 0 &&
+      events.length === 0 &&
+      cancelledSlots.length === 0 &&
+      castingChanges.length === 0 &&
+      cancelledEvents.length === 0
+    ) {
       await logParseFailure({
         admin,
         showId,
         userId,
         storagePaths,
-        type: isCastMismatch ? "cast_mismatch" : "no_table_found",
+        type: "no_table_found",
         reason,
       });
 
       return fail(
         422,
-        isCastMismatch
-          ? "이 공연의 캐스팅보드가 맞는지 확인해 주세요."
-          : reason
-            ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
-            : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
+        reason
+          ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
+          : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
       );
     }
 
@@ -156,6 +166,9 @@ export async function POST(request: Request) {
     return Response.json({
       performances,
       events: pendingEvents,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
       skipped,
     });
   } catch (error) {

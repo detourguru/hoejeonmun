@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ParsedPerformance } from "@/type/casting";
+import { CAST_MISMATCH_WARNING, ParsedPerformance } from "@/type/casting";
 
 const CONFIDENCE_THRESHOLD = 0.7;
 
@@ -98,11 +98,12 @@ export const CastingConfirmList = ({
         : dateA.localeCompare(dateB);
     });
 
-  const lowConf = ordered.filter(
-    (order) => order.draft.performance.confidence < CONFIDENCE_THRESHOLD,
-  );
+  const needsReview = (performance: ParsedPerformance) =>
+    performance.confidence < CONFIDENCE_THRESHOLD || performance.castMismatch;
+
+  const lowConf = ordered.filter((order) => needsReview(order.draft.performance));
   const highConf = ordered.filter(
-    (order) => order.draft.performance.confidence >= CONFIDENCE_THRESHOLD,
+    (order) => !needsReview(order.draft.performance),
   );
 
   const renderCard = (
@@ -124,6 +125,10 @@ export const CastingConfirmList = ({
           />
           이 회차를 저장할게요
         </label>
+
+        {performance.castMismatch && (
+          <p className="text-destructive text-xs">{CAST_MISMATCH_WARNING}</p>
+        )}
 
         <div className="flex items-center gap-1">
           <Input
