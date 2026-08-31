@@ -65,8 +65,8 @@ export type ParsedPerformance = {
   date: string;
   weekday: string;
   time: string;
-  // 배역명 -> 배우명
-  casting: Record<string, string>;
+  // 배역명 -> 배우명 목록 (앙상블처럼 한 배역에 배우가 여럿이면 여러 개)
+  casting: Record<string, string[]>;
   imageIndex: number;
   confidence: number;
   castMismatch?: boolean;

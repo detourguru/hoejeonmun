@@ -12,23 +12,34 @@ import { BottomSheet } from "@/components/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+export type CorrectableCasting = { role: string; actor: string };
+
 export const CorrectCastingButton = ({
   showId,
   slotId,
   date,
   time,
-  roles,
+  castings,
 }: {
   showId: string;
   slotId: number;
   date: string;
   time: string;
-  roles: string[];
+  castings: CorrectableCasting[];
 }) => {
   const router = useRouter();
 
+  // 앙상블처럼 같은 배역에 배우가 여럿이면 배역명만으로 정정 대상을 특정할 수
+  // 없어서 배역+배우 쌍을 골라야 한다
+  const uniqueCastings = [
+    ...new Map(
+      castings.map((casting) => [`${casting.role} ${casting.actor}`, casting]),
+    ).values(),
+  ];
+
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const [oldActor, setOldActor] = useState<string | null>(null);
   const [newRole, setNewRole] = useState("");
   const [actor, setActor] = useState("");
   const [newDate, setNewDate] = useState(date);
@@ -39,6 +50,7 @@ export const CorrectCastingButton = ({
 
   const openSheet = () => {
     setRole(null);
+    setOldActor(null);
     setNewRole("");
     setActor("");
     setNewDate(date);
@@ -48,9 +60,10 @@ export const CorrectCastingButton = ({
     setOpen(true);
   };
 
-  const selectRole = (value: string) => {
-    setRole(value);
-    setNewRole(value);
+  const selectCasting = (casting: CorrectableCasting) => {
+    setRole(casting.role);
+    setOldActor(casting.actor);
+    setNewRole(casting.role);
     setError(null);
   };
 
@@ -65,11 +78,12 @@ export const CorrectCastingButton = ({
     setError(null);
 
     startTransition(async () => {
-      if (role) {
+      if (role && oldActor !== null) {
         const result = await correctSlotCasting(
           showId,
           slotId,
           role,
+          oldActor,
           newRole,
           actor,
           applyToAllSlots,
@@ -120,7 +134,7 @@ export const CorrectCastingButton = ({
           <p className="text-text-muted text-center text-xs">
             이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정은{" "}
             {applyToAllSlots
-              ? "같은 캐스팅보드에서 올라간 모든 회차 중 같은 배역에 한 번에 적용되고"
+              ? "같은 캐스팅보드에서 올라간 모든 회차 중 같은 배역·배우에 한 번에 적용되고"
               : "이 회차에만 적용되고"}
             , 날짜/시간 정정은 이 회차만 옮겨요. 배역 정정은 &quot;텍스트
             제보&quot;로 표시돼요. 신고가 쌓이면 같은 기준으로 내려가요.
@@ -151,19 +165,19 @@ export const CorrectCastingButton = ({
               배역 선택
             </span>
             <div className="grid grid-cols-2 gap-1.5">
-              {roles.map((value) => (
+              {uniqueCastings.map((casting) => (
                 <button
-                  key={value}
+                  key={`${casting.role} ${casting.actor}`}
                   type="button"
-                  onClick={() => selectRole(value)}
+                  onClick={() => selectCasting(casting)}
                   className={cn(
                     "border-border rounded-lg border px-3 py-2 text-left text-xs transition-colors",
-                    role === value
+                    role === casting.role && oldActor === casting.actor
                       ? "border-primary bg-primary text-white"
                       : "text-text",
                   )}
                 >
-                  {value}
+                  {casting.role} · {casting.actor}
                 </button>
               ))}
             </div>
@@ -202,7 +216,7 @@ export const CorrectCastingButton = ({
               onChange={({ target }) => setApplyToAllSlots(target.checked)}
               disabled={!role}
             />
-            같은 배역, 다른 회차에도 적용
+            같은 배역·배우, 다른 회차에도 적용
           </label>
 
           {error && <p className="text-destructive text-xs">{error}</p>}

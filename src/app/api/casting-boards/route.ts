@@ -18,7 +18,7 @@ const performanceSchema = z.object({
   date: z.string(),
   weekday: z.string(),
   time: z.string(),
-  casting: z.record(z.string(), z.string()),
+  casting: z.record(z.string(), z.array(z.string().min(1)).min(1)),
   imageIndex: z.number(),
   confidence: z.number(),
 });
