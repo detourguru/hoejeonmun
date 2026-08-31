@@ -52,6 +52,7 @@ export async function correctSlotCasting(
   showId: string,
   slotId: number,
   role: string,
+  oldActor: string,
   newRole: string,
   newActor: string,
   applyToAllSlots: boolean,
@@ -111,7 +112,8 @@ export async function correctSlotCasting(
       { count: "exact" },
     )
     .eq("upload_id", castingData.upload_id)
-    .eq("role_name_raw", role);
+    .eq("role_name_raw", role)
+    .eq("actor_name_raw", oldActor);
 
   if (!applyToAllSlots) updateQuery = updateQuery.eq("slot_id", slotId);
 

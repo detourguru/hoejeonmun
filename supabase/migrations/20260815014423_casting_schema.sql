@@ -63,7 +63,8 @@ create table assignments (
   actor_id bigint references actors(id) on delete set null,
   upload_image_id bigint not null references upload_images(id) on delete cascade,
   verified boolean not null default true,
-  unique (upload_id, slot_id, role_name_raw)
+  -- 앙상블처럼 한 배역에 배우가 여럿 배치될 수 있어 actor_name_raw까지 unique 키에 포함한다
+  unique (upload_id, slot_id, role_name_raw, actor_name_raw)
 );
 
 create index assignments_slot_id_idx on assignments (slot_id);

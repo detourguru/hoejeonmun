@@ -57,9 +57,11 @@ export const castingJsonSchema = {
           },
           casting: {
             type: "object",
-            description: "Role name -> actor name mapping.",
+            description:
+              "Role name -> list of actor names playing that role in this performance. Usually one actor per role, but list every actor when a role is shared by several performers at once (e.g. an ensemble role like 목소리들 with multiple names in one cell/column).",
             additionalProperties: {
-              type: "string",
+              type: "array",
+              items: { type: "string" },
             },
           },
           imageIndex: {
@@ -365,6 +367,8 @@ Casting board rules:
 - If a time cell lists multiple times separated by a slash (e.g. "13:00/15:00"), output one performance per time, each with the same casting as that row.
 - Skip any row that indicates there is no performance that day (e.g. "공연 없음"); do not include it in "performances".
 - Use the role names in the header row as the keys of "casting".
+- A role/cell sometimes lists more than one actor for the same performance -- most often an ensemble role (e.g. "목소리들") where several performers share the same role at once, as opposed to a lead role that simply rotates between actors on different dates. When that happens, list every one of those actors as separate entries in that role's array rather than joining them into one name or picking just one.
+- The header row can also print the exact same role text in two or more separate columns instead of listing several names in one cell (e.g. two side-by-side columns both labeled "한유진", each with its own single actor name per row, because two different performers share that name in the same performance). Treat this exactly like the ensemble case above -- merge those columns into that one role's array, in left-to-right column order, rather than inventing a distinct key for the second column or dropping one of them.
 - Some boards instead show a cast legend once (actor photo/name paired with a role name, e.g. "김지훈 - 빅터 프랑켄슈타인") separate from the schedule rows, and each row just lists actor names in a fixed order with no role labels. In that case, match each name in a row to a role by its position in the legend's order, and use the legend's role names as the keys of "casting".
 - Omit a cell from "casting" when it is empty or a placeholder such as "-".
 - If no casting table exists, return an empty performances array.
@@ -455,7 +459,7 @@ function findCastMismatchImageIndexes(
   const mismatched = new Set<number>();
 
   for (const [imageIndex, group] of byImage) {
-    const names = group.flatMap(({ casting }) => Object.values(casting));
+    const names = group.flatMap(({ casting }) => Object.values(casting).flat());
 
     if (!names.some((name) => known.has(normalizeName(name)))) {
       mismatched.add(imageIndex);
@@ -476,7 +480,7 @@ function skipReason(
   performance: ParsedPerformance,
   date: string,
   time: string,
-  casting: Record<string, string>,
+  casting: Record<string, string[]>,
   key: string,
   seen: Set<string>,
   from: string,
@@ -520,14 +524,20 @@ function normalizePerformances(
 
     const casting = Object.fromEntries(
       Object.entries(performance.casting ?? {})
-        .map(([role, actor]) => [
-          normalizeName(role),
-          normalizeActorName(actor),
-        ])
-        .filter(
-          ([role, actor]) =>
-            role && !PLACEHOLDER_NAMES.has(actor.toLowerCase()),
-        ),
+        .map(([role, actors]) => {
+          // 스키마가 배열을 강제하지만, 모델이 한 배역에 배우 여럿을 콤마로
+          // 이어붙여 문자열 하나로 반환하는 경우를 대비해 한 번 더 쪼갠다
+          const names = [
+            ...new Set(
+              (Array.isArray(actors) ? actors : [actors]).flatMap((actor) =>
+                splitActorNames(String(actor ?? "")),
+              ),
+            ),
+          ].filter((name) => !PLACEHOLDER_NAMES.has(name.toLowerCase()));
+
+          return [normalizeName(role), names] as const;
+        })
+        .filter(([role, names]) => role && names.length > 0),
     );
 
     const key = `${date} ${time}`;
@@ -1782,6 +1792,10 @@ async function applyCancelledSlots(
   return count;
 }
 
+// 배역 하나에 배우가 여럿(앙상블)인 경우, 이 함수는 옛 배우를 특정하지 않고
+// role_name_raw만으로 매칭해 그 배역의 모든 배우를 새 배우 한 명으로 덮어쓴다.
+// castingChanges는 "배역 하나 = 배우 하나" 교체 공지만 다루므로 앙상블 배역
+// 캐스팅 변경 공지는 대상이 아니다
 async function applyCastingChanges(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
@@ -1989,7 +2003,9 @@ export async function saveCastingBoard({
     );
 
     actorNames = [
-      ...new Set(performances.flatMap(({ casting }) => Object.values(casting))),
+      ...new Set(
+        performances.flatMap(({ casting }) => Object.values(casting).flat()),
+      ),
     ];
 
     const { error: actorError } = await admin.from("actors").upsert(
@@ -2015,21 +2031,23 @@ export async function saveCastingBoard({
 
         if (!slotId || uploadImageId === undefined) return [];
 
-        return Object.entries(casting).map(([role, actor]) => ({
-          upload_id: upload.id,
-          slot_id: slotId,
-          role_name_raw: role,
-          actor_name_raw: actor,
-          actor_id: actorIdByName.get(actor) ?? null,
-          upload_image_id: uploadImageId,
-        }));
+        return Object.entries(casting).flatMap(([role, actors]) =>
+          actors.map((actor) => ({
+            upload_id: upload.id,
+            slot_id: slotId,
+            role_name_raw: role,
+            actor_name_raw: actor,
+            actor_id: actorIdByName.get(actor) ?? null,
+            upload_image_id: uploadImageId,
+          })),
+        );
       },
     );
 
     const { error: assignmentError } = await admin
       .from("assignments")
       .upsert(assignments, {
-        onConflict: "upload_id,slot_id,role_name_raw",
+        onConflict: "upload_id,slot_id,role_name_raw,actor_name_raw",
         ignoreDuplicates: true,
       });
 
