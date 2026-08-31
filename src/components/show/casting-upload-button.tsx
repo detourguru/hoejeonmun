@@ -289,10 +289,13 @@ export const CastingUploadButton = ({
 
     if (events.length > 0) {
       const dates = new Set(performances.map(({ date }) => date));
-      const slots = performances.map(({ date, time }) => ({
-        date,
-        time: time.slice(0, 5),
-      }));
+      const slotMap = new Map(
+        performances.map(({ date, time }) => {
+          const shortTime = time.slice(0, 5);
+
+          return [`${date} ${shortTime}`, { date, time: shortTime }];
+        }),
+      );
       const { data: existingSlots } = await supabase
         .from("slots")
         .select("date, time")
@@ -300,11 +303,13 @@ export const CastingUploadButton = ({
 
       for (const { date, time } of existingSlots ?? []) {
         dates.add(date);
-        slots.push({ date, time: time.slice(0, 5) });
+        const shortTime = time.slice(0, 5);
+
+        slotMap.set(`${date} ${shortTime}`, { date, time: shortTime });
       }
 
       setKnownDates(dates);
-      setKnownSlots(slots);
+      setKnownSlots([...slotMap.values()]);
     }
 
     setParsed(upload);
