@@ -1829,6 +1829,7 @@ async function applyCastingChanges(
         { count: "exact" },
       )
       .eq("upload_id", casting.upload_id)
+      .eq("slot_id", slot.id)
       .eq("role_name_raw", role);
 
     if (updateError) throw updateError;
