@@ -380,7 +380,7 @@ Event rules:
 - A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range. (This is different from an entire performance being cancelled or a previously-announced event being called off entirely -- those belong in the cancellation/change notice category above, not here.)
 - A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
-- When the notice is a table with one row per date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds), read every row before deciding the range -- set "periodStart" to the earliest date among all rows and "periodEnd" to the latest, not just the first row you see. Prefer a separately printed period label (e.g. "진행기간") over inferring the range from the table rows when both are present. Do not collapse a multi-date table into a single date just because you are also skipping the per-row actor breakdown. Also list every one of those rows in "listedSlots" -- the table's date range often includes another same-day performance the table simply does not mention (e.g. an afternoon show with no evening curtain call), and "listedSlots" is how that gets told apart from periodStart/periodEnd alone.
+- When the notice names a specific, discrete set of date+times the event applies to -- whether laid out as a table with one row per date+time (e.g. a 무대인사/커튼콜 schedule listing several rounds) or written as prose listing a few dates (e.g. "9월 22일(화) 20:00, 9월 29일(화) 20:00") -- read every one before deciding the range: set "periodStart" to the earliest date among them and "periodEnd" to the latest, not just the first one you see. Prefer a separately printed period label (e.g. "진행기간") over inferring the range from the listed dates when both are present. Do not collapse a multi-date listing into a single date just because you are also skipping a per-row actor breakdown. Also list every one of those date+times in "listedSlots" -- this is required whenever the listed dates are not every performance from periodStart through periodEnd (e.g. only two specific dates within a longer run, or a table whose date range includes another same-day performance the table simply does not mention, like an afternoon show with no evening curtain call). "listedSlots" is how the system tells "only these exact dates" apart from "every date in the period", so leave it empty only when the event genuinely applies to every performance between periodStart and periodEnd.
 - Fill "printedStartWeekday"/"printedEndWeekday" by copying the weekday the notice prints next to that date (e.g. "8/19(수) - 8/23(일)" -> "수" and "일"). Never derive a weekday from the date; return "" when the notice prints none there.
 - If one image shows several distinct events (e.g. a calendar listing multiple weekly promotions), extract each as its own entry in "events".
 - When the notice separately calls out specific performance date+times beyond the period range that this event also applies to (e.g. "10/5(월) 15:00, 18:30 회차 포함"), list each as a {date, time} pair in "includedSlots" instead of stretching "periodEnd" to cover it.
@@ -1636,6 +1636,7 @@ type EventRow = {
   description: string | null;
   period_start: string;
   period_end: string;
+  sparse_dates: boolean;
   source: EventSource;
   edited_by: string | null;
 };
@@ -2063,6 +2064,7 @@ export async function saveCastingBoard({
       description: event.description ?? null,
       period_start: event.periodStart,
       period_end: event.periodEnd,
+      sparse_dates: (event.listedSlots?.length ?? 0) > 0,
       source: event.source,
       edited_by: event.edited ? userId : null,
     };

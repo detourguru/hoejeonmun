@@ -232,6 +232,7 @@ export async function getMyEvents(
       description: row.description,
       periodStart: anchorDate,
       periodEnd: anchorDate,
+      sparseDates: false,
       slotIds: slotIdsByEvent.get(row.id) ?? [],
       uploadId: row.upload_id,
       uploadImageId: row.upload_image_id,
