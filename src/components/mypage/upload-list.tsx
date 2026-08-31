@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { OriginalImages } from "@/components/casting/original-images";
+import { DeleteMineButton } from "@/components/delete-mine-button";
 import type { MyUpload } from "@/service/mypage";
 
 export const UploadList = ({ uploads }: { uploads: MyUpload[] }) => {
@@ -38,9 +39,19 @@ export const UploadList = ({ uploads }: { uploads: MyUpload[] }) => {
               >
                 {upload.showName}
               </Link>
-              <span className="text-text-muted shrink-0 text-[10px]">
-                {upload.createdAt.slice(0, 10)}
-              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                <span className="text-text-muted text-[10px]">
+                  {upload.createdAt.slice(0, 10)}
+                </span>
+                <DeleteMineButton
+                  target={{
+                    kind: "upload",
+                    showId: upload.showId,
+                    uploadId: upload.id,
+                  }}
+                  label={upload.showName}
+                />
+              </div>
             </div>
 
             <OriginalImages images={upload.images} />
