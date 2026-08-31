@@ -1951,6 +1951,60 @@ export async function saveCastingBoard({
 
   if (uploadError) throw uploadError;
 
+  try {
+    return await saveCastingBoardContent({
+      admin,
+      showId,
+      userId,
+      storagePaths,
+      imageHashes,
+      performances,
+      events,
+      skipped,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
+      upload,
+    });
+  } catch (error) {
+    const { error: cleanupError } = await admin
+      .from("uploads")
+      .delete()
+      .eq("id", upload.id);
+
+    if (cleanupError) console.error("업로드 정리 실패", cleanupError);
+
+    throw error;
+  }
+}
+
+async function saveCastingBoardContent({
+  admin,
+  showId,
+  userId,
+  storagePaths,
+  imageHashes,
+  performances,
+  events,
+  skipped,
+  cancelledSlots,
+  castingChanges,
+  cancelledEvents,
+  upload,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  showId: string;
+  userId: string;
+  storagePaths: string[];
+  imageHashes: string[];
+  performances: ParsedPerformance[];
+  events: ConfirmedEvent[];
+  skipped: SkippedPerformance[];
+  cancelledSlots: ParsedCancelledSlot[];
+  castingChanges: ParsedCastingChange[];
+  cancelledEvents: ParsedCancelledEvent[];
+  upload: { id: number };
+}): Promise<CastingBoardResult> {
   const { data: uploadImages, error: uploadImagesError } = await admin
     .from("upload_images")
     .insert(
