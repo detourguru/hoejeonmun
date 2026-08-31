@@ -9,8 +9,7 @@ export const SITE_URL = PRODUCTION_URL
 export const SITE_DESCRIPTION =
   "놓치기 아까운 공연 이벤트부터 회차 관리까지 회전문에서 한번에";
 
-export const CURRENT_UPDATE_ID = "2026-08-31-casting-fix-1";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (8/31 23:30)]
-- 동명 배역도 다른 배역으로 인식하도록 수정되었어요
-- 캐스팅 정정 시 다른 회차까지 함께 바뀌던 버그가 수정되었어요
-- 한 배역을 여러 배우가 맡을 때(앙상블 등) 모두 인식하도록 개선되었어요`;
+export const CURRENT_UPDATE_ID = "2026-09-01";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/1 24:00)]
+- 회차 검수 동명 배역 - 배우 짝지어서 확인 가능하도록 UI 수정
+- 자기가 올린 캐스팅보드 삭제 처리`;
