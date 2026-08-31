@@ -208,45 +208,46 @@ export const CastingConfirmList = ({
           />
         </div>
 
-        <ul className="flex flex-col gap-1.5">
-          {Object.entries(performance.casting).map(([role, actors]) => (
-            <li key={role} className="flex flex-col gap-1">
-              <span className="text-text-muted text-[11px] font-bold">
-                {role}
-              </span>
-
-              {actors.map((actor, actorIndex) => (
-                <div key={actorIndex} className="flex items-center gap-1">
-                  <Input
-                    value={actor}
-                    disabled={!include}
-                    aria-label={`${role} 배우명`}
-                    className="h-7 text-xs"
-                    onChange={({ target }) =>
-                      updateActor(index, role, actorIndex, target.value)
-                    }
-                  />
+        <ul className="flex flex-col gap-1">
+          {Object.entries(performance.casting).flatMap(([role, actors]) =>
+            actors.map((actor, actorIndex) => (
+              <li
+                key={`${role}-${actorIndex}`}
+                className="flex items-center gap-1"
+              >
+                <span className="text-text-muted w-14 shrink-0 truncate text-[11px]">
+                  {role}
+                </span>
+                <Input
+                  value={actor}
+                  disabled={!include}
+                  aria-label={`${role} 배우명`}
+                  className="h-7 flex-1 text-xs"
+                  onChange={({ target }) =>
+                    updateActor(index, role, actorIndex, target.value)
+                  }
+                />
+                <button
+                  type="button"
+                  disabled={!include}
+                  onClick={() => removeActor(index, role, actorIndex)}
+                  className="text-text-muted hover:text-destructive inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
+                >
+                  삭제
+                </button>
+                {actorIndex === actors.length - 1 && (
                   <button
                     type="button"
                     disabled={!include}
-                    onClick={() => removeActor(index, role, actorIndex)}
-                    className="text-text-muted hover:text-destructive inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
+                    onClick={() => addActor(index, role)}
+                    className="text-text-muted hover:text-primary inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
                   >
-                    삭제
+                    + 배우
                   </button>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                disabled={!include}
-                onClick={() => addActor(index, role)}
-                className="text-text-muted hover:text-primary inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
-              >
-                + 배우 추가
-              </button>
-            </li>
-          ))}
+                )}
+              </li>
+            )),
+          )}
         </ul>
 
         <button
