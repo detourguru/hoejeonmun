@@ -92,6 +92,55 @@ export const CastingConfirmList = ({
       performance: { ...drafts[index].performance, ...next },
     });
 
+  const updateActor = (
+    index: number,
+    role: string,
+    actorIndex: number,
+    value: string,
+  ) => {
+    const casting = { ...drafts[index].performance.casting };
+
+    casting[role] = casting[role].map((actor, at) =>
+      at === actorIndex ? value : actor,
+    );
+
+    updatePerformance(index, { casting });
+  };
+
+  const addActor = (index: number, role: string) => {
+    const casting = { ...drafts[index].performance.casting };
+
+    casting[role] = [...casting[role], ""];
+
+    updatePerformance(index, { casting });
+  };
+
+  const removeActor = (index: number, role: string, actorIndex: number) => {
+    const casting = { ...drafts[index].performance.casting };
+    const remaining = casting[role].filter((_, at) => at !== actorIndex);
+
+    if (remaining.length === 0) {
+      delete casting[role];
+    } else {
+      casting[role] = remaining;
+    }
+
+    updatePerformance(index, { casting });
+  };
+
+  const addRole = (index: number) => {
+    const casting = { ...drafts[index].performance.casting };
+
+    let role = "새 배역";
+    let n = 1;
+
+    while (role in casting) role = `새 배역 ${++n}`;
+
+    casting[role] = [""];
+
+    updatePerformance(index, { casting });
+  };
+
   // 원래 drafts 배열 인덱스는 그대로 유지해서 수정 시 매핑에 쓴다
   const ordered = drafts
     .map((draft, index) => ({ draft, index }))
@@ -107,7 +156,9 @@ export const CastingConfirmList = ({
   const needsReview = (performance: ParsedPerformance) =>
     performance.confidence < CONFIDENCE_THRESHOLD || performance.castMismatch;
 
-  const lowConf = ordered.filter((order) => needsReview(order.draft.performance));
+  const lowConf = ordered.filter((order) =>
+    needsReview(order.draft.performance),
+  );
   const highConf = ordered.filter(
     (order) => !needsReview(order.draft.performance),
   );
@@ -157,13 +208,55 @@ export const CastingConfirmList = ({
           />
         </div>
 
-        <ul className="text-text-muted flex flex-col gap-0.5 text-xs">
+        <ul className="flex flex-col gap-1.5">
           {Object.entries(performance.casting).map(([role, actors]) => (
-            <li key={role}>
-              {role}: {actors.join(", ")}
+            <li key={role} className="flex flex-col gap-1">
+              <span className="text-text-muted text-[11px] font-bold">
+                {role}
+              </span>
+
+              {actors.map((actor, actorIndex) => (
+                <div key={actorIndex} className="flex items-center gap-1">
+                  <Input
+                    value={actor}
+                    disabled={!include}
+                    aria-label={`${role} 배우명`}
+                    className="h-7 text-xs"
+                    onChange={({ target }) =>
+                      updateActor(index, role, actorIndex, target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    disabled={!include}
+                    onClick={() => removeActor(index, role, actorIndex)}
+                    className="text-text-muted hover:text-destructive inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                disabled={!include}
+                onClick={() => addActor(index, role)}
+                className="text-text-muted hover:text-primary inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
+              >
+                + 배우 추가
+              </button>
             </li>
           ))}
         </ul>
+
+        <button
+          type="button"
+          disabled={!include}
+          onClick={() => addRole(index)}
+          className="text-text-muted hover:text-primary inline-flex w-fit shrink-0 rounded-4xl px-2 py-1 text-[11px] underline underline-offset-2 transition-colors disabled:opacity-60"
+        >
+          + 배역 추가
+        </button>
       </li>
     );
   };
