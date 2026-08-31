@@ -141,6 +141,7 @@ export type ShowEvent = {
   // YYYY-MM-DD
   periodStart: string;
   periodEnd: string;
+  sparseDates: boolean;
   slotIds: number[];
   uploadId: number;
   uploadImageId: number;
@@ -154,6 +155,7 @@ type EventRow = {
   description: string | null;
   period_start: string;
   period_end: string;
+  sparse_dates: boolean;
   upload_id: number;
   upload_image_id: number;
   edited: boolean;
@@ -197,7 +199,7 @@ export async function getShowEvents(
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, group_id, title, description, period_start, period_end, upload_id, upload_image_id, edited",
+      "id, group_id, title, description, period_start, period_end, sparse_dates, upload_id, upload_image_id, edited",
     )
     .eq("show_id", showId)
     .lte("period_start", end)
@@ -219,6 +221,7 @@ export async function getShowEvents(
     description: row.description,
     periodStart: row.period_start,
     periodEnd: row.period_end,
+    sparseDates: row.sparse_dates,
     slotIds: slotIdsByEvent.get(row.id) ?? [],
     uploadId: row.upload_id,
     uploadImageId: row.upload_image_id,
@@ -326,7 +329,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
       const { data, error } = await supabase
         .from("current_events")
         .select(
-          "id, group_id, show_id, title, description, period_start, period_end, upload_id, upload_image_id, edited, created_at",
+          "id, group_id, show_id, title, description, period_start, period_end, sparse_dates, upload_id, upload_image_id, edited, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -356,6 +359,7 @@ export async function getRecentEvents(limit: number): Promise<RecentEvent[]> {
     description: row.description,
     periodStart: row.period_start,
     periodEnd: row.period_end,
+    sparseDates: row.sparse_dates,
     slotIds: row.slotIds,
     uploadId: row.upload_id,
     uploadImageId: row.upload_image_id,

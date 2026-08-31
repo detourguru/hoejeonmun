@@ -90,8 +90,8 @@ create table bug_reports (
   url text not null,
   user_agent text not null,
   commit_sha text,
-  image_paths text[] not null default '{}',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  image_paths text[] not null default '{}'
 );
 
 create table event_groups (
@@ -125,6 +125,7 @@ create table events (
   created_at timestamptz not null default now(),
   -- 이벤트 취소 공지로 취소 처리됨. null이면 정상 노출
   cancelled_at timestamptz,
+  sparse_dates boolean not null default false,
   check (period_start <= period_end)
 );
 
@@ -186,9 +187,9 @@ create table my_slots (
 create table my_event_groups (
   user_id uuid not null references auth.users(id) on delete cascade,
   group_id bigint not null references event_groups(id) on delete cascade,
+  created_at timestamptz not null default now(),
   -- 담을 때 보고 있던 날짜. 이벤트 기간이 아니라 이 날짜 기준으로 마이페이지에 표시한다
   date date not null,
-  created_at timestamptz not null default now(),
   primary key (user_id, group_id)
 );
 
@@ -291,7 +292,8 @@ select
   u.show_title,
   u.show_poster,
   u.show_genre,
-  u.show_venue
+  u.show_venue,
+  e.sparse_dates
 from events e
 join uploads u on u.id = e.upload_id
 where e.cancelled_at is null
@@ -337,7 +339,7 @@ create policy "read own uploads" on uploads
 revoke select on events from anon, authenticated;
 grant select (
   id, group_id, show_id, upload_id, upload_image_id, title, title_key,
-  description, period_start, period_end, source, created_at
+  description, period_start, period_end, source, created_at, sparse_dates
 ) on events to anon, authenticated;
 
 create policy "read own favorites" on favorites
