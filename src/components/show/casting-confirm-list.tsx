@@ -32,9 +32,9 @@ const renameRole = (
     if (!(oldRole in performance.casting)) return { performance, include };
 
     const casting = Object.fromEntries(
-      Object.entries(performance.casting).map(([role, actor]) => [
+      Object.entries(performance.casting).map(([role, actors]) => [
         role === oldRole ? newRole : role,
-        actor,
+        actors,
       ]),
     );
 
@@ -48,20 +48,26 @@ const renameActor = (
 ): CastingDraft[] =>
   drafts.map(({ performance, include }) => {
     const casting = Object.fromEntries(
-      Object.entries(performance.casting).map(([role, actor]) => [
+      Object.entries(performance.casting).map(([role, actors]) => [
         role,
-        actor === oldActor ? newActor : actor,
+        actors.map((actor) => (actor === oldActor ? newActor : actor)),
       ]),
     );
 
     return { performance: { ...performance, casting }, include };
   });
 
-const uniqueValues = (drafts: CastingDraft[], pick: 0 | 1) => [
+const uniqueRoles = (drafts: CastingDraft[]) => [
   ...new Set(
-    drafts
-      .flatMap(({ performance }) => Object.entries(performance.casting))
-      .map((entry) => entry[pick]),
+    drafts.flatMap(({ performance }) => Object.keys(performance.casting)),
+  ),
+];
+
+const uniqueActors = (drafts: CastingDraft[]) => [
+  ...new Set(
+    drafts.flatMap(({ performance }) =>
+      Object.values(performance.casting).flat(),
+    ),
   ),
 ];
 
@@ -72,8 +78,8 @@ export const CastingConfirmList = ({
   drafts: CastingDraft[];
   onChange: (drafts: CastingDraft[]) => void;
 }) => {
-  const roles = uniqueValues(drafts, 0);
-  const actors = uniqueValues(drafts, 1);
+  const roles = uniqueRoles(drafts);
+  const actors = uniqueActors(drafts);
   const [expanded, setExpanded] = useState(false);
 
   const updateDraft = (index: number, next: Partial<CastingDraft>) =>
@@ -152,9 +158,9 @@ export const CastingConfirmList = ({
         </div>
 
         <ul className="text-text-muted flex flex-col gap-0.5 text-xs">
-          {Object.entries(performance.casting).map(([role, actor]) => (
+          {Object.entries(performance.casting).map(([role, actors]) => (
             <li key={role}>
-              {role}: {actor}
+              {role}: {actors.join(", ")}
             </li>
           ))}
         </ul>

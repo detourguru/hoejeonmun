@@ -72,7 +72,7 @@ export const SlotCard = ({
             slotId={slot.id}
             date={slot.date}
             time={slot.time}
-            roles={slot.casting.map(({ role }) => role)}
+            castings={slot.casting.map(({ role, actor }) => ({ role, actor }))}
           />
 
           {isMine ? (
@@ -115,7 +115,7 @@ export const SlotCard = ({
 
       <dl className="flex flex-col gap-1">
         {slot.casting.map(({ role, actor, actorId, verified }) => (
-          <div key={role} className="flex items-center gap-2 text-xs">
+          <div key={`${role}-${actor}`} className="flex items-center gap-2 text-xs">
             <dt className="text-text-muted w-20 shrink-0">{role}</dt>
             <dd className="flex items-center gap-1.5">
               <ActorName actor={actor} actorId={actorId} />
