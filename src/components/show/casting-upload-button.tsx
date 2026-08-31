@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { discardUploadImages } from "@/app/(main)/show/[id]/actions";
 import { ImageZoom } from "@/components/image-zoom";
@@ -337,7 +338,19 @@ export const CastingUploadButton = ({
       return;
     }
 
-    setResult(await saveResponse.json());
+    const data: CastingBoardResult = await saveResponse.json();
+
+    if (
+      data.cancelledSlotCount > 0 ||
+      data.castingChangeCount > 0 ||
+      data.cancelledEventCount > 0
+    ) {
+      toast.success(
+        `취소된 회차 ${data.cancelledSlotCount}개, 변경된 캐스팅 ${data.castingChangeCount}건, 취소된 이벤트 ${data.cancelledEventCount}건을 반영했어요.`,
+      );
+    }
+
+    setResult(data);
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
@@ -532,16 +545,6 @@ export const CastingUploadButton = ({
             회차 {result.slotCount}개, 배우 {result.actorCount}명, 이벤트{" "}
             {result.eventCount}건을 저장했어요.
           </p>
-
-          {(result.cancelledSlotCount > 0 ||
-            result.castingChangeCount > 0 ||
-            result.cancelledEventCount > 0) && (
-            <p className="text-text-muted text-xs">
-              취소된 회차 {result.cancelledSlotCount}개, 변경된 캐스팅{" "}
-              {result.castingChangeCount}건, 취소된 이벤트{" "}
-              {result.cancelledEventCount}건을 반영했어요.
-            </p>
-          )}
 
           {result.skippedCount > 0 && (
             <div className="text-text-muted flex flex-col gap-1 text-xs">
