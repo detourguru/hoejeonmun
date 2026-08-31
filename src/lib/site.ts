@@ -7,7 +7,7 @@ export const SITE_URL = PRODUCTION_URL
   ? `https://${PRODUCTION_URL}`
   : "http://localhost:3000";
 export const SITE_DESCRIPTION =
-  "한눈에 확인하는 뮤지컬/연극 캐스팅 및 이벤트 정보";
+  "놓치기 아까운 공연 이벤트부터 회차 관리까지 회전문에서 한번에";
 
 export const CURRENT_UPDATE_ID = "2026-08-31-event-info";
 export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (8/31 00:00)]
