@@ -7,12 +7,20 @@ import { toast } from "sonner";
 import {
   deleteMyEvent,
   deleteMySlotCasting,
+  deleteMyUpload,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 
 type DeleteTarget =
   | { kind: "slot"; showId: string; uploadId: number; slotId: number }
-  | { kind: "event"; showId: string; eventId: number };
+  | { kind: "event"; showId: string; eventId: number }
+  | { kind: "upload"; showId: string; uploadId: number };
+
+const TARGET_LABEL: Record<DeleteTarget["kind"], string> = {
+  slot: "회차",
+  event: "이벤트",
+  upload: "캐스팅보드",
+};
 
 export const DeleteMineButton = ({
   target,
@@ -38,7 +46,9 @@ export const DeleteMineButton = ({
               target.uploadId,
               target.slotId,
             )
-          : await deleteMyEvent(target.showId, target.eventId);
+          : target.kind === "event"
+            ? await deleteMyEvent(target.showId, target.eventId)
+            : await deleteMyUpload(target.showId, target.uploadId);
 
       if (!result.ok) {
         if (result.message === "로그인이 필요해요.") {
@@ -53,9 +63,7 @@ export const DeleteMineButton = ({
       }
 
       setOpen(false);
-      toast.success(
-        `내가 올린 ${target.kind === "slot" ? "회차" : "이벤트"}를 지웠어요.`,
-      );
+      toast.success(`내가 올린 ${TARGET_LABEL[target.kind]}를 지웠어요.`);
     });
   };
 
@@ -73,8 +81,8 @@ export const DeleteMineButton = ({
       <BottomSheet open={open} onOpenChange={setOpen} title={`${label} 삭제`}>
         <div className="flex flex-col gap-4">
           <p className="text-text-muted text-center text-xs">
-            내가 올린 {target.kind === "slot" ? "회차" : "이벤트"} 정보를
-            지워요. 되돌릴 수 없어요.
+            내가 올린 {TARGET_LABEL[target.kind]} 정보를 지워요. 되돌릴 수
+            없어요.
           </p>
 
           {error && <p className="text-destructive text-xs">{error}</p>}

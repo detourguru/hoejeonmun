@@ -631,6 +631,94 @@ export async function deleteMyEvent(
   return { ok: true, hidden: false };
 }
 
+export async function deleteMyUpload(
+  showId: string,
+  uploadId: number,
+): Promise<ReportResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  const { data: upload, error: uploadError } = await admin
+    .from("uploads")
+    .select("user_id")
+    .eq("id", uploadId)
+    .maybeSingle();
+
+  if (uploadError) {
+    console.error(uploadError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!upload || upload.user_id !== userId) {
+    return { ok: false, message: "본인이 올린 캐스팅보드만 지울 수 있어요." };
+  }
+
+  const [{ data: assignments }, { data: images }] = await Promise.all([
+    admin.from("assignments").select("slot_id").eq("upload_id", uploadId),
+    admin
+      .from("upload_images")
+      .select("storage_path")
+      .eq("upload_id", uploadId),
+  ]);
+
+  const slotIds = [
+    ...new Set((assignments ?? []).map(({ slot_id }) => slot_id)),
+  ];
+  const storagePaths = (images ?? []).map(({ storage_path }) => storage_path);
+
+  const { error: deleteError } = await admin
+    .from("uploads")
+    .delete()
+    .eq("id", uploadId);
+
+  if (deleteError) {
+    console.error(deleteError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (slotIds.length > 0) {
+    const { data: remaining } = await admin
+      .from("assignments")
+      .select("slot_id")
+      .in("slot_id", slotIds);
+
+    const stillUsed = new Set((remaining ?? []).map(({ slot_id }) => slot_id));
+    const emptySlotIds = slotIds.filter((id) => !stillUsed.has(id));
+
+    if (emptySlotIds.length > 0) {
+      const { error: slotDeleteError } = await admin
+        .from("slots")
+        .delete()
+        .in("id", emptySlotIds);
+
+      if (slotDeleteError) console.error("빈 회차 정리 실패", slotDeleteError);
+    }
+  }
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await admin.storage
+      .from(CASTING_BOARD_BUCKET)
+      .remove(storagePaths);
+
+    if (storageError) console.error("원본 이미지 정리 실패", storageError);
+  }
+
+  revalidatePath(`/show/${showId}`);
+  revalidatePath("/mypage/uploads");
+  updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, hidden: false };
+}
+
 export async function cancelEventReport(
   showId: string,
   eventId: number,
