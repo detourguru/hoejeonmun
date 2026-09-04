@@ -397,10 +397,11 @@ Only leave every array empty when the image is unreadable or has no date informa
 Casting board rules:
 - Rows are performances (date and time), columns are roles, cells are actor names.
 - Multiple images may be given. They may be continuous parts of the same table (e.g. a scrolled screenshot split into pieces), and the header row with role names may appear in only one of them.
-- When several images are clearly one continuous scrolled casting board, first lock in the shared role-column order from whichever image shows the header row, then keep using that same column order for the later cropped images even when those later images themselves do not show the header.
+- When a casting-table segment visibly prints its own role header, use that header for that segment and discard any earlier locked header. Even the same show's tables can rearrange role columns between pages, so never override a visible header with a header from another image.
+- Only when an image has no visible role header, inherit the shared role-column order from another image if they are clearly adjacent parts of one continuous casting table. Confirm this from the same date/time and column geometry plus a plausible date sequence or page sequence; matching show branding, similar styling, or upload order alone is not enough.
 - The locked header belongs only to that one continuous casting-table segment, never to the entire image or upload. Carry it forward only while the following rows preserve the same date/time columns and the same role-column count, order, and horizontal alignment.
 - Stop applying the locked header as soon as a new title, separator, header/layout change, missing date/time column, or a table with non-role columns appears. In particular, never use a casting header to interpret a following event/perk table as casting merely because it has dates or actor names. Extract that separate table as an event instead.
-- When multiple images are provided, you may also receive one extra stitched overview image that vertically combines them in order. Use that overview only to understand continuity, shared headers, and column alignment across split screenshots; use the individual images for the exact text in each row.
+- When multiple images are provided, you may also receive one extra stitched overview image that vertically combines them in upload order. Use that overview only as supporting visual context; it does not prove that images are consecutive, because uploads can be reordered or taken from separate carousels. Use the individual images for the exact text in each row.
 - The board usually omits the year. Resolve every date using the run above.
 - Drop any row whose date falls outside the run.
 - A merged cell applies to every row or column it spans.
