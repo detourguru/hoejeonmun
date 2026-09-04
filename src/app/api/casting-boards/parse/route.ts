@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { DuplicateReason } from "@/service/casting-board";
 import {
+  attachAmbiguousBadgeFlags,
   attachOverlappingEvents,
   attachSuggestedDuplicates,
   findDuplicateReasons,
@@ -160,7 +161,11 @@ export async function POST(request: Request) {
 
     lap("겹치는 이벤트 조회");
 
-    const pendingEvents = await attachSuggestedDuplicates(overlapping);
+    const flagged = await attachAmbiguousBadgeFlags(showId, overlapping);
+
+    lap("모호한 배지 시간 조회");
+
+    const pendingEvents = await attachSuggestedDuplicates(flagged);
 
     lap("이벤트 중복 판정");
 

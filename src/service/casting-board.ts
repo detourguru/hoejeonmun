@@ -368,6 +368,7 @@ Casting board rules:
 - If a time cell lists multiple times separated by a slash (e.g. "13:00/15:00"), output one performance per time, each with the same casting as that row.
 - Skip any row that indicates there is no performance that day (e.g. "공연 없음"); do not include it in "performances".
 - Use the role names in the header row as the keys of "casting".
+- Read a row's casting cells in strict left-to-right order, mapping the Nth cell to the Nth role column. These boards repeat the same few names down every column, so a cell whose name differs from the rows above and below it is almost always a real one-off cast substitution: keep that name in its own column and never let it overwrite or displace the neighbouring columns (a real observed bug: a row whose "래리 머피" cell held a substitute actor put that same actor into the neighbouring "신시아 머피" column too, inventing a casting that was never printed).
 - A role/cell sometimes lists more than one actor for the same performance -- most often an ensemble role (e.g. "목소리들") where several performers share the same role at once, as opposed to a lead role that simply rotates between actors on different dates. When that happens, list every one of those actors as separate entries in that role's array rather than joining them into one name or picking just one.
 - The header row can also print the exact same role text in two or more separate columns instead of listing several names in one cell (e.g. two side-by-side columns both labeled "한유진", each with its own single actor name per row, because two different performers share that name in the same performance). Treat this exactly like the ensemble case above -- merge those columns into that one role's array, in left-to-right column order, rather than inventing a distinct key for the second column or dropping one of them.
 - Some boards instead show a cast legend once (actor photo/name paired with a role name, e.g. "김지훈 - 빅터 프랑켄슈타인") separate from the schedule rows, and each row just lists actor names in a fixed order with no role labels. In that case, match each name in a row to a role by its position in the legend's order, and use the legend's role names as the keys of "casting".
@@ -412,8 +413,29 @@ const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
 
+const ENGLISH_WEEKDAYS: Record<string, string> = {
+  sun: "일",
+  mon: "월",
+  tue: "화",
+  wed: "수",
+  thu: "목",
+  fri: "금",
+  sat: "토",
+};
+
+export const toKoreanWeekday = (printed: string) => {
+  const value = printed.trim();
+
+  if (value.length === 0) return "";
+
+  return (
+    ENGLISH_WEEKDAYS[value.slice(0, 3).toLowerCase()] ??
+    value.replace(/요일$/, "")
+  );
+};
+
 const agreesWithPrintedWeekday = (isoDate: string, printed: string) =>
-  printed.length === 0 || getWeekday(isoDate) === printed;
+  printed.length === 0 || getWeekday(isoDate) === toKoreanWeekday(printed);
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -491,7 +513,7 @@ function skipReason(
   if (!DATE_PATTERN.test(date)) return "invalid_date";
   if (!TIME_PATTERN.test(time)) return "invalid_time";
   if (date < from || date > to) return "out_of_range";
-  if (getWeekday(date) !== performance.weekday?.trim())
+  if (getWeekday(date) !== toKoreanWeekday(performance.weekday ?? ""))
     return "weekday_mismatch";
   if (Object.keys(casting).length === 0) return "empty_casting";
   if (seen.has(key)) return "duplicate";
@@ -1029,6 +1051,55 @@ export async function attachOverlappingEvents(
   });
 }
 
+// 첫공/막공처럼 특정 회차에만 적용되어야하는데 해당 날짜의 전체 회차에 적용되므로 사용자 확인을 받도록함 
+export async function attachAmbiguousBadgeFlags(
+  showId: string,
+  pending: PendingEvent[],
+): Promise<PendingEvent[]> {
+  const ambiguousCandidates = pending.filter(
+    (event) =>
+      event.source === "badge" &&
+      event.periodStart === event.periodEnd &&
+      !event.exactTimes?.length &&
+      !event.listedSlots?.length,
+  );
+
+  if (ambiguousCandidates.length === 0) return pending;
+
+  const admin = createAdminClient();
+
+  const { data: slots, error } = await admin
+    .from("slots")
+    .select("date")
+    .eq("show_id", showId)
+    .in(
+      "date",
+      [...new Set(ambiguousCandidates.map(({ periodStart }) => periodStart))],
+    )
+    .is("cancelled_at", null);
+
+  if (error) throw error;
+
+  const countByDate = new Map<string, number>();
+
+  for (const { date } of slots) {
+    countByDate.set(date, (countByDate.get(date) ?? 0) + 1);
+  }
+
+  return pending.map((event) => {
+    if (!ambiguousCandidates.includes(event)) return event;
+    if ((countByDate.get(event.periodStart) ?? 0) <= 1) return event;
+
+    return {
+      ...event,
+      confirmReasons: [
+        ...event.confirmReasons,
+        "ambiguous_badge_time" as const,
+      ],
+    };
+  });
+}
+
 const sanitizeSlotExceptions = (
   slots: EventSlotException[] | undefined,
 ): EventSlotException[] | undefined => {
@@ -1323,7 +1394,11 @@ function describeGeminiError(error: unknown): string {
   return parts.length > 0 ? parts.join(" <- caused by <- ") : String(error);
 }
 
-export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
+export async function parseCastingBoard(
+  images: Blob[],
+  show: ShowDetail,
+  { model = VISION_MODEL, budgetMs }: { model?: string; budgetMs?: number } = {},
+) {
   const resizeStart = performance.now();
 
   const imageBlocks = await Promise.all(
@@ -1358,12 +1433,13 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const client = new GoogleGenAI({});
 
   const requestStart = performance.now();
-  const GEMINI_BUDGET_MS = 40_000;
+
+  const GEMINI_BUDGET_MS = budgetMs ?? 55_000;
   const GEMINI_MIN_RETRY_MS = 10_000;
   const GEMINI_MAX_ATTEMPTS = 2;
 
   console.log(
-    `[gemini] 요청 시작 (model=${VISION_MODEL}, 이미지 ${imageBlocks.length}장)`,
+    `[gemini] 요청 시작 (model=${model}, 이미지 ${imageBlocks.length}장)`,
   );
 
   let interaction: Awaited<
@@ -1386,7 +1462,7 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
     try {
       interaction = await client.interactions.create(
         {
-          model: VISION_MODEL,
+          model,
           input: [{ type: "text", text: buildPrompt(show) }, ...imageBlocks],
           response_format: {
             type: "text",
@@ -1690,9 +1766,21 @@ async function insertEvent(
     .select("id")
     .single();
 
-  if (error && error.code !== DUPLICATE_KEY) throw error;
+  if (!error) return data.id;
+  if (error.code !== DUPLICATE_KEY) throw error;
 
-  return data?.id;
+  const { data: existing, error: existingError } = await admin
+    .from("events")
+    .select("id")
+    .eq("group_id", row.group_id)
+    .eq("upload_id", row.upload_id)
+    .eq("period_start", row.period_start)
+    .eq("period_end", row.period_end)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  return existing?.id;
 }
 
 const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
