@@ -33,7 +33,7 @@ import {
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
-export const VISION_MODEL = "gemini-3.8-flash";
+export const VISION_MODEL = "gemini-3.5-flash-lite";
 export const MODEL = "gemini-3.5-flash-lite";
 
 export const castingJsonSchema = {
