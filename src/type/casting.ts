@@ -70,10 +70,14 @@ export type ParsedPerformance = {
   imageIndex: number;
   confidence: number;
   castMismatch?: boolean;
+  unsureRoles?: string[];
 };
 
 export const CAST_MISMATCH_WARNING =
   "이 공연 캐스팅과 겹치는 배우가 없어요. 원본과 대조해 확인해주세요.";
+
+export const CASTING_CONSENSUS_WARNING =
+  "AI 결과가 갈린 배역이 있어요. 원본과 대조해 확인해주세요.";
 
 export type PerformanceSkipReason =
   | "invalid_date"

@@ -11,7 +11,7 @@ import {
   findDuplicateReasons,
   hashImages,
   logParseFailure,
-  parseCastingBoard,
+  parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
 import { getShow } from "@/service/show";
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       cancelledEvents,
       skipped,
       reason,
-    } = await parseCastingBoard(images, show);
+    } = await parseCastingBoardWithConsensus(images, show);
 
     lap(
       `표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건, 취소 회차 ${cancelledSlots.length}건, 캐스팅 변경 ${castingChanges.length}건, 취소 이벤트 ${cancelledEvents.length}건)`,
