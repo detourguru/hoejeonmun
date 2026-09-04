@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ACTORS_CACHE_TAG } from "@/service/actor";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import {
+  attachAmbiguousBadgeFlags,
   attachOverlappingEvents,
   saveCastingBoard,
   unverifiedPoints,
@@ -100,6 +101,7 @@ const eventSchema = z
         "overlaps_existing",
         "has_slot_exceptions",
         "has_specific_times",
+        "ambiguous_badge_time",
       ]),
     ),
     overlapping: z.array(existingEventSchema),
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const checked = await attachOverlappingEvents(
+    const overlapChecked = await attachOverlappingEvents(
       showId,
       events.map((event) => ({
         ...event,
@@ -169,6 +171,7 @@ export async function POST(request: Request) {
         overlapping: [],
       })),
     );
+    const checked = await attachAmbiguousBadgeFlags(showId, overlapChecked);
 
     const result = await saveCastingBoard({
       showId,

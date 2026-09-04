@@ -2,6 +2,7 @@ import { SerwistProvider } from "@serwist/turbopack/react";
 import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 
+import { ExitGuard } from "@/components/exit-guard";
 import { Toaster } from "@/components/toaster";
 import { UpdateToast } from "@/components/update-toast";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -98,6 +99,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <UpdateToast />
+          <ExitGuard />
         </SerwistProvider>
       </body>
     </html>
