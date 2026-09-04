@@ -9,7 +9,7 @@ export const SITE_URL = PRODUCTION_URL
 export const SITE_DESCRIPTION =
   "놓치기 아까운 공연 이벤트부터 회차 관리까지 회전문에서 한번에";
 
-export const CURRENT_UPDATE_ID = "2026-09-01";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/1 24:00)]
-- 회차 검수 동명 배역 - 배우 짝지어서 확인 가능하도록 UI 수정
-- 자기가 올린 캐스팅보드 삭제 처리`;
+export const CURRENT_UPDATE_ID = "2026-09-04";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/4 11:30)]
+- 빈 배역 칸 삭제 가능하도록 기능 추가
+- AI 상위모델로 변경`;
