@@ -1050,6 +1050,20 @@ const toExistingEvent = (row: {
   groupId: row.group_id,
 });
 
+const PUNCT_PATTERN = /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~·・]/g;
+
+// events.title_key 생성 규칙과 동일하게 공백/문장부호를 지운 키로 대조한다.
+const toTitleKey = (title: string) =>
+  title.trim().toLowerCase().replace(/\s+/g, "").replace(PUNCT_PATTERN, "");
+
+const isExactSameEvent = (
+  event: Pick<PendingEvent, "title" | "periodStart" | "periodEnd">,
+  candidate: ExistingEvent,
+) =>
+  event.periodStart === candidate.periodStart &&
+  event.periodEnd === candidate.periodEnd &&
+  toTitleKey(event.title) === toTitleKey(candidate.title);
+
 export async function attachOverlappingEvents(
   showId: string,
   pending: PendingEvent[],
@@ -1082,6 +1096,20 @@ export async function attachOverlappingEvents(
     );
 
     if (overlapping.length === 0) return event;
+
+    const exactMatch = overlapping.find((candidate) =>
+      isExactSameEvent(event, candidate),
+    );
+
+    // 동일 이벤트를 다시 읽은 경우에는 확인을 요구하지 않고 기존 그룹을 재사용한다.
+    if (exactMatch) {
+      return {
+        ...event,
+        overlapping,
+        suggestedSameAsGroupId:
+          event.suggestedSameAsGroupId ?? exactMatch.groupId,
+      };
+    }
 
     return {
       ...event,
@@ -2281,12 +2309,6 @@ async function applyCastingChanges(
   return count;
 }
 
-const PUNCT_PATTERN = /[!"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~·・]/g;
-
-// events.title_key 생성 규칙과 동일하게 공백/문장부호를 지운 키로 대조한다
-const toTitleKey = (title: string) =>
-  title.trim().toLowerCase().replace(/\s+/g, "").replace(PUNCT_PATTERN, "");
-
 async function applyCancelledEvents(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
@@ -2544,13 +2566,21 @@ async function saveCastingBoardContent({
 
     let groupId: number;
 
-    if (
+    const selectedReplacement =
       event.replacesGroupId !== undefined &&
       event.overlapping.some(
         ({ groupId: candidateId }) => candidateId === event.replacesGroupId,
       )
-    ) {
-      groupId = event.replacesGroupId;
+        ? event.replacesGroupId
+        : undefined;
+    const exactMatch = event.overlapping.find((candidate) =>
+      isExactSameEvent(event, candidate),
+    );
+
+    if (selectedReplacement !== undefined) {
+      groupId = selectedReplacement;
+    } else if (exactMatch) {
+      groupId = exactMatch.groupId;
     } else {
       groupId = await createEventGroup(admin);
     }
