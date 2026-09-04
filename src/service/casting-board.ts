@@ -33,6 +33,7 @@ import {
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
+export const VISION_MODEL = "gemini-3.8-flash";
 export const MODEL = "gemini-3.5-flash-lite";
 
 export const castingJsonSchema = {
@@ -1357,11 +1358,12 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   const client = new GoogleGenAI({});
 
   const requestStart = performance.now();
-  const GEMINI_TIMEOUT_MS = 60_000;
+  const GEMINI_BUDGET_MS = 40_000;
+  const GEMINI_MIN_RETRY_MS = 10_000;
   const GEMINI_MAX_ATTEMPTS = 2;
 
   console.log(
-    `[gemini] 요청 시작 (model=${MODEL}, 이미지 ${imageBlocks.length}장)`,
+    `[gemini] 요청 시작 (model=${VISION_MODEL}, 이미지 ${imageBlocks.length}장)`,
   );
 
   let interaction: Awaited<
@@ -1370,12 +1372,21 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    const remaining = Math.round(
+      GEMINI_BUDGET_MS - (performance.now() - resizeStart),
+    );
+
+    if (attempt > 1 && remaining < GEMINI_MIN_RETRY_MS) {
+      console.error(`[gemini] 남은 예산 ${remaining}ms이라 재시도를 건너뜁니다`);
+      break;
+    }
+
     const attemptStart = performance.now();
 
     try {
       interaction = await client.interactions.create(
         {
-          model: MODEL,
+          model: VISION_MODEL,
           input: [{ type: "text", text: buildPrompt(show) }, ...imageBlocks],
           response_format: {
             type: "text",
@@ -1383,7 +1394,10 @@ export async function parseCastingBoard(images: Blob[], show: ShowDetail) {
             schema: castingJsonSchema,
           },
         },
-        { timeout_ms: GEMINI_TIMEOUT_MS, retries: { strategy: "none" } },
+        {
+          timeout_ms: Math.max(remaining, GEMINI_MIN_RETRY_MS),
+          retries: { strategy: "none" },
+        },
       );
 
       console.log(
