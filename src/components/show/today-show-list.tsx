@@ -83,7 +83,7 @@ export function TodayShowList({
 
                       {slot.events.length > 0 && (
                         <span className="text-text-muted max-w-[45%] shrink-0 truncate text-xs">
-                          이벤트 {slot.events[0].title}
+                          {slot.events[0].title}
                           {slot.events.length > 1
                             ? ` 외 ${slot.events.length - 1}건`
                             : ""}
