@@ -93,7 +93,8 @@ export default async function Page({ params, searchParams }: Props) {
   const monthDate = parseMonth(rawMonth ?? "") ?? getDefaultMonth(show);
   const month = toMonth(monthDate);
   const view = CASTING_VIEW.isCode(rawView) ? rawView : DEFAULT_CASTING_VIEW;
-  const initialDate = rawDate && isIsoDate(rawDate) ? rawDate : undefined;
+  const initialDate =
+    rawDate && isIsoDate(rawDate) ? rawDate : toInputDate(getToday());
 
   const { start, end } = getMonthRange(monthDate);
   const cells = getCalendarCells(monthDate);
