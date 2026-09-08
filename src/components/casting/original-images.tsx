@@ -4,8 +4,15 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
-export const OriginalImages = ({ images }: { images: string[] }) => {
+export const OriginalImages = ({
+  images,
+  emphasize = false,
+}: {
+  images: string[];
+  emphasize?: boolean;
+}) => {
   const [open, setOpen] = useState(false);
   const [zoomed, setZoomed] = useState<string | null>(null);
 
@@ -16,7 +23,10 @@ export const OriginalImages = ({ images }: { images: string[] }) => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="text-text-muted w-fit text-[10px] underline underline-offset-2"
+        className={cn(
+          "w-fit text-[10px] underline underline-offset-2",
+          emphasize ? "text-destructive font-bold" : "text-text-muted",
+        )}
       >
         {open ? "원본 접기" : "원본 보기"}
       </button>

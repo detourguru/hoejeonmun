@@ -258,7 +258,13 @@ select
   a.actor_id,
   a.verified,
   a.id as assignment_id,
-  u.source as upload_source
+  u.source as upload_source,
+  exists (
+    select 1
+    from hidden_castings h
+    where h.slot_id = s.id
+      and h.upload_id > c.upload_id
+  ) as fallback
 from slots s
 join current_castings c on c.slot_id = s.id
 join assignments a on a.slot_id = s.id and a.upload_id = c.upload_id
