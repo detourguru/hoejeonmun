@@ -1,6 +1,11 @@
 import { addMonths, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
 import {
+  getUserShow,
+  isUserShowId,
+  searchUserShows,
+} from "@/service/user-show";
+import {
   AREA,
   AREA_NAMES_BY_CODE,
   AreaCode,
@@ -90,6 +95,8 @@ export async function getShows(): Promise<Show[]> {
 
 // 없는 mt20id를 넘기면 Kopis가 빈 dbs를 주므로 null로 구분
 export async function getShow(id: string): Promise<ShowDetail | null> {
+  if (isUserShowId(id)) return getUserShow(id);
+
   const [show] = await fetchKopis<ShowDetail>(
     `/pblprfr/${encodeURIComponent(id)}`,
     new URLSearchParams(),
@@ -196,11 +203,16 @@ export async function searchShows(keyword: string): Promise<Show[]> {
 
   if (!normalized) return [];
 
-  const matched = (await getShows()).filter((show) =>
+  const [kopisShows, userShows] = await Promise.all([
+    getShows(),
+    searchUserShows(keyword),
+  ]);
+
+  const matched = kopisShows.filter((show) =>
     normalizeText(show.prfnm).includes(normalized),
   );
 
-  return sortShows(matched).slice(0, SEARCH_TERM_LIMIT);
+  return sortShows([...userShows, ...matched]).slice(0, SEARCH_TERM_LIMIT);
 }
 
 export async function getShowNames(
