@@ -233,6 +233,80 @@ export async function getShowsWithFavoritedActors(): Promise<
     }));
 }
 
+export type FavoriteActorSlot = {
+  id: number;
+  showId: string;
+  showName: string;
+  // YYYY-MM-DD
+  date: string;
+  // HH:mm
+  time: string;
+  casting: { role: string; actor: string; actorId: number }[];
+};
+
+type FavoriteActorSlotRow = {
+  slot_id: number;
+  show_id: string;
+  date: string;
+  time: string;
+  role_name_raw: string;
+  actor_id: number;
+};
+
+export async function getFavoriteActorSlots(
+  start: string,
+  end: string,
+): Promise<FavoriteActorSlot[]> {
+  const favorites = await getFavoriteActors();
+
+  if (favorites.length === 0) return [];
+
+  const supabase = await createClient();
+  const nameById = new Map(favorites.map(({ id, name }) => [id, name]));
+
+  const { data, error } = await supabase
+    .from("slot_castings")
+    .select("slot_id, show_id, date, time, role_name_raw, actor_id")
+    .in(
+      "actor_id",
+      favorites.map(({ id }) => id),
+    )
+    .gte("date", start)
+    .lte("date", end)
+    .order("date")
+    .order("time");
+
+  if (error) throw error;
+
+  const rows = data as FavoriteActorSlotRow[];
+  const showNames = await getShowNames([
+    ...new Set(rows.map(({ show_id }) => show_id)),
+  ]);
+
+  const slotsById = new Map<number, FavoriteActorSlot>();
+
+  for (const row of rows) {
+    const slot = slotsById.get(row.slot_id) ?? {
+      id: row.slot_id,
+      showId: row.show_id,
+      showName: showNames.get(row.show_id) ?? "공연 정보 없음",
+      date: row.date,
+      time: row.time.slice(0, 5),
+      casting: [],
+    };
+
+    slot.casting.push({
+      role: row.role_name_raw,
+      actor: nameById.get(row.actor_id) ?? "배우",
+      actorId: row.actor_id,
+    });
+
+    slotsById.set(row.slot_id, slot);
+  }
+
+  return [...slotsById.values()];
+}
+
 export async function isFavorited(actorId: number) {
   const supabase = await createClient();
 
