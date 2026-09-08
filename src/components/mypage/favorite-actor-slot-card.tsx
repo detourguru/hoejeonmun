@@ -32,7 +32,7 @@ export const FavoriteActorSlotCard = ({
 
     <dl className="flex flex-col gap-0.5">
       {slot.casting.map(({ role, actor, actorId }) => (
-        <div key={`${role}-${actor}`} className="flex gap-2 text-xs">
+        <div key={actorId} className="flex gap-2 text-xs">
           <dt className="text-text-muted w-16 shrink-0">{role}</dt>
           <dd className="text-text">
             <Link

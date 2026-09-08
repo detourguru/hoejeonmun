@@ -43,12 +43,23 @@ export default async function Page({ searchParams }: Props) {
 
   const { start, end } = getMonthRange(monthDate);
 
-  const [slots, events, favoriteActors, favoriteSlots] = await Promise.all([
+  const [slots, events, favorites] = await Promise.all([
     getMySlots(userId, start, end),
     getMyEvents(userId, start, end),
-    getFavoriteActors(),
-    getFavoriteActorSlots(start, end),
+    getFavoriteActors()
+      .then(async (favoriteActors) => ({
+        favoriteActors,
+        favoriteSlots: await getFavoriteActorSlots(favoriteActors, start, end),
+      }))
+      .catch((error) => {
+        // 즐겨찾기 배우 조회가 실패해도 '내 공연' 탭은 계속 보여준다
+        console.error("즐겨찾기 배우 일정 조회 실패", error);
+
+        return { favoriteActors: [], favoriteSlots: [] };
+      }),
   ]);
+
+  const { favoriteActors, favoriteSlots } = favorites;
 
   const showColorMap = getShowColorMap(
     favoriteSlots.map(({ showId }) => showId),
@@ -103,7 +114,6 @@ export default async function Page({ searchParams }: Props) {
           ]),
         )}
         favoriteActorNames={favoriteActors.map(({ name }) => name)}
-        hasFavorites={favoriteActors.length > 0}
       />
     </div>
   );
