@@ -82,6 +82,7 @@ export const CastingViews = ({
   empty,
   filterOptions = [],
   initialActors = [],
+  filterMode = "and",
 }: {
   showId?: string;
   month: string;
@@ -96,6 +97,7 @@ export const CastingViews = ({
   empty?: ReactNode;
   filterOptions?: string[];
   initialActors?: string[];
+  filterMode?: "and" | "or";
 }) => {
   const [view, setView] = useState<CastingView>(initialView);
   const [actors, setActors] = useState<string[]>(initialActors);
@@ -169,9 +171,10 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
-  // and 조건 조회
   const visible = slots.filter((slot) =>
-    actors.every((name) => slot.filterKeys?.includes(name)),
+    filterMode === "or"
+      ? actors.some((name) => slot.filterKeys?.includes(name))
+      : actors.every((name) => slot.filterKeys?.includes(name)),
   );
 
   const isEmpty = slots.length === 0 && events.length === 0;
@@ -235,7 +238,9 @@ export const CastingViews = ({
           empty
         ) : actors.length > 0 && visible.length === 0 ? (
           <p className="text-text-muted py-16 text-center text-sm">
-            {actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.
+            {filterMode === "or"
+              ? `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`
+              : `${actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.`}
           </p>
         ) : view === "calendar" ? (
           <Calendar

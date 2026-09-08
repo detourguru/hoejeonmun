@@ -251,14 +251,14 @@ type FavoriteActorSlotRow = {
   time: string;
   role_name_raw: string;
   actor_id: number;
+  assignment_id: number;
 };
 
 export async function getFavoriteActorSlots(
+  favorites: Actor[],
   start: string,
   end: string,
 ): Promise<FavoriteActorSlot[]> {
-  const favorites = await getFavoriteActors();
-
   if (favorites.length === 0) return [];
 
   const supabase = await createClient();
@@ -266,7 +266,9 @@ export async function getFavoriteActorSlots(
 
   const { data, error } = await supabase
     .from("slot_castings")
-    .select("slot_id, show_id, date, time, role_name_raw, actor_id")
+    .select(
+      "slot_id, show_id, date, time, role_name_raw, actor_id, assignment_id",
+    )
     .in(
       "actor_id",
       favorites.map(({ id }) => id),
@@ -274,7 +276,8 @@ export async function getFavoriteActorSlots(
     .gte("date", start)
     .lte("date", end)
     .order("date")
-    .order("time");
+    .order("time")
+    .order("assignment_id");
 
   if (error) throw error;
 
