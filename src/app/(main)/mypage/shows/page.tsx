@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { CastingViews } from "@/components/casting/casting-views";
+import { FavoriteActorSlotCard } from "@/components/mypage/favorite-actor-slot-card";
+import { MyScheduleTabs } from "@/components/mypage/my-schedule-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
 import { SLOT_COLOR } from "@/lib/actor-color";
 import {
@@ -10,7 +11,9 @@ import {
   parseMonth,
   toMonth,
 } from "@/lib/date";
+import { getShowColorMap } from "@/lib/show-color";
 import { createClient } from "@/lib/supabase/server";
+import { getFavoriteActors, getFavoriteActorSlots } from "@/service/actor";
 import { getMyEvents, getMySlots } from "@/service/mypage";
 import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
 
@@ -40,39 +43,67 @@ export default async function Page({ searchParams }: Props) {
 
   const { start, end } = getMonthRange(monthDate);
 
-  const [slots, events] = await Promise.all([
+  const [slots, events, favoriteActors, favoriteSlots] = await Promise.all([
     getMySlots(userId, start, end),
     getMyEvents(userId, start, end),
+    getFavoriteActors(),
+    getFavoriteActorSlots(start, end),
   ]);
+
+  const showColorMap = getShowColorMap(
+    favoriteSlots.map(({ showId }) => showId),
+  );
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-text text-xl font-bold">내 공연</h1>
 
-      <CastingViews
+      <MyScheduleTabs
         month={month}
         initialView={view}
         cells={getCalendarCells(monthDate)}
-        events={events}
-        slots={slots.map((slot) => ({
+        myEvents={events}
+        mySlots={slots.map((slot) => ({
           id: slot.id,
           date: slot.date,
           time: slot.time,
           label: slot.showName,
           colorClass: SLOT_COLOR,
         }))}
-        panels={Object.fromEntries(
+        myPanels={Object.fromEntries(
           slots.map((slot) => [
             slot.id,
             <MySlotCard key={slot.id} slot={slot} />,
           ]),
         )}
-        listItems={Object.fromEntries(
+        myListItems={Object.fromEntries(
           slots.map((slot) => [
             slot.id,
             <MySlotCard key={slot.id} slot={slot} showDate />,
           ]),
         )}
+        favoriteSlots={favoriteSlots.map((slot) => ({
+          id: slot.id,
+          date: slot.date,
+          time: slot.time,
+          label: slot.showName,
+          colorClass: showColorMap.get(slot.showId) ?? SLOT_COLOR,
+          filterKeys: slot.casting.map(({ actor }) => actor),
+        }))}
+        favoritePanels={Object.fromEntries(
+          favoriteSlots.map((slot) => [
+            slot.id,
+            <FavoriteActorSlotCard key={slot.id} slot={slot} />,
+          ]),
+        )}
+        favoriteListItems={Object.fromEntries(
+          favoriteSlots.map((slot) => [
+            slot.id,
+            <FavoriteActorSlotCard key={slot.id} slot={slot} showDate />,
+          ]),
+        )}
+        favoriteActorNames={favoriteActors.map(({ name }) => name)}
+        hasFavorites={favoriteActors.length > 0}
       />
     </div>
   );
