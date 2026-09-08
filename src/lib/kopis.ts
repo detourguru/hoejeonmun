@@ -6,7 +6,7 @@ const parser = new XMLParser({ parseTagValue: false });
 // Kopis 조회 시 100건이 최대치
 export const KOPIS_MAX_ROWS = 100;
 
-const KOPIS_MAX_CONCURRENCY = 4;
+const KOPIS_MAX_CONCURRENCY = 8;
 
 let inFlight = 0;
 const pending: (() => void)[] = [];
