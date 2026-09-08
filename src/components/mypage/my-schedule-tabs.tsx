@@ -27,7 +27,6 @@ export const MyScheduleTabs = ({
   favoritePanels,
   favoriteListItems,
   favoriteActorNames,
-  hasFavorites,
 }: {
   month: string;
   initialView: CastingView;
@@ -40,9 +39,9 @@ export const MyScheduleTabs = ({
   favoritePanels: Record<number, ReactNode>;
   favoriteListItems: Record<number, ReactNode>;
   favoriteActorNames: string[];
-  hasFavorites: boolean;
 }) => {
   const [tab, setTab] = useState<Tab>("mine");
+  const hasFavorites = favoriteActorNames.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -64,6 +63,7 @@ export const MyScheduleTabs = ({
 
       {tab === "mine" ? (
         <CastingViews
+          key="mine"
           month={month}
           initialView={initialView}
           cells={cells}
@@ -81,6 +81,7 @@ export const MyScheduleTabs = ({
         />
       ) : (
         <CastingViews
+          key="favorites"
           month={month}
           initialView={initialView}
           cells={cells}
@@ -89,6 +90,7 @@ export const MyScheduleTabs = ({
           panels={favoritePanels}
           listItems={favoriteListItems}
           filterOptions={favoriteActorNames}
+          filterMode="or"
           empty={
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <p className="text-text-muted text-sm">
