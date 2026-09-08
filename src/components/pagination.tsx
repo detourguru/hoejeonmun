@@ -11,7 +11,7 @@ export const Pagination = ({
   page: number;
   totalPages: number;
 }) => {
-  const updateSearchParams = useUpdateSearchParams();
+  const { updateSearchParams, isPending } = useUpdateSearchParams();
 
   // 1페이지일때는 param에 포함안함
   const moveTo = (next: number) => {
@@ -32,7 +32,7 @@ export const Pagination = ({
       <button
         type="button"
         className={buttonClassName}
-        disabled={page <= 1}
+        disabled={page <= 1 || isPending}
         onClick={() => moveTo(page - 1)}
         aria-label="이전 페이지"
       >
@@ -46,7 +46,7 @@ export const Pagination = ({
       <button
         type="button"
         className={buttonClassName}
-        disabled={page >= totalPages}
+        disabled={page >= totalPages || isPending}
         onClick={() => moveTo(page + 1)}
         aria-label="다음 페이지"
       >

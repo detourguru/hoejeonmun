@@ -60,6 +60,14 @@ export const AREA_NAMES_BY_CODE: Record<AreaCode, readonly string[]> = {
 // 대극장 판정 좌석수 기준. Kopis 예매상황판 좌석구간 코드와 동일
 export const LARGE_VENUE_SEAT_THRESHOLD = 1000;
 
+// Kopis 제공 코드 아님
+export const VENUE_TYPE = createCodeTable([
+  { value: "daehakro", label: "대학로" },
+  { value: "largeVenue", label: "대극장" },
+]);
+
+export type VenueTypeCode = CodeOf<typeof VENUE_TYPE>;
+
 export const SHOW_FEED_TAB = createCodeTable([
   { value: "today", label: "오늘의 공연" },
   { value: "favorite", label: "애정배우" },
