@@ -5,6 +5,14 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { TodayShowSlot } from "@/service/casting";
+import { LARGE_VENUE_SEAT_THRESHOLD } from "@/type/show";
+
+function isMainstreamVenue(slot: TodayShowSlot) {
+  return (
+    slot.daehakro === "Y" ||
+    (slot.seatScale != null && slot.seatScale >= LARGE_VENUE_SEAT_THRESHOLD)
+  );
+}
 
 function groupByTime(slots: TodayShowSlot[]) {
   const grouped = new Map<string, TodayShowSlot[]>();
@@ -29,22 +37,34 @@ export function TodayShowList({
   month: string;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [onlyMainstream, setOnlyMainstream] = useState(false);
 
-  const visibleSlots = showAll
-    ? slots
-    : slots.filter((slot) => slot.time >= now);
+  const visibleSlots = slots
+    .filter((slot) => showAll || slot.time >= now)
+    .filter((slot) => !onlyMainstream || isMainstreamVenue(slot));
   const groupedByTime = groupByTime(visibleSlots);
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
-        <input
-          type="checkbox"
-          checked={showAll}
-          onChange={({ target }) => setShowAll(target.checked)}
-        />
-        지난 공연도 모두 보기
-      </label>
+      <div className="flex flex-col gap-1">
+        <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={showAll}
+            onChange={({ target }) => setShowAll(target.checked)}
+          />
+          지난 공연도 모두 보기
+        </label>
+
+        <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={onlyMainstream}
+            onChange={({ target }) => setOnlyMainstream(target.checked)}
+          />
+          대학로·대극장만 보기
+        </label>
+      </div>
 
       {visibleSlots.length === 0 ? (
         <p className="text-text-muted py-8 text-center text-sm">

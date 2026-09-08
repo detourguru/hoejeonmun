@@ -4,6 +4,7 @@ import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getShowSummaries } from "@/service/show";
+import { getVenueSeatScales } from "@/service/venue";
 import { CASTING_BOARD_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/type/casting";
 
 const REVALIDATE = 60 * 5;
@@ -565,6 +566,8 @@ export type TodayShowSlot = {
   // HH:mm
   time: string;
   events: { id: number; title: string }[];
+  daehakro?: "N" | "Y";
+  seatScale?: number | null;
 };
 
 export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
@@ -609,6 +612,12 @@ export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
     getShowSummaries([...new Set(slots.map(({ showId }) => showId))]),
   ]);
 
+  const mt13ids = [...showSummaryById.values()]
+    .map((summary) => summary.mt13id)
+    .filter((mt13id): mt13id is string => !!mt13id);
+
+  const seatScaleByMt13id = await getVenueSeatScales(mt13ids);
+
   return slots.map((slot) => {
     const summary = showSummaryById.get(slot.showId);
 
@@ -617,6 +626,10 @@ export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
       showName: summary?.name ?? "알 수 없는 공연",
       poster: summary?.poster ?? "",
       events: eventsBySlot.get(slot.id) ?? [],
+      daehakro: summary?.daehakro,
+      seatScale: summary?.mt13id
+        ? (seatScaleByMt13id.get(summary.mt13id) ?? null)
+        : null,
     };
   });
 }
