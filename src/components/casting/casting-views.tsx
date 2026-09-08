@@ -30,10 +30,12 @@ const MonthNav = ({
   month,
   pending,
   onMove,
+  onJump,
 }: {
   month: string;
   pending: boolean;
   onMove: (offset: number) => void;
+  onJump: (month: string) => void;
 }) => (
   <div className="flex items-center gap-1">
     <button
@@ -46,7 +48,14 @@ const MonthNav = ({
       {`<`}
     </button>
 
-    <p className="text-text text-sm font-bold">{month.replace("-", ".")}</p>
+    <input
+      type="month"
+      value={month}
+      onChange={({ target }) => target.value && onJump(target.value)}
+      disabled={pending}
+      aria-label="연/월 선택"
+      className="text-text w-[7.5em] border-0 bg-transparent p-0 text-center text-sm font-bold outline-none disabled:opacity-50"
+    />
 
     <button
       type="button"
@@ -124,6 +133,15 @@ export const CastingViews = ({
     });
   };
 
+  const jumpToMonth = (next: string) => {
+    if (next === visibleMonth) return;
+
+    startTransition(() => {
+      setVisibleMonth(next);
+      updateSearchParams({ month: next });
+    });
+  };
+
   const replaceParams = (updates: Record<string, string>) => {
     const params = new URLSearchParams(window.location.search);
 
@@ -175,7 +193,12 @@ export const CastingViews = ({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <MonthNav month={visibleMonth} pending={pending} onMove={moveMonth} />
+        <MonthNav
+          month={visibleMonth}
+          pending={pending}
+          onMove={moveMonth}
+          onJump={jumpToMonth}
+        />
 
         {!isEmpty && (
           <div className="flex gap-1">

@@ -4,7 +4,11 @@ import { Fragment, ReactNode, useState } from "react";
 
 import { EventCard } from "@/components/casting/event-card";
 import { WEEKDAYS } from "@/lib/date";
-import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
+import {
+  eventAppliesToDate,
+  isOpeningOrClosingEvent,
+  matchEventsToDate,
+} from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
@@ -17,7 +21,7 @@ type LaneEntry = {
 };
 
 const DAYS_IN_WEEK = 7;
-const MAX_VISIBLE_SLOTS = 2;
+const MAX_VISIBLE_SLOTS = 3;
 const MAX_EVENT_LANES = 5;
 
 export const Calendar = ({
@@ -222,7 +226,10 @@ export const Calendar = ({
                     <span
                       key={entry.event.id}
                       className={cn(
-                        "bg-point/50 relative h-3 border-b border-white",
+                        "relative h-3 border-b border-white",
+                        isOpeningOrClosingEvent(entry.event.title)
+                          ? "bg-amber-400/70"
+                          : "bg-point/50",
                         entry.start && "ml-px rounded-l-sm",
                         entry.end && "mr-px rounded-r-sm",
                       )}
