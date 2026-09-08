@@ -553,7 +553,7 @@ function skipReason(
   if (!DATE_PATTERN.test(date)) return "invalid_date";
   if (!TIME_PATTERN.test(time)) return "invalid_time";
   if (date < from || date > to) return "out_of_range";
-  if (getWeekday(date) !== toKoreanWeekday(performance.weekday ?? ""))
+  if (!agreesWithPrintedWeekday(date, performance.weekday ?? ""))
     return "weekday_mismatch";
   if (Object.keys(casting).length === 0) return "empty_casting";
   if (seen.has(key)) return "duplicate";
@@ -1885,10 +1885,12 @@ export async function parseCastingBoard(
 
   const normalizeStart = performance.now();
 
+  const realImageCount = images.length;
+
   const { performances, skipped } = normalizePerformances(
     parsed.performances,
     show,
-    imageBlocks.length,
+    realImageCount,
   );
 
   const result = {
@@ -1897,26 +1899,26 @@ export async function parseCastingBoard(
     dateTags: normalizeDateTags(
       parsed.dateTags,
       show,
-      imageBlocks.length,
+      realImageCount,
       performances,
     ),
     events: await dedupeEvents(
-      normalizeEvents(parsed.events, show, imageBlocks.length),
+      normalizeEvents(parsed.events, show, realImageCount),
     ),
     cancelledSlots: normalizeCancelledSlots(
       parsed.cancelledSlots,
       show,
-      imageBlocks.length,
+      realImageCount,
     ),
     castingChanges: normalizeCastingChanges(
       parsed.castingChanges,
       show,
-      imageBlocks.length,
+      realImageCount,
     ),
     cancelledEvents: normalizeCancelledEvents(
       parsed.cancelledEvents,
       show,
-      imageBlocks.length,
+      realImageCount,
     ),
     reason: parsed.reason,
   };
