@@ -13,15 +13,15 @@ import {
   SEARCHABLE_MONTHS,
   SORT_OPTIONS,
   STATE,
+  VENUE_TYPE,
 } from "@/type/show";
 
 import { SelectBox } from "../select-box";
-import { ToggleChip } from "../toggle-chip";
 import { Input } from "../ui/input";
 
 export const FilterBar = () => {
   const searchParams = useSearchParams();
-  const updateSearchParams = useUpdateSearchParams();
+  const { updateSearchParams } = useUpdateSearchParams();
 
   const chipsRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -98,8 +98,11 @@ export const FilterBar = () => {
             options={AREA.options}
           />
 
-          <ToggleChip name="daehakro" label="대학로" />
-          <ToggleChip name="largeVenue" label="대극장" />
+          <SelectBox
+            name="venueType"
+            placeholder="공연장 구분"
+            options={VENUE_TYPE.options}
+          />
         </div>
 
         {canScrollLeft && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
@@ -27,7 +28,7 @@ export const SelectBox = ({
   alwaysActive?: boolean;
 }) => {
   const searchParams = useSearchParams();
-  const updateSearchParams = useUpdateSearchParams();
+  const { updateSearchParams, isPending } = useUpdateSearchParams();
 
   const items = [{ value: ALL, label: placeholder }, ...options];
   const value = searchParams.get(name) ?? ALL;
@@ -40,8 +41,12 @@ export const SelectBox = ({
       onValueChange={(value) => updateSearchParams({ [name]: value })}
     >
       <SelectTrigger className="border-border bg-surface text-text h-auto shrink-0 gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold">
-        {isActive && (
-          <span className="bg-point size-1.5 shrink-0 rounded-full" />
+        {isPending ? (
+          <Loader2 className="text-primary size-3 shrink-0 animate-spin" />
+        ) : (
+          isActive && (
+            <span className="bg-point size-1.5 shrink-0 rounded-full" />
+          )
         )}
         <SelectValue />
       </SelectTrigger>

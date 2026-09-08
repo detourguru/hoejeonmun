@@ -22,6 +22,8 @@ import {
   STATE,
   StateCode,
   StateName,
+  VENUE_TYPE,
+  VenueTypeCode,
 } from "@/type/show";
 
 const REVALIDATE = 60 * 60;
@@ -59,8 +61,7 @@ export type ShowFilters = {
   signgucode?: AreaCode;
   shprfnm?: string;
   sort?: SortKey;
-  daehakro?: boolean;
-  largeVenue?: boolean;
+  venueType?: VenueTypeCode;
   page: number;
   // YYYYMMDD
   from: string;
@@ -141,10 +142,6 @@ function pickPage(value: string | string[] | undefined) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-function pickBoolean(value: string | string[] | undefined) {
-  return getFirstFromArray(value) === "1";
-}
-
 // 허용된 필터만 여기에 추가
 export function parseShowFilters(
   params: Record<string, string | string[] | undefined>,
@@ -155,8 +152,7 @@ export function parseShowFilters(
     signgucode: pickCode(params.signgucode, AREA.isCode),
     shprfnm: getFirstFromArray(params.shprfnm)?.trim() || undefined,
     sort: pickCode(params.sort, SORT.isCode),
-    daehakro: pickBoolean(params.daehakro),
-    largeVenue: pickBoolean(params.largeVenue),
+    venueType: pickCode(params.venueType, VENUE_TYPE.isCode),
     ...pickPeriod(params),
     page: pickPage(params.page),
   };
@@ -193,11 +189,15 @@ export async function filterShowsByVenue(
   shows: Show[],
   filters: ShowFilters,
 ): Promise<Show[]> {
-  if (!filters.daehakro && !filters.largeVenue) return shows;
+  if (!filters.venueType) return shows;
 
   const details = await Promise.all(
     shows.map((show) => getShow(show.mt20id).catch(() => null)),
   );
+
+  if (filters.venueType === "daehakro") {
+    return shows.filter((_, index) => details[index]?.daehakro === "Y");
+  }
 
   const mt13ids = details
     .map((detail) => detail?.mt13id)
@@ -207,16 +207,12 @@ export async function filterShowsByVenue(
 
   return shows.filter((_, index) => {
     const detail = details[index];
-    const isDaehakro = detail?.daehakro === "Y";
+
     const seatScale = detail?.mt13id
       ? (seatScaleByMt13id.get(detail.mt13id) ?? null)
       : null;
-    const isLargeVenue =
-      seatScale != null && seatScale >= LARGE_VENUE_SEAT_THRESHOLD;
 
-    return (
-      (filters.daehakro && isDaehakro) || (filters.largeVenue && isLargeVenue)
-    );
+    return seatScale != null && seatScale >= LARGE_VENUE_SEAT_THRESHOLD;
   });
 }
 

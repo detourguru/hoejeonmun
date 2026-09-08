@@ -1,11 +1,15 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 
 export function useUpdateSearchParams() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  return (updates: Record<string, string | string[] | null | undefined>) => {
+  const updateSearchParams = (
+    updates: Record<string, string | string[] | null | undefined>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
 
     // 필터가 바뀌면 처음으로 되돌린다
@@ -24,6 +28,11 @@ export function useUpdateSearchParams() {
 
     const query = params.toString();
 
-    router.replace(query ? `${pathname}?${query}` : pathname);
+    // startTransition으로 감싸 isPending을 노출해 로딩 표시를 붙일 수 있게 한다
+    startTransition(() => {
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    });
   };
+
+  return { updateSearchParams, isPending };
 }

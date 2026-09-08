@@ -106,7 +106,7 @@ export const CastingViews = ({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const updateSearchParams = useUpdateSearchParams();
+  const { updateSearchParams } = useUpdateSearchParams();
 
   useEffect(() => {
     const current = parseMonth(month);
