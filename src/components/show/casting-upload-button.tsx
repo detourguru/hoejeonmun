@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { discardUploadImages } from "@/app/(main)/show/[id]/actions";
@@ -93,10 +93,30 @@ export const CastingUploadButton = ({
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
-  const [knownDates, setKnownDates] = useState<Set<string>>(new Set());
-  const [knownSlots, setKnownSlots] = useState<
+  const [existingSlots, setExistingSlots] = useState<
     { date: string; time: string }[]
   >([]);
+  const knownSlots = useMemo(() => {
+    const slotMap = new Map(
+      existingSlots.map(({ date, time }) => {
+        const shortTime = time.slice(0, 5);
+
+        return [`${date} ${shortTime}`, { date, time: shortTime }];
+      }),
+    );
+
+    for (const { date, time } of toConfirmedPerformances(castingDrafts)) {
+      const shortTime = time.slice(0, 5);
+
+      slotMap.set(`${date} ${shortTime}`, { date, time: shortTime });
+    }
+
+    return [...slotMap.values()];
+  }, [existingSlots, castingDrafts]);
+  const knownDates = useMemo(
+    () => new Set(knownSlots.map(({ date }) => date)),
+    [knownSlots],
+  );
   const [showSkipped, setShowSkipped] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
@@ -174,8 +194,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
-    setKnownDates(new Set());
-    setKnownSlots([]);
+    setExistingSlots([]);
     setShowSkipped(false);
     setStatus("idle");
   };
@@ -289,28 +308,12 @@ export const CastingUploadButton = ({
     }
 
     if (events.length > 0) {
-      const dates = new Set(performances.map(({ date }) => date));
-      const slotMap = new Map(
-        performances.map(({ date, time }) => {
-          const shortTime = time.slice(0, 5);
-
-          return [`${date} ${shortTime}`, { date, time: shortTime }];
-        }),
-      );
-      const { data: existingSlots } = await supabase
+      const { data: existingSlotRows } = await supabase
         .from("slots")
         .select("date, time")
         .eq("show_id", showId);
 
-      for (const { date, time } of existingSlots ?? []) {
-        dates.add(date);
-        const shortTime = time.slice(0, 5);
-
-        slotMap.set(`${date} ${shortTime}`, { date, time: shortTime });
-      }
-
-      setKnownDates(dates);
-      setKnownSlots([...slotMap.values()]);
+      setExistingSlots(existingSlotRows ?? []);
     }
 
     setParsed(upload);
@@ -354,7 +357,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
-    setKnownDates(new Set());
+    setExistingSlots([]);
     setStatus("done");
     router.refresh();
   };
