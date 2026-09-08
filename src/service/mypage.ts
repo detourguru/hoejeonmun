@@ -182,26 +182,23 @@ export async function getMyEvents(
 
   const { data: bookmarks, error: bookmarksError } = await supabase
     .from("my_event_groups")
-    .select("group_id, date")
-    .eq("user_id", userId)
-    .gte("date", start)
-    .lte("date", end);
+    .select("group_id")
+    .eq("user_id", userId);
 
   if (bookmarksError) throw bookmarksError;
 
   if (!bookmarks || bookmarks.length === 0) return [];
 
-  const groupIds = bookmarks.map(({ group_id }) => group_id);
-  const dateByGroupId = new Map(
-    bookmarks.map(({ group_id, date }) => [group_id, date]),
-  );
+  const groupIds = [...new Set(bookmarks.map(({ group_id }) => group_id))];
 
   const { data, error } = await supabase
     .from("current_events")
     .select(
-      "id, group_id, show_id, title, description, upload_id, upload_image_id, edited",
+      "id, group_id, show_id, title, description, period_start, period_end, sparse_dates, upload_id, upload_image_id, edited",
     )
-    .in("group_id", groupIds);
+    .in("group_id", groupIds)
+    .lte("period_start", end)
+    .gte("period_end", start);
 
   if (error) throw error;
 
@@ -211,6 +208,9 @@ export async function getMyEvents(
     show_id: string;
     title: string;
     description: string | null;
+    period_start: string;
+    period_end: string;
+    sparse_dates: boolean;
     upload_id: number;
     upload_image_id: number;
     edited: boolean;
@@ -222,23 +222,19 @@ export async function getMyEvents(
     rows.map(({ id }) => id),
   );
 
-  const events: ShowEvent[] = rows.map((row) => {
-    const anchorDate = dateByGroupId.get(row.group_id) ?? "";
-
-    return {
-      id: row.id,
-      groupId: row.group_id,
-      title: row.title,
-      description: row.description,
-      periodStart: anchorDate,
-      periodEnd: anchorDate,
-      sparseDates: false,
-      slotIds: slotIdsByEvent.get(row.id) ?? [],
-      uploadId: row.upload_id,
-      uploadImageId: row.upload_image_id,
-      edited: row.edited,
-    };
-  });
+  const events: ShowEvent[] = rows.map((row) => ({
+    id: row.id,
+    groupId: row.group_id,
+    title: row.title,
+    description: row.description,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    sparseDates: row.sparse_dates,
+    slotIds: slotIdsByEvent.get(row.id) ?? [],
+    uploadId: row.upload_id,
+    uploadImageId: row.upload_image_id,
+    edited: row.edited,
+  }));
 
   const [eventsWithStatus, showNameById] = await Promise.all([
     getEventsWithReportStatus(events),
