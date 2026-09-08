@@ -94,19 +94,8 @@ const eventSchema = z
     listedSlots: z.array(slotExceptionSchema).optional(),
     periodStartCutoffTime: z.string().regex(TIME_REGEX).optional(),
     periodEndCutoffTime: z.string().regex(TIME_REGEX).optional(),
-    confirmReasons: z.array(
-      z.enum([
-        "range_badge",
-        "no_printed_weekday",
-        "overlaps_existing",
-        "has_slot_exceptions",
-        "has_specific_times",
-        "ambiguous_badge_time",
-      ]),
-    ),
     overlapping: z.array(existingEventSchema),
     suggestedSameAsId: z.number().optional(),
-    confirmed: z.boolean(),
     edited: z.boolean(),
     replacesGroupId: z.number().optional(),
   })
@@ -126,7 +115,13 @@ const bodySchema = z
     cancelledEvents: z.array(cancelledEventSchema).default([]),
   })
   .refine(
-    ({ performances, events, cancelledSlots, castingChanges, cancelledEvents }) =>
+    ({
+      performances,
+      events,
+      cancelledSlots,
+      castingChanges,
+      cancelledEvents,
+    }) =>
       performances.length > 0 ||
       events.length > 0 ||
       cancelledSlots.length > 0 ||
@@ -178,12 +173,7 @@ export async function POST(request: Request) {
       userId,
       storagePaths,
       performances,
-      events: events
-        .map((event, index) => ({ ...event, ...checked[index] }))
-        .filter(
-          ({ confirmReasons, confirmed }) =>
-            confirmReasons.length === 0 || confirmed,
-        ),
+      events: events.map((event, index) => ({ ...event, ...checked[index] })),
       skipped,
       cancelledSlots,
       castingChanges,

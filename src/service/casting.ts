@@ -27,6 +27,7 @@ export type CastingSlot = {
   time: string;
   casting: CastingRole[];
   uploadSource: "user" | "system";
+  fallback: boolean;
 };
 
 type SlotCastingRow = {
@@ -40,6 +41,7 @@ type SlotCastingRow = {
   verified: boolean;
   assignment_id: number;
   upload_source: "user" | "system";
+  fallback: boolean;
 };
 
 type UploadImageRow = {
@@ -68,6 +70,7 @@ function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
       time: row.time.slice(0, 5),
       uploadId: row.upload_id,
       uploadSource: row.upload_source,
+      fallback: row.fallback,
       casting: [],
     };
 
@@ -95,7 +98,7 @@ export async function getShowCastings(
   const { data, error } = await supabase
     .from("slot_castings")
     .select(
-      "slot_id, date, upload_id, time, role_name_raw, actor_name_raw, actor_id, verified, assignment_id, upload_source",
+      "slot_id, date, upload_id, time, role_name_raw, actor_name_raw, actor_id, verified, assignment_id, upload_source, fallback",
     )
     .eq("show_id", showId)
     .gte("date", start)

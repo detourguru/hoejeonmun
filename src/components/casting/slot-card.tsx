@@ -43,7 +43,7 @@ export const SlotCard = ({
   showDate?: boolean;
   events?: SlotEventBadge[];
 }) => {
-  const { reported, bookmarked, images, isMine } = slot;
+  const { reported, bookmarked, images, isMine, fallback } = slot;
   const slotLabel = `${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`;
 
   return (
@@ -60,6 +60,14 @@ export const SlotCard = ({
           {slot.uploadSource === "system" && (
             <span className="border-border text-text-muted inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-normal">
               시스템 업로드
+            </span>
+          )}
+          {fallback && (
+            <span
+              title="신고가 쌓여 최신 제보 대신 이전 제보가 표시되고 있어요."
+              className="border-destructive text-destructive inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-normal"
+            >
+              이전 제보로 대체됨
             </span>
           )}
         </p>
@@ -115,7 +123,10 @@ export const SlotCard = ({
 
       <dl className="flex flex-col gap-1">
         {slot.casting.map(({ role, actor, actorId, verified }) => (
-          <div key={`${role}-${actor}`} className="flex items-center gap-2 text-xs">
+          <div
+            key={`${role}-${actor}`}
+            className="flex items-center gap-2 text-xs"
+          >
             <dt className="text-text-muted w-20 shrink-0">{role}</dt>
             <dd className="flex items-center gap-1.5">
               <ActorName actor={actor} actorId={actorId} />
@@ -129,7 +140,7 @@ export const SlotCard = ({
         ))}
       </dl>
 
-      <OriginalImages images={images} />
+      <OriginalImages images={images} emphasize={fallback} />
     </li>
   );
 };

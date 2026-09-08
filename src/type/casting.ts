@@ -218,8 +218,6 @@ export type PendingEvent = {
 };
 
 export type ConfirmedEvent = PendingEvent & {
-  // confirmReasons가 있으면 이게 참이어야 저장된다
-  confirmed: boolean;
   edited: boolean;
   replacesGroupId?: number;
 };
