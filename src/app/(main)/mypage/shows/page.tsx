@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { FavoriteActorSlotCard } from "@/components/mypage/favorite-actor-slot-card";
 import { MyScheduleTabs } from "@/components/mypage/my-schedule-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
-import { SLOT_COLOR } from "@/lib/actor-color";
+import { SLOT_COLOR, getActorColor } from "@/lib/actor-color";
 import {
   getCalendarCells,
   getMonthRange,
@@ -11,7 +11,6 @@ import {
   parseMonth,
   toMonth,
 } from "@/lib/date";
-import { getShowColorMap } from "@/lib/show-color";
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteActors, getFavoriteActorSlots } from "@/service/actor";
 import { getMyEvents, getMySlots } from "@/service/mypage";
@@ -61,10 +60,6 @@ export default async function Page({ searchParams }: Props) {
 
   const { favoriteActors, favoriteSlots } = favorites;
 
-  const showColorMap = getShowColorMap(
-    favoriteSlots.map(({ showId }) => showId),
-  );
-
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-text text-xl font-bold">내 공연</h1>
@@ -93,14 +88,25 @@ export default async function Page({ searchParams }: Props) {
             <MySlotCard key={slot.id} slot={slot} showDate />,
           ]),
         )}
-        favoriteSlots={favoriteSlots.map((slot) => ({
-          id: slot.id,
-          date: slot.date,
-          time: slot.time,
-          label: slot.showName,
-          colorClass: showColorMap.get(slot.showId) ?? SLOT_COLOR,
-          filterKeys: slot.casting.map(({ actor }) => actor),
-        }))}
+        favoriteSlots={favoriteSlots.map((slot) => {
+          const castingActors = [
+            ...new Map(
+              slot.casting.map(({ actor, actorId }) => [actorId, actor]),
+            ),
+          ];
+
+          return {
+            id: slot.id,
+            date: slot.date,
+            time: slot.time,
+            label: slot.showName,
+            filterKeys: castingActors.map(([, actor]) => actor),
+            chips: castingActors.map(([actorId, actor]) => ({
+              label: actor,
+              colorClass: getActorColor(actorId),
+            })),
+          };
+        })}
         favoritePanels={Object.fromEntries(
           favoriteSlots.map((slot) => [
             slot.id,
