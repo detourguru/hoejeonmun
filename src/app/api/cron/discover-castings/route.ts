@@ -1,6 +1,7 @@
-import { getToday, normalizeDate, toKopisDate } from "@/lib/date";
+import { addDays, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { discoverCastingFromKopis } from "@/service/casting-board-discovery";
 import { getShows } from "@/service/show";
+import { syncVenuesFromKopis } from "@/service/venue";
 
 export const maxDuration = 60;
 
@@ -32,5 +33,9 @@ export async function GET(request: Request) {
     results.push(await discoverCastingFromKopis(show, systemUserId));
   }
 
-  return Response.json({ checked: shows.length, results });
+  // 대학로/대극장 필터용 공연장 좌석수 미러링
+  const yesterday = toKopisDate(addDays(getToday(), -1));
+  const venueSync = await syncVenuesFromKopis({ afterdate: yesterday });
+
+  return Response.json({ checked: shows.length, results, venueSync });
 }

@@ -477,3 +477,18 @@ create policy "users upload own show posters" on storage.objects
   );
 
 alter table assignments alter column upload_image_id drop not null;
+
+create table venue_halls (
+  mt13id text primary key,
+  mt10id text not null,
+  facility_name text not null,
+  hall_name text not null,
+  seat_scale integer,
+  synced_at timestamptz not null default now()
+);
+
+create index venue_halls_mt10id_idx on venue_halls (mt10id);
+
+alter table venue_halls enable row level security;
+
+create policy "venue halls are public" on venue_halls for select using (true);

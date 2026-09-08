@@ -225,7 +225,12 @@ export async function getShowNames(
   );
 }
 
-export type ShowSummary = { name: string; poster: string };
+export type ShowSummary = {
+  name: string;
+  poster: string;
+  daehakro?: "N" | "Y";
+  mt13id?: string;
+};
 
 export async function getShowSummaries(
   showIds: string[],
@@ -238,6 +243,8 @@ export async function getShowSummaries(
       {
         name: shows[index]?.prfnm ?? "알 수 없는 공연",
         poster: shows[index]?.poster ?? "",
+        daehakro: shows[index]?.daehakro,
+        mt13id: shows[index]?.mt13id,
       },
     ]),
   );
