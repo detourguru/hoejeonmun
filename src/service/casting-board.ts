@@ -451,7 +451,7 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
-const isPlaceholderActorName = (name: string) =>
+export const isPlaceholderActorName = (name: string) =>
   PLACEHOLDER_NAMES.has(name.trim().toLowerCase());
 
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
@@ -1120,7 +1120,7 @@ export async function attachOverlappingEvents(
   });
 }
 
-// 첫공/막공처럼 특정 회차에만 적용되어야하는데 해당 날짜의 전체 회차에 적용되므로 사용자 확인을 받도록함 
+// 첫공/막공처럼 특정 회차에만 적용되어야하는데 해당 날짜의 전체 회차에 적용되므로 사용자 확인을 받도록함
 export async function attachAmbiguousBadgeFlags(
   showId: string,
   pending: PendingEvent[],
@@ -1141,10 +1141,9 @@ export async function attachAmbiguousBadgeFlags(
     .from("slots")
     .select("date")
     .eq("show_id", showId)
-    .in(
-      "date",
-      [...new Set(ambiguousCandidates.map(({ periodStart }) => periodStart))],
-    )
+    .in("date", [
+      ...new Set(ambiguousCandidates.map(({ periodStart }) => periodStart)),
+    ])
     .is("cancelled_at", null);
 
   if (error) throw error;
@@ -1546,7 +1545,9 @@ async function createCastingBoardOverview(
   };
 }
 
-async function buildCastingImageBlocks(images: Blob[]): Promise<GeminiImageBlock[]> {
+async function buildCastingImageBlocks(
+  images: Blob[],
+): Promise<GeminiImageBlock[]> {
   const prepared = await Promise.all(
     images.map(async (image, index) => {
       const buffer = Buffer.from(await image.arrayBuffer());
@@ -1591,7 +1592,8 @@ const performanceSlotKey = ({
   time,
 }: Pick<ParsedPerformance, "date" | "time">) => `${date} ${time}`;
 
-const serializeCastingValue = (actors: string[]) => [...actors].sort().join("\u0000");
+const serializeCastingValue = (actors: string[]) =>
+  [...actors].sort().join("\u0000");
 
 function pickMostCommonValue<T>(
   values: T[],
@@ -1681,7 +1683,9 @@ function buildConsensusPerformances(
   }
 
   return voted.sort((a, b) =>
-    a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date),
+    a.date === b.date
+      ? a.time.localeCompare(b.time)
+      : a.date.localeCompare(b.date),
   );
 }
 
@@ -1703,7 +1707,10 @@ export async function parseCastingBoardWithConsensus(
   const startedAt = performance.now();
 
   const attempts = Array.from({ length: runs }, async (_, index) => {
-    const remaining = Math.max(1, Math.round(deadlineMs - (performance.now() - startedAt)));
+    const remaining = Math.max(
+      1,
+      Math.round(deadlineMs - (performance.now() - startedAt)),
+    );
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), remaining);
 
@@ -1801,7 +1808,9 @@ export async function parseCastingBoard(
     );
 
     if (attempt > 1 && remaining < GEMINI_MIN_RETRY_MS) {
-      console.error(`[gemini] 남은 예산 ${remaining}ms이라 재시도를 건너뜁니다`);
+      console.error(
+        `[gemini] 남은 예산 ${remaining}ms이라 재시도를 건너뜁니다`,
+      );
       break;
     }
 
@@ -2491,7 +2500,10 @@ async function saveCastingBoardContent({
         Object.entries(performance.casting)
           .map(
             ([role, actors]) =>
-              [role, actors.filter((actor) => !isPlaceholderActorName(actor))] as const,
+              [
+                role,
+                actors.filter((actor) => !isPlaceholderActorName(actor)),
+              ] as const,
           )
           .filter(([, actors]) => actors.length > 0),
       ),

@@ -5,6 +5,7 @@ import { BackButton } from "@/components/back-button";
 import { CastingViews } from "@/components/casting/casting-views";
 import { SlotCard } from "@/components/casting/slot-card";
 import { CastingUploadButton } from "@/components/show/casting-upload-button";
+import { ManualCastingButton } from "@/components/show/manual-casting-button";
 import { SLOT_COLOR } from "@/lib/actor-color";
 import {
   getCalendarCells,
@@ -193,8 +194,12 @@ export default async function Page({ params, searchParams }: Props) {
         }
       />
 
-      <div className="border-border border-t pt-4">
+      <div className="border-border flex flex-wrap gap-2 border-t pt-4">
         <CastingUploadButton
+          showId={id}
+          isLoggedIn={Boolean(auth.data?.claims)}
+        />
+        <ManualCastingButton
           showId={id}
           isLoggedIn={Boolean(auth.data?.claims)}
         />

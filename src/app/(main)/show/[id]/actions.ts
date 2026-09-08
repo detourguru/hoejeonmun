@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
+import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
 import { CASTING_BOARD_BUCKET, EventSlotException } from "@/type/casting";
 
 export type SlotReportType =
@@ -797,4 +798,54 @@ export async function discardUploadImages(
   }
 
   return { ok: true };
+}
+
+export type SubmitManualCastingResult =
+  { ok: true; slotCount: number } | { ok: false; message: string };
+
+export async function submitManualCasting(
+  showId: string,
+  slots: EventSlotException[],
+  casting: ManualCastingRole[],
+): Promise<SubmitManualCastingResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const validSlots = slots.filter(
+    ({ date, time }) => ISO_DATE.test(date) && TIME.test(time),
+  );
+
+  if (validSlots.length === 0) {
+    return { ok: false, message: "회차(날짜/시간)를 입력해 주세요." };
+  }
+
+  const validCasting = casting.filter(
+    ({ role, actor }) => role.trim() && actor.trim(),
+  );
+
+  if (validCasting.length === 0) {
+    return { ok: false, message: "배역/배우를 최소 1개 입력해 주세요." };
+  }
+
+  try {
+    const { slotCount } = await saveManualCasting({
+      showId,
+      userId,
+      slots: validSlots,
+      casting: validCasting,
+    });
+
+    revalidatePath(`/show/${showId}`);
+    updateTag(showCastTag(showId));
+
+    return { ok: true, slotCount };
+  } catch (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
 }

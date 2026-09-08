@@ -469,3 +469,5 @@ create policy "users upload own show posters" on storage.objects
     bucket_id = 'show-posters'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+alter table assignments alter column upload_image_id drop not null;
