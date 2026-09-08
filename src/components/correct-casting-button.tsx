@@ -79,15 +79,15 @@ export const CorrectCastingButton = ({
 
     startTransition(async () => {
       if (role && oldActor !== null) {
-        const result = await correctSlotCasting(
+        const result = await correctSlotCasting({
           showId,
           slotId,
           role,
           oldActor,
           newRole,
-          actor,
+          newActor: actor,
           applyToAllSlots,
-        );
+        });
 
         if (!result.ok) {
           if (result.message === "로그인이 필요해요.") {

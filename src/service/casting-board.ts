@@ -451,6 +451,9 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
+const isPlaceholderActorName = (name: string) =>
+  PLACEHOLDER_NAMES.has(name.trim().toLowerCase());
+
 const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
 
 const ENGLISH_WEEKDAYS: Record<string, string> = {
@@ -588,8 +591,6 @@ function normalizePerformances(
     const casting = Object.fromEntries(
       Object.entries(performance.casting ?? {})
         .map(([role, actors]) => {
-          // 스키마가 배열을 강제하지만, 모델이 한 배역에 배우 여럿을 콤마로
-          // 이어붙여 문자열 하나로 반환하는 경우를 대비해 한 번 더 쪼갠다
           const names = [
             ...new Set(
               (Array.isArray(actors) ? actors : [actors]).flatMap((actor) =>
@@ -2435,7 +2436,7 @@ async function saveCastingBoardContent({
   userId,
   storagePaths,
   imageHashes,
-  performances,
+  performances: rawPerformances,
   events,
   skipped,
   cancelledSlots,
@@ -2482,6 +2483,20 @@ async function saveCastingBoardContent({
 
   // 이벤트 안내만 있고 캐스팅표는 없는 업로드일 수 있다
   let actorNames: string[] = [];
+
+  const performances = rawPerformances
+    .map((performance) => ({
+      ...performance,
+      casting: Object.fromEntries(
+        Object.entries(performance.casting)
+          .map(
+            ([role, actors]) =>
+              [role, actors.filter((actor) => !isPlaceholderActorName(actor))] as const,
+          )
+          .filter(([, actors]) => actors.length > 0),
+      ),
+    }))
+    .filter((performance) => Object.keys(performance.casting).length > 0);
 
   if (performances.length > 0) {
     const dates = performances.map(({ date }) => date).sort();
