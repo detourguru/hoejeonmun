@@ -50,6 +50,11 @@ export const parseActorsParam = (
     options.includes(name),
   );
 
+export type CalendarSlotChip = {
+  label: string;
+  colorClass: string;
+};
+
 export type CalendarSlot = {
   id: number;
   // YYYY-MM-DD
@@ -59,6 +64,8 @@ export type CalendarSlot = {
   label: string;
   colorClass?: string;
   filterKeys?: string[];
+  // 한 회차에 즐겨찾기한 배우가 여럿이면 배우별로 칸을 나눠서 보여준다
+  chips?: CalendarSlotChip[];
 };
 
 export type ParsedPerformance = {

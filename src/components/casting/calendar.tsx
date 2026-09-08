@@ -259,18 +259,24 @@ export const Calendar = ({
                   </span>
                 )}
 
-                {daySlots.slice(0, MAX_VISIBLE_SLOTS).map((slot) => (
-                  <span
-                    key={slot.id}
-                    className={cn(
-                      "flex min-w-0 flex-col rounded px-0.5 py-px text-[10px] leading-tight",
-                      slot.colorClass,
-                    )}
-                  >
-                    <span className="font-bold">{slot.time}</span>
-                    <span className="truncate">{slot.label}</span>
-                  </span>
-                ))}
+                {daySlots.slice(0, MAX_VISIBLE_SLOTS).flatMap((slot) =>
+                  (
+                    slot.chips ?? [
+                      { label: slot.label, colorClass: slot.colorClass ?? "" },
+                    ]
+                  ).map((chip, chipIndex) => (
+                    <span
+                      key={`${slot.id}-${chipIndex}`}
+                      className={cn(
+                        "flex min-w-0 flex-col rounded px-0.5 py-px text-[10px] leading-tight",
+                        chip.colorClass,
+                      )}
+                    >
+                      <span className="font-bold">{slot.time}</span>
+                      <span className="truncate">{chip.label}</span>
+                    </span>
+                  )),
+                )}
 
                 {daySlots.length > MAX_VISIBLE_SLOTS && (
                   <span className="text-text-muted px-0.5 text-[10px] font-medium">
