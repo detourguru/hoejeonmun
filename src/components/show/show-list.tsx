@@ -3,6 +3,7 @@ import { ShowCard } from "@/components/show/show-card";
 import { getLatestUploadsByShowIds } from "@/service/casting";
 import {
   filterShows,
+  filterShowsByVenue,
   getShows,
   paginateShows,
   sortShows,
@@ -10,7 +11,11 @@ import {
 } from "@/service/show";
 
 export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
-  const shows = sortShows(filterShows(await getShows(), filters), filters.sort);
+  const filteredShows = filterShows(await getShows(), filters);
+  const shows = sortShows(
+    await filterShowsByVenue(filteredShows, filters),
+    filters.sort,
+  );
 
   const { items, page, totalPages } = paginateShows(shows, filters.page);
 
