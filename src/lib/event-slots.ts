@@ -1,6 +1,9 @@
 import type { EventWithReportStatus } from "@/service/casting";
 import type { CalendarSlot } from "@/type/casting";
 
+export const isOpeningOrClosingEvent = (title: string) =>
+  title.includes("첫공") || title.includes("막공");
+
 export function eventAppliesToDate(
   event: Pick<
     EventWithReportStatus,
