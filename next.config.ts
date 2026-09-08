@@ -50,6 +50,11 @@ const nextConfig: NextConfig = {
         hostname: supabaseHostname,
         pathname: "/storage/v1/object/sign/casting-boards/**",
       },
+      {
+        protocol: "https",
+        hostname: supabaseHostname,
+        pathname: "/storage/v1/object/public/show-posters/**",
+      },
     ],
   },
 };

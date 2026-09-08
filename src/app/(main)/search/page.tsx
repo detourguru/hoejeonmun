@@ -61,14 +61,22 @@ export default async function Page({ searchParams }: Props) {
           &lsquo;{keyword}&rsquo; 검색 결과가 없어요.
         </p>
         <p className="text-text-muted text-xs">
-          아직 회전문에 공연/배우 정보가 등록되지 않았을 수 있어요.
+          아직 회전문에 공연/배우 정보가 등록되지 않았거나 KOPIS에 등록되지 않은 공연이면 검색이 안 될 수 있어요.
         </p>
-        <Link
-          href="/show"
-          className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
-        >
-          다른 공연 둘러보기
-        </Link>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Link
+            href={`/show/register?title=${encodeURIComponent(keyword)}`}
+            className="border-border text-text hover:bg-point inline-flex rounded-full border px-4 py-2 text-xs font-bold transition-colors"
+          >
+            &lsquo;{keyword}&rsquo; 직접 등록하기
+          </Link>
+          <Link
+            href="/show"
+            className="bg-primary rounded-full px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90"
+          >
+            다른 공연 둘러보기
+          </Link>
+        </div>
       </div>
     );
   }

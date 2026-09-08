@@ -92,7 +92,8 @@ create table bug_reports (
   user_agent text not null,
   commit_sha text,
   created_at timestamptz not null default now(),
-  image_paths text[] not null default '{}'
+  image_paths text[] not null default '{}',
+  resolved_at timestamptz
 );
 
 create table event_groups (
@@ -427,5 +428,44 @@ create policy "users upload own bug report images" on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'bug-report-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- KOPIS에 없는 공연을 사용자가 직접 등록. id는 앱에서 "local-" 접두사 + uuid로
+-- 발급해 KOPIS mt20id("PF..." 형태)와 절대 겹치지 않게 한다
+create table user_shows (
+  id text primary key,
+  title text not null,
+  poster_path text not null,
+  period_start date not null,
+  period_end date not null,
+  genre text not null check (genre in ('연극', '뮤지컬')),
+  venue text not null default '',
+  -- [{ "name": "인터파크", "url": "https://..." }, ...]
+  ticket_links jsonb not null default '[]',
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  check (period_start <= period_end),
+  check (length(trim(title)) > 0)
+);
+
+create index user_shows_created_by_idx on user_shows (created_by);
+
+alter table user_shows enable row level security;
+
+create policy "user shows are public" on user_shows for select using (true);
+
+create policy "add own user shows" on user_shows
+  for insert to authenticated with check (created_by = auth.uid());
+
+-- KOPIS 포스터처럼 누구나 봐야 하므로 공개 버킷
+insert into storage.buckets (id, name, public)
+values ('show-posters', 'show-posters', true)
+on conflict (id) do nothing;
+
+create policy "users upload own show posters" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'show-posters'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
