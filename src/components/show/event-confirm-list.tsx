@@ -42,7 +42,6 @@ export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
     .filter(({ include }) => include)
     .map(({ event, original, replacesGroupId }) => ({
       ...event,
-      confirmed: true,
       edited:
         event.title !== original.title ||
         event.periodStart !== original.periodStart ||
