@@ -48,18 +48,28 @@ async function deleteUploadIfEmpty(
   if (error) console.error("빈 업로드 정리 실패", error);
 }
 
-export async function correctSlotCasting(
-  showId: string,
-  slotId: number,
-  role: string,
-  oldActor: string,
-  newRole: string,
-  newActor: string,
-  applyToAllSlots: boolean,
-): Promise<CorrectCastingResult> {
+export async function correctSlotCasting({
+  showId,
+  slotId,
+  role,
+  oldActor,
+  newRole,
+  newActor,
+  applyToAllSlots,
+}: {
+  showId: string;
+  slotId: number;
+  role: string;
+  oldActor: string;
+  newRole: string;
+  newActor: string;
+  applyToAllSlots: boolean;
+}): Promise<CorrectCastingResult> {
   const trimmedRole = newRole.trim();
+  const trimmedActor = newActor.trim();
 
   if (!trimmedRole) return { ok: false, message: "배역명을 입력해 주세요." };
+  if (!trimmedActor) return { ok: false, message: "배우명을 입력해 주세요." };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -87,7 +97,7 @@ export async function correctSlotCasting(
 
   const { data: actor, error: actorError } = await admin
     .from("actors")
-    .upsert([{ name: newActor }], {
+    .upsert([{ name: trimmedActor }], {
       onConflict: "name",
       ignoreDuplicates: false,
     })
@@ -105,7 +115,7 @@ export async function correctSlotCasting(
     .update(
       {
         role_name_raw: trimmedRole,
-        actor_name_raw: newActor,
+        actor_name_raw: trimmedActor,
         actor_id: actor.id,
         verified: false,
       },
