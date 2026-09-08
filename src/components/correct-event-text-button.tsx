@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -50,23 +50,36 @@ export const CorrectEventTextButton = ({
     setExcludedSlots([]);
     setError(null);
     setOpen(true);
+  };
 
+  useEffect(() => {
+    if (!open) return;
+    if (!periodStart || !periodEnd || periodStart > periodEnd) return;
+
+    let cancelled = false;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingSlots(true);
-    getEventSlotAdjustments(
-      showId,
-      eventId,
-      initialPeriodStart,
-      initialPeriodEnd,
-    )
+    getEventSlotAdjustments(showId, eventId, periodStart, periodEnd)
       .then(({ included, excluded }) => {
+        if (cancelled) return;
+
         setIncludedSlots(included);
         setExcludedSlots(excluded);
       })
       .catch(() => {
-        setError("적용 회차를 불러오지 못했어요. 다시 열어 주세요.");
+        if (!cancelled) {
+          setError("적용 회차를 불러오지 못했어요. 다시 열어 주세요.");
+        }
       })
-      .finally(() => setLoadingSlots(false));
-  };
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, showId, eventId, periodStart, periodEnd]);
 
   const handleSubmit = () => {
     if (periodStart > periodEnd) {
