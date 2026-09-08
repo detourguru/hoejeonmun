@@ -2251,23 +2251,36 @@ async function applyCancelledSlots(
   showId: string,
   cancelledSlots: ParsedCancelledSlot[],
 ): Promise<number> {
-  let count = 0;
+  if (cancelledSlots.length === 0) return 0;
 
-  for (const { date, time } of cancelledSlots) {
-    const { error, count: updated } = await admin
-      .from("slots")
-      .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
-      .eq("show_id", showId)
-      .eq("date", date)
-      .eq("time", time)
-      .is("cancelled_at", null);
+  const dates = [...new Set(cancelledSlots.map(({ date }) => date))];
 
-    if (error) throw error;
+  const { data: slots, error: selectError } = await admin
+    .from("slots")
+    .select("id, date, time")
+    .eq("show_id", showId)
+    .in("date", dates)
+    .is("cancelled_at", null);
 
-    count += updated ?? 0;
-  }
+  if (selectError) throw selectError;
 
-  return count;
+  const cancelledKeys = new Set(
+    cancelledSlots.map(({ date, time }) => slotKey(date, time)),
+  );
+  const matchedIds = (slots as { id: number; date: string; time: string }[])
+    .filter((slot) => cancelledKeys.has(slotKey(slot.date, slot.time)))
+    .map(({ id }) => id);
+
+  if (matchedIds.length === 0) return 0;
+
+  const { error: updateError, count } = await admin
+    .from("slots")
+    .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
+    .in("id", matchedIds);
+
+  if (updateError) throw updateError;
+
+  return count ?? 0;
 }
 
 // 배역 하나에 배우가 여럿(앙상블)인 경우, 이 함수는 옛 배우를 특정하지 않고
@@ -2279,57 +2292,91 @@ async function applyCastingChanges(
   showId: string,
   castingChanges: ParsedCastingChange[],
 ): Promise<number> {
-  let count = 0;
+  if (castingChanges.length === 0) return 0;
 
-  for (const { date, time, role, actor } of castingChanges) {
-    const { data: slot, error: slotError } = await admin
-      .from("slots")
-      .select("id")
-      .eq("show_id", showId)
-      .eq("date", date)
-      .eq("time", time)
-      .is("cancelled_at", null)
-      .maybeSingle();
+  const dates = [...new Set(castingChanges.map(({ date }) => date))];
 
-    if (slotError) throw slotError;
-    if (!slot) continue;
+  const { data: slots, error: slotsError } = await admin
+    .from("slots")
+    .select("id, date, time")
+    .eq("show_id", showId)
+    .in("date", dates)
+    .is("cancelled_at", null);
 
-    const { data: casting, error: castingError } = await admin
-      .from("current_castings")
-      .select("upload_id")
-      .eq("slot_id", slot.id)
-      .maybeSingle();
+  if (slotsError) throw slotsError;
 
-    if (castingError) throw castingError;
-    if (!casting) continue;
+  const slotIdByKey = new Map(
+    (slots as { id: number; date: string; time: string }[]).map(
+      ({ id, date, time }) => [slotKey(date, time), id],
+    ),
+  );
+  const slotIds = [...slotIdByKey.values()];
 
-    const { data: actorRow, error: actorError } = await admin
-      .from("actors")
-      .upsert([{ name: actor }], {
-        onConflict: "name",
-        ignoreDuplicates: false,
-      })
-      .select("id")
-      .single();
+  const { data: castings, error: castingsError } =
+    slotIds.length > 0
+      ? await admin
+          .from("current_castings")
+          .select("slot_id, upload_id")
+          .in("slot_id", slotIds)
+      : { data: [] as { slot_id: number; upload_id: number }[], error: null };
 
-    if (actorError) throw actorError;
+  if (castingsError) throw castingsError;
 
-    const { error: updateError, count: updated } = await admin
-      .from("assignments")
-      .update(
-        { actor_name_raw: actor, actor_id: actorRow.id, verified: false },
-        { count: "exact" },
-      )
-      .eq("upload_id", casting.upload_id)
-      .eq("slot_id", slot.id)
-      .eq("role_name_raw", role);
+  const uploadIdBySlotId = new Map(
+    (castings as { slot_id: number; upload_id: number }[]).map(
+      ({ slot_id, upload_id }) => [slot_id, upload_id],
+    ),
+  );
 
-    if (updateError) throw updateError;
+  const actorNames = [...new Set(castingChanges.map(({ actor }) => actor))];
 
-    count += updated ?? 0;
-  }
+  const { error: actorUpsertError } = await admin.from("actors").upsert(
+    actorNames.map((name) => ({ name })),
+    { onConflict: "name", ignoreDuplicates: false },
+  );
 
-  return count;
+  if (actorUpsertError) throw actorUpsertError;
+
+  const { data: actors, error: actorSelectError } = await admin
+    .from("actors")
+    .select("id, name")
+    .in("name", actorNames);
+
+  if (actorSelectError) throw actorSelectError;
+
+  const actorIdByName = new Map(
+    (actors as { id: number; name: string }[]).map(({ id, name }) => [
+      name,
+      id,
+    ]),
+  );
+
+  const updates = await Promise.all(
+    castingChanges.map(({ date, time, role, actor }) => {
+      const slotId = slotIdByKey.get(slotKey(date, time));
+      const uploadId = slotId && uploadIdBySlotId.get(slotId);
+      const actorId = actorIdByName.get(actor);
+
+      if (!slotId || !uploadId || actorId === undefined) return 0;
+
+      return admin
+        .from("assignments")
+        .update(
+          { actor_name_raw: actor, actor_id: actorId, verified: false },
+          { count: "exact" },
+        )
+        .eq("upload_id", uploadId)
+        .eq("slot_id", slotId)
+        .eq("role_name_raw", role)
+        .then(({ error, count }) => {
+          if (error) throw error;
+
+          return count ?? 0;
+        });
+    }),
+  );
+
+  return updates.reduce((sum, updated) => sum + updated, 0);
 }
 
 async function applyCancelledEvents(
@@ -2361,9 +2408,7 @@ async function applyCancelledEvents(
     period_end: string;
   }[];
 
-  let count = 0;
-
-  for (const cancelled of cancelledEvents) {
+  const matchedIds = cancelledEvents.flatMap((cancelled) => {
     const key = toTitleKey(cancelled.title);
 
     const match = candidates.find(
@@ -2373,19 +2418,19 @@ async function applyCancelledEvents(
         cancelled.periodStart <= candidate.period_end,
     );
 
-    if (!match) continue;
+    return match ? [match.id] : [];
+  });
 
-    const { error: updateError, count: updated } = await admin
-      .from("events")
-      .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
-      .eq("id", match.id);
+  if (matchedIds.length === 0) return 0;
 
-    if (updateError) throw updateError;
+  const { error: updateError, count } = await admin
+    .from("events")
+    .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
+    .in("id", matchedIds);
 
-    count += updated ?? 0;
-  }
+  if (updateError) throw updateError;
 
-  return count;
+  return count ?? 0;
 }
 
 export async function saveCastingBoard({
@@ -2597,14 +2642,10 @@ async function saveCastingBoardContent({
     if (assignmentError) throw assignmentError;
   }
 
-  let eventCount = 0;
-
-  for (const event of events) {
+  async function saveEvent(event: ConfirmedEvent): Promise<boolean> {
     const uploadImageId = uploadImageIdByPosition.get(event.imageIndex);
 
-    if (uploadImageId === undefined) continue;
-
-    let groupId: number;
+    if (uploadImageId === undefined) return false;
 
     const selectedReplacement =
       event.replacesGroupId !== undefined &&
@@ -2617,13 +2658,10 @@ async function saveCastingBoardContent({
       isExactSameEvent(event, candidate),
     );
 
-    if (selectedReplacement !== undefined) {
-      groupId = selectedReplacement;
-    } else if (exactMatch) {
-      groupId = exactMatch.groupId;
-    } else {
-      groupId = await createEventGroup(admin);
-    }
+    const groupId =
+      selectedReplacement ??
+      exactMatch?.groupId ??
+      (await createEventGroup(admin));
 
     const row: EventRow = {
       group_id: groupId,
@@ -2641,51 +2679,49 @@ async function saveCastingBoardContent({
 
     const eventId = await insertEvent(admin, row);
 
-    if (eventId) {
-      eventCount += 1;
+    if (!eventId) return false;
 
-      const matchedSlotIds = await computeEventSlotIds(admin, showId, {
-        periodStart: event.periodStart,
-        periodEnd: event.periodEnd,
-        includedSlots: event.includedSlots,
-        excludedSlots: event.excludedSlots,
-        exactTimes: event.exactTimes,
-        listedSlots: event.listedSlots,
-        periodStartCutoffTime: event.periodStartCutoffTime,
-        periodEndCutoffTime: event.periodEndCutoffTime,
+    const matchedSlotIds = await computeEventSlotIds(admin, showId, {
+      periodStart: event.periodStart,
+      periodEnd: event.periodEnd,
+      includedSlots: event.includedSlots,
+      excludedSlots: event.excludedSlots,
+      exactTimes: event.exactTimes,
+      listedSlots: event.listedSlots,
+      periodStartCutoffTime: event.periodStartCutoffTime,
+      periodEndCutoffTime: event.periodEndCutoffTime,
+    });
+
+    const eventSlots = matchedSlotIds.map((slotId) => ({
+      event_id: eventId,
+      slot_id: slotId,
+    }));
+
+    const { error: eventSlotsErr } = await admin
+      .from("event_slots")
+      .upsert(eventSlots, {
+        onConflict: "event_id,slot_id",
+        ignoreDuplicates: true,
       });
 
-      const eventSlots = matchedSlotIds.map((slotId) => ({
-        event_id: eventId,
-        slot_id: slotId,
-      }));
+    if (eventSlotsErr) throw eventSlotsErr;
 
-      const { error: eventSlotsErr } = await admin
-        .from("event_slots")
-        .upsert(eventSlots, {
-          onConflict: "event_id,slot_id",
-          ignoreDuplicates: true,
-        });
-
-      if (eventSlotsErr) throw eventSlotsErr;
-    }
+    return true;
   }
 
-  const cancelledSlotCount = await applyCancelledSlots(
-    admin,
-    showId,
-    cancelledSlots,
-  );
-  const castingChangeCount = await applyCastingChanges(
-    admin,
-    showId,
-    castingChanges,
-  );
-  const cancelledEventCount = await applyCancelledEvents(
-    admin,
-    showId,
-    cancelledEvents,
-  );
+  const [
+    savedEvents,
+    cancelledSlotCount,
+    castingChangeCount,
+    cancelledEventCount,
+  ] = await Promise.all([
+    Promise.all(events.map((event) => saveEvent(event))),
+    applyCancelledSlots(admin, showId, cancelledSlots),
+    applyCastingChanges(admin, showId, castingChanges),
+    applyCancelledEvents(admin, showId, cancelledEvents),
+  ]);
+
+  const eventCount = savedEvents.filter(Boolean).length;
 
   return {
     uploadId: upload.id,
