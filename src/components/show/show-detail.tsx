@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { getActorIdsByNames } from "@/service/actor";
 import { getShowFilterData } from "@/service/casting";
 import { getShow } from "@/service/show";
+import { isUserShowId } from "@/service/user-show";
 import { ShowRelate } from "@/type/show";
 
 import { Badge } from "../ui/badge";
@@ -135,6 +136,11 @@ export const ShowDetail = async ({ id }: { id: string }) => {
             <span className="bg-point text-primary rounded-full px-2.5 py-1 text-[10.5px] font-bold">
               {show.prfstate}
             </span>
+            {isUserShowId(id) && (
+              <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold text-white backdrop-blur-sm">
+                사용자 등록 공연
+              </span>
+            )}
           </div>
 
           <h1 className="font-heading text-xl leading-snug font-bold break-keep text-white">
