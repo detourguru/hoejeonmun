@@ -5,6 +5,7 @@ import {
   isUserShowId,
   searchUserShows,
 } from "@/service/user-show";
+import { getVenueSeatScales } from "@/service/venue";
 import {
   AREA,
   AREA_NAMES_BY_CODE,
@@ -12,6 +13,7 @@ import {
   DEFAULT_SORT,
   GENRE,
   GenreCode,
+  LARGE_VENUE_SEAT_THRESHOLD,
   SEARCHABLE_MONTHS,
   Show,
   ShowDetail,
@@ -57,6 +59,8 @@ export type ShowFilters = {
   signgucode?: AreaCode;
   shprfnm?: string;
   sort?: SortKey;
+  daehakro?: boolean;
+  largeVenue?: boolean;
   page: number;
   // YYYYMMDD
   from: string;
@@ -137,6 +141,10 @@ function pickPage(value: string | string[] | undefined) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
+function pickBoolean(value: string | string[] | undefined) {
+  return getFirstFromArray(value) === "1";
+}
+
 // 허용된 필터만 여기에 추가
 export function parseShowFilters(
   params: Record<string, string | string[] | undefined>,
@@ -147,6 +155,8 @@ export function parseShowFilters(
     signgucode: pickCode(params.signgucode, AREA.isCode),
     shprfnm: getFirstFromArray(params.shprfnm)?.trim() || undefined,
     sort: pickCode(params.sort, SORT.isCode),
+    daehakro: pickBoolean(params.daehakro),
+    largeVenue: pickBoolean(params.largeVenue),
     ...pickPeriod(params),
     page: pickPage(params.page),
   };
@@ -176,6 +186,37 @@ export function filterShows(shows: Show[], filters: ShowFilters): Show[] {
     if (normalizeDate(show.prfpdto, "") < filters.from) return false;
 
     return true;
+  });
+}
+
+export async function filterShowsByVenue(
+  shows: Show[],
+  filters: ShowFilters,
+): Promise<Show[]> {
+  if (!filters.daehakro && !filters.largeVenue) return shows;
+
+  const details = await Promise.all(
+    shows.map((show) => getShow(show.mt20id).catch(() => null)),
+  );
+
+  const mt13ids = details
+    .map((detail) => detail?.mt13id)
+    .filter((mt13id): mt13id is string => !!mt13id);
+
+  const seatScaleByMt13id = await getVenueSeatScales(mt13ids);
+
+  return shows.filter((_, index) => {
+    const detail = details[index];
+    const isDaehakro = detail?.daehakro === "Y";
+    const seatScale = detail?.mt13id
+      ? (seatScaleByMt13id.get(detail.mt13id) ?? null)
+      : null;
+    const isLargeVenue =
+      seatScale != null && seatScale >= LARGE_VENUE_SEAT_THRESHOLD;
+
+    return (
+      (filters.daehakro && isDaehakro) || (filters.largeVenue && isLargeVenue)
+    );
   });
 }
 

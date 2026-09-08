@@ -7,11 +7,12 @@ import { useState } from "react";
 import type { TodayShowSlot } from "@/service/casting";
 import { LARGE_VENUE_SEAT_THRESHOLD } from "@/type/show";
 
-function isMainstreamVenue(slot: TodayShowSlot) {
-  return (
-    slot.daehakro === "Y" ||
-    (slot.seatScale != null && slot.seatScale >= LARGE_VENUE_SEAT_THRESHOLD)
-  );
+function isDaehakro(slot: TodayShowSlot) {
+  return slot.daehakro === "Y";
+}
+
+function isLargeVenue(slot: TodayShowSlot) {
+  return slot.seatScale != null && slot.seatScale >= LARGE_VENUE_SEAT_THRESHOLD;
 }
 
 function groupByTime(slots: TodayShowSlot[]) {
@@ -37,11 +38,19 @@ export function TodayShowList({
   month: string;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const [onlyMainstream, setOnlyMainstream] = useState(false);
+  const [showDaehakro, setShowDaehakro] = useState(true);
+  const [showLargeVenue, setShowLargeVenue] = useState(true);
+
+  const noVenueFilter = !showDaehakro && !showLargeVenue;
 
   const visibleSlots = slots
     .filter((slot) => showAll || slot.time >= now)
-    .filter((slot) => !onlyMainstream || isMainstreamVenue(slot));
+    .filter(
+      (slot) =>
+        noVenueFilter ||
+        (showDaehakro && isDaehakro(slot)) ||
+        (showLargeVenue && isLargeVenue(slot)),
+    );
   const groupedByTime = groupByTime(visibleSlots);
 
   return (
@@ -56,14 +65,25 @@ export function TodayShowList({
           지난 공연도 모두 보기
         </label>
 
-        <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
-          <input
-            type="checkbox"
-            checked={onlyMainstream}
-            onChange={({ target }) => setOnlyMainstream(target.checked)}
-          />
-          대학로·대극장만 보기
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={showDaehakro}
+              onChange={({ target }) => setShowDaehakro(target.checked)}
+            />
+            대학로
+          </label>
+
+          <label className="text-text-muted flex w-fit items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={showLargeVenue}
+              onChange={({ target }) => setShowLargeVenue(target.checked)}
+            />
+            대극장
+          </label>
+        </div>
       </div>
 
       {visibleSlots.length === 0 ? (

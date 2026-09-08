@@ -16,6 +16,7 @@ import {
 } from "@/type/show";
 
 import { SelectBox } from "../select-box";
+import { ToggleChip } from "../toggle-chip";
 import { Input } from "../ui/input";
 
 export const FilterBar = () => {
@@ -96,6 +97,9 @@ export const FilterBar = () => {
             placeholder="지역 구분"
             options={AREA.options}
           />
+
+          <ToggleChip name="daehakro" label="대학로" />
+          <ToggleChip name="largeVenue" label="대극장" />
         </div>
 
         {canScrollLeft && (
