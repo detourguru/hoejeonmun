@@ -43,6 +43,14 @@ export function addMonths(date: Date, months: number): Date {
   return moved;
 }
 
+export function addDays(date: Date, days: number): Date {
+  const moved = new Date(date);
+
+  moved.setUTCDate(moved.getUTCDate() + days);
+
+  return moved;
+}
+
 function toParts(date: Date) {
   return [
     String(date.getUTCFullYear()),

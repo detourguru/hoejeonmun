@@ -57,11 +57,8 @@ export const AREA_NAMES_BY_CODE: Record<AreaCode, readonly string[]> = {
   "51": ["강원특별자치도"],
 };
 
-/**
- * TODO: 규모(중소극장 / 대극장) 필터
- * mvp 기능이지만 좌석수가 공연목록/공연상세 응답에 없고 공연시설상세(/prfplc/{mt10id})에만 있어
- * 시설 정보를 자체 DB에 미러링한 뒤 붙일 것
- */
+// 대극장 판정 좌석수 기준. Kopis 예매상황판 좌석구간 코드와 동일
+export const LARGE_VENUE_SEAT_THRESHOLD = 1000;
 
 export const SHOW_FEED_TAB = createCodeTable([
   { value: "today", label: "오늘의 공연" },
@@ -109,6 +106,7 @@ export type ShowRelate = {
 // 값이 없는 항목은 태그 자체가 빠지거나 빈 문자열로 오기때문에 optional
 export type ShowDetail = Show & {
   mt10id?: string;
+  mt13id?: string;
   prfcast?: string;
   prfcrew?: string;
   prfruntime?: string;
