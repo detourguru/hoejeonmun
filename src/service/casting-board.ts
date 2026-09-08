@@ -2155,14 +2155,25 @@ const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
 export async function computeEventSlotIds(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
-  periodStart: string,
-  periodEnd: string,
-  includedSlots: EventSlotException[] = [],
-  excludedSlots: EventSlotException[] = [],
-  exactTimes?: string[],
-  listedSlots: EventSlotException[] = [],
-  periodStartCutoffTime?: string,
-  periodEndCutoffTime?: string,
+  {
+    periodStart,
+    periodEnd,
+    includedSlots = [],
+    excludedSlots = [],
+    exactTimes,
+    listedSlots = [],
+    periodStartCutoffTime,
+    periodEndCutoffTime,
+  }: {
+    periodStart: string;
+    periodEnd: string;
+    includedSlots?: EventSlotException[];
+    excludedSlots?: EventSlotException[];
+    exactTimes?: string[];
+    listedSlots?: EventSlotException[];
+    periodStartCutoffTime?: string;
+    periodEndCutoffTime?: string;
+  },
 ): Promise<number[]> {
   const { data: periodSlots, error: periodSlotsErr } = await admin
     .from("slots")
@@ -2633,18 +2644,16 @@ async function saveCastingBoardContent({
     if (eventId) {
       eventCount += 1;
 
-      const matchedSlotIds = await computeEventSlotIds(
-        admin,
-        showId,
-        event.periodStart,
-        event.periodEnd,
-        event.includedSlots,
-        event.excludedSlots,
-        event.exactTimes,
-        event.listedSlots,
-        event.periodStartCutoffTime,
-        event.periodEndCutoffTime,
-      );
+      const matchedSlotIds = await computeEventSlotIds(admin, showId, {
+        periodStart: event.periodStart,
+        periodEnd: event.periodEnd,
+        includedSlots: event.includedSlots,
+        excludedSlots: event.excludedSlots,
+        exactTimes: event.exactTimes,
+        listedSlots: event.listedSlots,
+        periodStartCutoffTime: event.periodStartCutoffTime,
+        periodEndCutoffTime: event.periodEndCutoffTime,
+      });
 
       const eventSlots = matchedSlotIds.map((slotId) => ({
         event_id: eventId,

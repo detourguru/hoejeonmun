@@ -545,14 +545,12 @@ export async function correctEventText(
   if (!count) return { ok: false, message: "이벤트를 찾을 수 없어요." };
 
   // 기간 + 막대 밖 포함/제외 회차를 반영해 적용되는 회차를 다시 계산한다
-  const matchedSlotIds = await computeEventSlotIds(
-    admin,
-    showId,
+  const matchedSlotIds = await computeEventSlotIds(admin, showId, {
     periodStart,
     periodEnd,
-    sanitizeSlotExceptions(includedSlots),
-    sanitizeSlotExceptions(excludedSlots),
-  );
+    includedSlots: sanitizeSlotExceptions(includedSlots),
+    excludedSlots: sanitizeSlotExceptions(excludedSlots),
+  });
 
   const { error: deleteSlotsError } = await admin
     .from("event_slots")
