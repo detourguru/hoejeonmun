@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { FavoriteActorSlotCard } from "@/components/mypage/favorite-actor-slot-card";
-import { MyScheduleTabs } from "@/components/mypage/my-schedule-tabs";
+import { MyScheduleCalendar } from "@/components/mypage/my-schedule-calendar";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
 import { SLOT_COLOR, getActorColor } from "@/lib/actor-color";
 import {
@@ -64,7 +64,7 @@ export default async function Page({ searchParams }: Props) {
     <div className="flex flex-col gap-4">
       <h1 className="text-text text-xl font-bold">내 공연</h1>
 
-      <MyScheduleTabs
+      <MyScheduleCalendar
         month={month}
         initialView={view}
         cells={getCalendarCells(monthDate)}

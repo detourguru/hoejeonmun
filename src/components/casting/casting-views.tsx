@@ -171,11 +171,14 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
-  const visible = slots.filter((slot) =>
-    filterMode === "or"
+  // filterKeys가 없는 회차(예: 내 공연)는 배우 필터 대상이 아니라 항상 보여준다
+  const visible = slots.filter((slot) => {
+    if (!slot.filterKeys) return true;
+
+    return filterMode === "or"
       ? actors.some((name) => slot.filterKeys?.includes(name))
-      : actors.every((name) => slot.filterKeys?.includes(name)),
-  );
+      : actors.every((name) => slot.filterKeys?.includes(name));
+  });
 
   const isEmpty = slots.length === 0 && events.length === 0;
 
