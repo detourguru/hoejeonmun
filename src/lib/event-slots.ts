@@ -9,15 +9,13 @@ export function eventAppliesToDate(
   date: string,
   slotsOnDate: Pick<CalendarSlot, "id">[],
 ): boolean {
-  if (
-    !event.sparseDates &&
-    event.periodStart <= date &&
-    date <= event.periodEnd
-  ) {
-    return true;
+  if (slotsOnDate.length > 0) {
+    return slotsOnDate.some((slot) => event.slotIds.includes(slot.id));
   }
 
-  return slotsOnDate.some((slot) => event.slotIds.includes(slot.id));
+  return (
+    !event.sparseDates && event.periodStart <= date && date <= event.periodEnd
+  );
 }
 
 export type EventWithSlotTimes<
