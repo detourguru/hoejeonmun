@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
     APP_COMMIT_SHA: resolveCommitSha(),
   },
   images: {
+    unoptimized: true,
     // KOPIS 가 www 없이 주거나 https 로 주는 경우가 있음
     remotePatterns: [
       {
