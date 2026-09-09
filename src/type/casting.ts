@@ -61,6 +61,8 @@ export type CalendarSlot = {
   date: string;
   // HH:mm
   time: string;
+  // 겹침 판정에만 쓰인다
+  showId?: string;
   label: string;
   colorClass?: string;
   filterKeys?: string[];

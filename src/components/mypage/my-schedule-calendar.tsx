@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 
 import { CastingViews } from "@/components/casting/casting-views";
+import { findOverlappingSlotIds } from "@/lib/schedule-overlap";
 import type { CalendarEvent } from "@/service/casting";
 import { CastingView, CalendarSlot } from "@/type/casting";
 
@@ -19,6 +20,7 @@ export const MyScheduleCalendar = ({
   favoritePanels,
   favoriteListItems,
   favoriteActorNames,
+  runtimeByShowId,
 }: {
   month: string;
   initialView: CastingView;
@@ -31,12 +33,41 @@ export const MyScheduleCalendar = ({
   favoritePanels: Record<number, ReactNode>;
   favoriteListItems: Record<number, ReactNode>;
   favoriteActorNames: string[];
+  runtimeByShowId: Record<string, number | null>;
 }) => {
   const hasFavorites = favoriteActorNames.length > 0;
 
   // 내가 담아둔 회차랑 즐겨찾기 배우 회차가 겹치면 내 공연 쪽으로만 보여준다
   const mySlotIds = new Set(mySlots.map(({ id }) => id));
   const overlaySlots = favoriteSlots.filter(({ id }) => !mySlotIds.has(id));
+
+  const allSlots = [...mySlots, ...overlaySlots];
+
+  const overlappingIds = findOverlappingSlotIds(
+    allSlots.map(({ id, date, time, showId }) => ({
+      id,
+      date,
+      time,
+      showId: showId ?? "",
+    })),
+    runtimeByShowId,
+  );
+
+  const slotsWithOverlap = allSlots.map((slot) => {
+    if (!overlappingIds.has(slot.id)) return slot;
+
+    const baseChips = slot.chips ?? [
+      { label: slot.label, colorClass: slot.colorClass ?? "" },
+    ];
+
+    return {
+      ...slot,
+      chips: [
+        ...baseChips,
+        { label: "겹침", colorClass: "bg-red-100 text-red-700" },
+      ],
+    };
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -57,7 +88,7 @@ export const MyScheduleCalendar = ({
         initialView={initialView}
         cells={cells}
         events={myEvents}
-        slots={[...mySlots, ...overlaySlots]}
+        slots={slotsWithOverlap}
         panels={{
           ...myPanels,
           ...Object.fromEntries(
@@ -72,6 +103,7 @@ export const MyScheduleCalendar = ({
         }}
         filterOptions={favoriteActorNames}
         filterMode="or"
+        overlapFilter={{ overlappingIds }}
         empty={
           <p className="text-text-muted py-16 text-center text-sm">
             아직 담아둔 회차/이벤트가 없어요.

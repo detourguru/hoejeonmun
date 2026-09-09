@@ -1,5 +1,6 @@
 import { addMonths, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
+import { parseRuntimeMinutes } from "@/lib/runtime";
 import {
   getUserShow,
   isUserShowId,
@@ -283,6 +284,19 @@ export async function getShowSummaries(
         daehakro: shows[index]?.daehakro,
         mt13id: shows[index]?.mt13id,
       },
+    ]),
+  );
+}
+
+export async function getShowRuntimes(
+  showIds: string[],
+): Promise<Record<string, number | null>> {
+  const shows = await Promise.all(showIds.map((id) => getShow(id)));
+
+  return Object.fromEntries(
+    showIds.map((id, index) => [
+      id,
+      parseRuntimeMinutes(shows[index]?.prfruntime),
     ]),
   );
 }

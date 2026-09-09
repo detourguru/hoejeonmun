@@ -83,6 +83,7 @@ export const CastingViews = ({
   filterOptions = [],
   initialActors = [],
   filterMode = "and",
+  overlapFilter,
 }: {
   showId?: string;
   month: string;
@@ -98,9 +99,11 @@ export const CastingViews = ({
   filterOptions?: string[];
   initialActors?: string[];
   filterMode?: "and" | "or";
+  overlapFilter?: { overlappingIds: Set<number> };
 }) => {
   const [view, setView] = useState<CastingView>(initialView);
   const [actors, setActors] = useState<string[]>(initialActors);
+  const [onlyOverlapping, setOnlyOverlapping] = useState(false);
   const [pending, startTransition] = useTransition();
   const [visibleMonth, setVisibleMonth] = useOptimistic(month);
   const router = useRouter();
@@ -173,11 +176,17 @@ export const CastingViews = ({
 
   // filterKeys가 없는 회차(예: 내 공연)는 배우 필터 대상이 아니라 항상 보여준다
   const visible = slots.filter((slot) => {
-    if (!slot.filterKeys) return true;
+    const matchesActors = !slot.filterKeys
+      ? true
+      : filterMode === "or"
+        ? actors.some((name) => slot.filterKeys?.includes(name))
+        : actors.every((name) => slot.filterKeys?.includes(name));
 
-    return filterMode === "or"
-      ? actors.some((name) => slot.filterKeys?.includes(name))
-      : actors.every((name) => slot.filterKeys?.includes(name));
+    if (!matchesActors) return false;
+
+    return (
+      !onlyOverlapping || (overlapFilter?.overlappingIds.has(slot.id) ?? false)
+    );
   });
 
   const isEmpty = slots.length === 0 && events.length === 0;
@@ -233,17 +242,44 @@ export const CastingViews = ({
         />
       )}
 
+      {!isEmpty && overlapFilter && (
+        <div className="flex gap-1">
+          {(
+            [
+              { value: false, label: "전체" },
+              { value: true, label: "겹치는 일정만" },
+            ] as const
+          ).map(({ value, label }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setOnlyOverlapping(value)}
+              className={cn(
+                "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
+                value === onlyOverlapping
+                  ? "bg-primary text-white"
+                  : "text-text",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div
         aria-busy={pending}
         className={cn("transition-opacity", pending && "opacity-40")}
       >
         {isEmpty ? (
           empty
-        ) : actors.length > 0 && visible.length === 0 ? (
+        ) : (actors.length > 0 || onlyOverlapping) && visible.length === 0 ? (
           <p className="text-text-muted py-16 text-center text-sm">
-            {filterMode === "or"
-              ? `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`
-              : `${actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.`}
+            {onlyOverlapping
+              ? "겹치는 일정이 없어요."
+              : filterMode === "or"
+                ? `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`
+                : `${actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.`}
           </p>
         ) : view === "calendar" ? (
           <Calendar
