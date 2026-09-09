@@ -14,6 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getFavoriteActors, getFavoriteActorSlots } from "@/service/actor";
 import { getMyEvents, getMySlots } from "@/service/mypage";
+import { getShowRuntimes } from "@/service/show";
 import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
 
 import type { Metadata } from "next";
@@ -60,6 +61,19 @@ export default async function Page({ searchParams }: Props) {
 
   const { favoriteActors, favoriteSlots } = favorites;
 
+  const showIds = [
+    ...new Set([
+      ...slots.map((slot) => slot.showId),
+      ...favoriteSlots.map((slot) => slot.showId),
+    ]),
+  ];
+
+  const runtimeByShowId = await getShowRuntimes(showIds).catch((error) => {
+    console.error("공연 러닝타임 조회 실패", error);
+
+    return {};
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-text text-xl font-bold">내 공연</h1>
@@ -73,6 +87,7 @@ export default async function Page({ searchParams }: Props) {
           id: slot.id,
           date: slot.date,
           time: slot.time,
+          showId: slot.showId,
           label: slot.showName,
           colorClass: SLOT_COLOR,
         }))}
@@ -99,6 +114,7 @@ export default async function Page({ searchParams }: Props) {
             id: slot.id,
             date: slot.date,
             time: slot.time,
+            showId: slot.showId,
             label: slot.showName,
             filterKeys: castingActors.map(([, actor]) => actor),
             chips: castingActors.map(([actorId, actor]) => ({
@@ -120,6 +136,7 @@ export default async function Page({ searchParams }: Props) {
           ]),
         )}
         favoriteActorNames={favoriteActors.map(({ name }) => name)}
+        runtimeByShowId={runtimeByShowId}
       />
     </div>
   );
