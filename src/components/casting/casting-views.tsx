@@ -191,10 +191,16 @@ export const CastingViews = ({
 
   const isEmpty = slots.length === 0 && events.length === 0;
 
+  const visibleEvents = onlyOverlapping
+    ? events.filter((event) =>
+        event.slotIds.some((id) => overlapFilter?.overlappingIds.has(id)),
+      )
+    : events;
+
   const slotDatesSet = new Set(visible.map(({ date }) => date));
   const standaloneEventDates = [
     ...new Set(
-      events
+      visibleEvents
         .filter(
           (event) =>
             event.periodStart === event.periodEnd &&
@@ -286,7 +292,7 @@ export const CastingViews = ({
             showId={showId}
             cells={cells}
             slots={visible}
-            events={events}
+            events={visibleEvents}
             panels={panels}
             initialDate={initialDate}
           />
@@ -300,7 +306,7 @@ export const CastingViews = ({
               const daySlots = visible.filter((slot) => slot.date === date);
               const dateEvents = matchEventsToDate(
                 daySlots,
-                events.filter((event) =>
+                visibleEvents.filter((event) =>
                   eventAppliesToDate(event, date, daySlots),
                 ),
               );
