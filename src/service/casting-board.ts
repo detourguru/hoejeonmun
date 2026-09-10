@@ -2328,7 +2328,9 @@ async function applyCastingChanges(
     ),
   );
 
-  const actorNames = [...new Set(castingChanges.map(({ actor }) => actor))];
+  const actorNames = [
+    ...new Set(castingChanges.map(({ actor }) => normalizeActorName(actor))),
+  ];
 
   const { error: actorUpsertError } = await admin.from("actors").upsert(
     actorNames.map((name) => ({ name })),
@@ -2355,7 +2357,7 @@ async function applyCastingChanges(
     castingChanges.map(({ date, time, role, actor }) => {
       const slotId = slotIdByKey.get(slotKey(date, time));
       const uploadId = slotId && uploadIdBySlotId.get(slotId);
-      const actorId = actorIdByName.get(actor);
+      const actorId = actorIdByName.get(normalizeActorName(actor));
 
       if (!slotId || !uploadId || actorId === undefined) return 0;
 
@@ -2592,7 +2594,9 @@ async function saveCastingBoardContent({
 
     actorNames = [
       ...new Set(
-        performances.flatMap(({ casting }) => Object.values(casting).flat()),
+        performances
+          .flatMap(({ casting }) => Object.values(casting).flat())
+          .map(normalizeActorName),
       ),
     ];
 
@@ -2625,7 +2629,7 @@ async function saveCastingBoardContent({
             slot_id: slotId,
             role_name_raw: role,
             actor_name_raw: actor,
-            actor_id: actorIdByName.get(actor) ?? null,
+            actor_id: actorIdByName.get(normalizeActorName(actor)) ?? null,
             upload_image_id: uploadImageId,
           })),
         );
