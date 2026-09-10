@@ -957,6 +957,11 @@ export function unverifiedPoints(event: {
 
   if (!event.printedStartWeekday || !event.printedEndWeekday) {
     reasons.push("no_printed_weekday");
+  } else if (
+    !agreesWithPrintedWeekday(event.periodStart, event.printedStartWeekday) ||
+    !agreesWithPrintedWeekday(event.periodEnd, event.printedEndWeekday)
+  ) {
+    reasons.push("weekday_mismatch");
   }
 
   if (
@@ -1222,8 +1227,7 @@ function normalizeEvents(
       // 공연 기간과 아예 안 겹치는 이벤트는 다른 공연 것으로 판단
       periodStart <= to &&
       periodEnd >= from &&
-      agreesWithPrintedWeekday(periodStart, printedStartWeekday) &&
-      agreesWithPrintedWeekday(periodEnd, printedEndWeekday) &&
+      // 요일 오탈자일 수 있으니 여기서 버리지 않고 unverifiedPoints에서 확인 요청으로 남긴다
       Number.isInteger(event.imageIndex) &&
       event.imageIndex >= 0 &&
       event.imageIndex < imageCount;
