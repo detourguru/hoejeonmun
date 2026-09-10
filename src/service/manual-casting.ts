@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeActorName } from "@/lib/actor-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPlaceholderActorName } from "@/service/casting-board";
 import { EventSlotException } from "@/type/casting";
@@ -76,7 +77,9 @@ export async function saveManualCasting({
     ),
   );
 
-  const actorNames = [...new Set(validCasting.map(({ actor }) => actor))];
+  const actorNames = [
+    ...new Set(validCasting.map(({ actor }) => normalizeActorName(actor))),
+  ];
 
   const { error: actorError } = await admin.from("actors").upsert(
     actorNames.map((name) => ({ name })),
@@ -109,7 +112,7 @@ export async function saveManualCasting({
       slot_id: slotId,
       role_name_raw: role,
       actor_name_raw: actor,
-      actor_id: actorIdByName.get(actor) ?? null,
+      actor_id: actorIdByName.get(normalizeActorName(actor)) ?? null,
       upload_image_id: null,
     }));
   });
