@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { normalizeActorName } from "@/lib/actor-name";
 import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -116,25 +117,35 @@ export async function getActorShows(actorId: number) {
 export async function getActorIdsByNames(names: string[]) {
   if (names.length === 0) return new Map<string, number>();
 
+  const normalizedNames = [...new Set(names.map(normalizeActorName))];
+
   const entries = await unstable_cache(
-    async (names: string[]) => {
+    async (normalizedNames: string[]) => {
       const supabase = createAdminClient();
 
-      // 캐스팅 보드 표기와 KOPIS 제공 이름이 항상 같지 않을 수 있으므로 in 조회
       const { data, error } = await supabase
         .from("actors")
-        .select("id, name")
-        .in("name", names);
+        .select("id, name_no_space")
+        .in("name_no_space", normalizedNames);
 
       if (error) throw error;
 
-      return data.map(({ id, name }) => [name, id] as const);
+      return data.map(({ id, name_no_space }) => [name_no_space, id] as const);
     },
     ["actor-ids-by-names"],
     { tags: [ACTORS_CACHE_TAG], revalidate: REVALIDATE },
-  )(names);
+  )(normalizedNames);
 
-  return new Map(entries);
+  const idByNormalizedName = new Map(entries);
+
+  return new Map(
+    names
+      .map(
+        (name) =>
+          [name, idByNormalizedName.get(normalizeActorName(name))] as const,
+      )
+      .filter((entry): entry is [string, number] => entry[1] !== undefined),
+  );
 }
 
 const SEARCH_LIMIT = 20;
