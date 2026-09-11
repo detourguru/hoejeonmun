@@ -15,6 +15,7 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@google/genai": "^2.15.0",
+    "@next/third-parties": "^16.3.4",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
     "@vercel/analytics": "^2.0.1",
