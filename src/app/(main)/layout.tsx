@@ -21,7 +21,7 @@ export default function MainLayout({
                 priority
                 width={28}
                 height={28}
-                src="/logo.png"
+                src="/logo.webp"
                 className="size-7"
                 alt="회전문 로고"
               />
