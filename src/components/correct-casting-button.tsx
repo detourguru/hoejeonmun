@@ -5,8 +5,10 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
+  addSlotCasting,
   correctSlotCasting,
   correctSlotDate,
+  deleteSlotCasting,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ export const CorrectCastingButton = ({
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [oldActor, setOldActor] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
   const [newRole, setNewRole] = useState("");
   const [actor, setActor] = useState("");
   const [newDate, setNewDate] = useState(date);
@@ -51,6 +54,7 @@ export const CorrectCastingButton = ({
   const openSheet = () => {
     setRole(null);
     setOldActor(null);
+    setIsAdding(false);
     setNewRole("");
     setActor("");
     setNewDate(date);
@@ -63,14 +67,35 @@ export const CorrectCastingButton = ({
   const selectCasting = (casting: CorrectableCasting) => {
     setRole(casting.role);
     setOldActor(casting.actor);
+    setIsAdding(false);
     setNewRole(casting.role);
+    setActor(casting.actor);
     setError(null);
+  };
+
+  const selectAdding = () => {
+    setRole(null);
+    setOldActor(null);
+    setIsAdding(true);
+    setNewRole("");
+    setActor("");
+    setError(null);
+  };
+
+  const handleActionError = (result: { ok: false; message: string }) => {
+    if (result.message === "로그인이 필요해요.") {
+      router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+      return true;
+    }
+
+    setError(result.message);
+    return true;
   };
 
   const handleSubmit = () => {
     const dateChanged = newDate !== date || newTime !== time;
 
-    if (!role && !dateChanged) {
+    if (!isAdding && !role && !dateChanged) {
       setError("고칠 내용을 입력해 주세요.");
       return;
     }
@@ -78,7 +103,17 @@ export const CorrectCastingButton = ({
     setError(null);
 
     startTransition(async () => {
-      if (role && oldActor !== null) {
+      if (isAdding) {
+        const result = await addSlotCasting({
+          showId,
+          slotId,
+          role: newRole,
+          actor,
+          applyToAllSlots,
+        });
+
+        if (!result.ok && handleActionError(result)) return;
+      } else if (role && oldActor !== null) {
         const result = await correctSlotCasting({
           showId,
           slotId,
@@ -89,33 +124,38 @@ export const CorrectCastingButton = ({
           applyToAllSlots,
         });
 
-        if (!result.ok) {
-          if (result.message === "로그인이 필요해요.") {
-            router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
-            return;
-          }
-
-          setError(result.message);
-          return;
-        }
+        if (!result.ok && handleActionError(result)) return;
       }
 
       if (dateChanged) {
         const result = await correctSlotDate(showId, slotId, newDate, newTime);
 
-        if (!result.ok) {
-          if (result.message === "로그인이 필요해요.") {
-            router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
-            return;
-          }
-
-          setError(result.message);
-          return;
-        }
+        if (!result.ok && handleActionError(result)) return;
       }
 
       setOpen(false);
-      toast.success("정정 제안이 반영됐어요.");
+      toast.success(isAdding ? "배역이 추가됐어요." : "정정 제안이 반영됐어요.");
+    });
+  };
+
+  const handleDelete = () => {
+    if (!role || oldActor === null) return;
+
+    setError(null);
+
+    startTransition(async () => {
+      const result = await deleteSlotCasting({
+        showId,
+        slotId,
+        role,
+        actor: oldActor,
+        applyToAllSlots,
+      });
+
+      if (!result.ok && handleActionError(result)) return;
+
+      setOpen(false);
+      toast.success("배역이 삭제됐어요.");
     });
   };
 
@@ -132,7 +172,7 @@ export const CorrectCastingButton = ({
       <BottomSheet open={open} onOpenChange={setOpen} title="배역 정정 제안">
         <div className="flex flex-col gap-4">
           <p className="text-text-muted text-center text-xs">
-            이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정은{" "}
+            이미지 근거 없이 텍스트로 바로 반영돼요. 배역 정정·추가·삭제는{" "}
             {applyToAllSlots
               ? "같은 캐스팅보드에서 올라간 모든 회차 중 같은 배역·배우에 한 번에 적용되고"
               : "이 회차에만 적용되고"}
@@ -180,6 +220,17 @@ export const CorrectCastingButton = ({
                   {casting.role} · {casting.actor}
                 </button>
               ))}
+
+              <button
+                type="button"
+                onClick={selectAdding}
+                className={cn(
+                  "border-border rounded-lg border border-dashed px-3 py-2 text-left text-xs transition-colors",
+                  isAdding ? "border-primary bg-primary text-white" : "text-text",
+                )}
+              >
+                + 새 배역 추가
+              </button>
             </div>
           </div>
 
@@ -190,9 +241,9 @@ export const CorrectCastingButton = ({
             <Input
               value={newRole}
               onChange={({ target }) => setNewRole(target.value)}
-              placeholder="정정할 배역명"
+              placeholder="배역명"
               aria-label="배역명"
-              disabled={!role}
+              disabled={!role && !isAdding}
             />
           </div>
 
@@ -203,9 +254,9 @@ export const CorrectCastingButton = ({
             <Input
               value={actor}
               onChange={({ target }) => setActor(target.value)}
-              placeholder="정정할 배우명"
+              placeholder="배우명"
               aria-label="배우명"
-              disabled={!role}
+              disabled={!role && !isAdding}
             />
           </div>
 
@@ -214,7 +265,7 @@ export const CorrectCastingButton = ({
               type="checkbox"
               checked={applyToAllSlots}
               onChange={({ target }) => setApplyToAllSlots(target.checked)}
-              disabled={!role}
+              disabled={!role && !isAdding}
             />
             같은 배역·배우, 다른 회차에도 적용
           </label>
@@ -228,8 +279,18 @@ export const CorrectCastingButton = ({
               disabled={pending}
               className="border-border text-text hover:bg-point inline-flex rounded-4xl border px-3 py-1 text-xs transition-colors disabled:opacity-60"
             >
-              정정 제안하기
+              {isAdding ? "배역 추가하기" : "정정 제안하기"}
             </button>
+            {role && !isAdding && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={pending}
+                className="border-destructive text-destructive hover:bg-destructive/10 inline-flex rounded-4xl border px-3 py-1 text-xs transition-colors disabled:opacity-60"
+              >
+                이 배역 삭제
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setOpen(false)}
