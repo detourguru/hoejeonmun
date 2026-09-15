@@ -571,14 +571,52 @@ export type TodayShowSlot = {
   seatScale?: number | null;
 };
 
+// unstable_cache 안의 fetch 는 데이터 캐시를 거치지 않으므로 KOPIS 조회는 캐시 밖에서 한다
 export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
-  return unstable_cache(loadShowSlotsOfDate, ["today-show-slots"], {
-    tags: [CASTING_FEED_CACHE_TAG],
-    revalidate: REVALIDATE,
-  })(toInputDate(getToday()));
+  const slots = await unstable_cache(
+    loadSlotsWithEvents,
+    ["today-slots-with-events"],
+    { tags: [CASTING_FEED_CACHE_TAG], revalidate: REVALIDATE },
+  )(toInputDate(getToday()));
+
+  if (slots.length === 0) return [];
+
+  const showSummaryById = await getShowSummaries([
+    ...new Set(slots.map(({ showId }) => showId)),
+  ]);
+
+  const mt13ids = [...showSummaryById.values()]
+    .map((summary) => summary.mt13id)
+    .filter((mt13id): mt13id is string => !!mt13id);
+
+  const [seatScaleByMt13id, thumbnailByShowId] = await Promise.all([
+    getVenueSeatScales(mt13ids),
+    getPosterThumbnailUrls(
+      [...showSummaryById.entries()].map(([showId, { poster }]) => ({
+        showId,
+        poster,
+      })),
+    ),
+  ]);
+
+  return slots.map((slot) => {
+    const summary = showSummaryById.get(slot.showId);
+
+    return {
+      ...slot,
+      showName: summary?.name ?? "알 수 없는 공연",
+      poster: thumbnailByShowId.get(slot.showId) ?? summary?.poster ?? "",
+      daehakro: summary?.daehakro,
+      seatScale: summary?.mt13id
+        ? (seatScaleByMt13id.get(summary.mt13id) ?? null)
+        : null,
+    };
+  });
 }
 
-async function loadShowSlotsOfDate(date: string): Promise<TodayShowSlot[]> {
+async function loadSlotsWithEvents(
+  date: string,
+): Promise<Pick<TodayShowSlot, "id" | "showId" | "time" | "events">[]> {
   const admin = createAdminClient();
 
   const { data, error } = await admin
@@ -611,42 +649,15 @@ async function loadShowSlotsOfDate(date: string): Promise<TodayShowSlot[]> {
 
   if (slots.length === 0) return [];
 
-  const [eventsBySlot, showSummaryById] = await Promise.all([
-    getEventsBySlotIds(
-      admin,
-      slots.map(({ id }) => id),
-    ),
-    getShowSummaries([...new Set(slots.map(({ showId }) => showId))]),
-  ]);
+  const eventsBySlot = await getEventsBySlotIds(
+    admin,
+    slots.map(({ id }) => id),
+  );
 
-  const mt13ids = [...showSummaryById.values()]
-    .map((summary) => summary.mt13id)
-    .filter((mt13id): mt13id is string => !!mt13id);
-
-  const [seatScaleByMt13id, thumbnailByShowId] = await Promise.all([
-    getVenueSeatScales(mt13ids),
-    getPosterThumbnailUrls(
-      [...showSummaryById.entries()].map(([showId, { poster }]) => ({
-        showId,
-        poster,
-      })),
-    ),
-  ]);
-
-  return slots.map((slot) => {
-    const summary = showSummaryById.get(slot.showId);
-
-    return {
-      ...slot,
-      showName: summary?.name ?? "알 수 없는 공연",
-      poster: thumbnailByShowId.get(slot.showId) ?? summary?.poster ?? "",
-      events: eventsBySlot.get(slot.id) ?? [],
-      daehakro: summary?.daehakro,
-      seatScale: summary?.mt13id
-        ? (seatScaleByMt13id.get(summary.mt13id) ?? null)
-        : null,
-    };
-  });
+  return slots.map((slot) => ({
+    ...slot,
+    events: eventsBySlot.get(slot.id) ?? [],
+  }));
 }
 
 export type CastingSlotWithStatus = CastingSlot & {
