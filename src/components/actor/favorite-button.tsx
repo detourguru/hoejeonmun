@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { toggleFavorite } from "@/app/(main)/actor/actions";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
 
 export const FavoriteButton = ({
@@ -13,7 +13,7 @@ export const FavoriteButton = ({
   actorId: number;
   favorited: boolean;
 }) => {
-  const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/actor/${actorId}`);
 
   const [favorited, setFavorited] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -29,10 +29,7 @@ export const FavoriteButton = ({
 
       if (!result.ok) {
         setFavorited(favorited);
-
-        if (result.message === "로그인이 필요해요.") {
-          router.push(`/login?next=${encodeURIComponent(`/actor/${actorId}`)}`);
-        }
+        loginRedirect(result.message);
       }
     });
   };

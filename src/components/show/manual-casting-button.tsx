@@ -8,6 +8,7 @@ import { submitManualCasting } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import type { ManualCastingRole } from "@/service/manual-casting";
 import { EventSlotException } from "@/type/casting";
 
@@ -21,6 +22,7 @@ export const ManualCastingButton = ({
   isLoggedIn: boolean;
 }) => {
   const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${showId}/castings`);
 
   const [open, setOpen] = useState(false);
   const [slots, setSlots] = useState<EventSlotException[]>([]);
@@ -30,9 +32,7 @@ export const ManualCastingButton = ({
 
   const openSheet = () => {
     if (!isLoggedIn) {
-      router.push(
-        `/login?next=${encodeURIComponent(`/show/${showId}/castings`)}`,
-      );
+      loginRedirect("로그인이 필요해요.");
       return;
     }
 
@@ -70,12 +70,7 @@ export const ManualCastingButton = ({
       const result = await submitManualCasting(showId, slots, casting);
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(
-            `/login?next=${encodeURIComponent(`/show/${showId}/castings`)}`,
-          );
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         setError(result.message);
         return;

@@ -1,13 +1,14 @@
 "use client";
 
 import { MessageSquareWarning } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { submitBugReport } from "@/app/(main)/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ImageZoom } from "@/components/image-zoom";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -25,9 +26,11 @@ const EXTENSIONS: Record<string, string> = {
 };
 
 export const BugReportButton = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  const url = query ? `${pathname}?${query}` : pathname;
+  const loginRedirect = useLoginRedirect(url);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [open, setOpen] = useState(false);
@@ -113,9 +116,6 @@ export const BugReportButton = () => {
     setError(null);
 
     startTransition(async () => {
-      const query = searchParams.toString();
-      const url = query ? `${pathname}?${query}` : pathname;
-
       const imagePaths: string[] = [];
 
       if (files.length > 0) {
@@ -125,7 +125,7 @@ export const BugReportButton = () => {
 
         if (!userId) {
           sessionStorage.setItem(DRAFT_KEY, message);
-          router.push(`/login?next=${encodeURIComponent(url)}`);
+          loginRedirect("로그인이 필요해요.");
           return;
         }
 
@@ -153,9 +153,8 @@ export const BugReportButton = () => {
       );
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
+        if (loginRedirect(result.message)) {
           sessionStorage.setItem(DRAFT_KEY, message);
-          router.push(`/login?next=${encodeURIComponent(url)}`);
           return;
         }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -12,6 +11,7 @@ import {
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Input } from "@/components/ui/input";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
 
 export type CorrectableCasting = { role: string; actor: string };
@@ -29,7 +29,7 @@ export const CorrectCastingButton = ({
   time: string;
   castings: CorrectableCasting[];
 }) => {
-  const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${showId}`);
 
   // 앙상블처럼 같은 배역에 배우가 여럿이면 배역명만으로 정정 대상을 특정할 수
   // 없어서 배역+배우 쌍을 골라야 한다
@@ -83,12 +83,7 @@ export const CorrectCastingButton = ({
   };
 
   const handleActionError = (result: { ok: false; message: string }) => {
-    if (result.message === "로그인이 필요해요.") {
-      router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
-      return true;
-    }
-
-    setError(result.message);
+    if (!loginRedirect(result.message)) setError(result.message);
     return true;
   };
 

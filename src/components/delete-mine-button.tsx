@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -10,6 +9,7 @@ import {
   deleteMyUpload,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 
 type DeleteTarget =
   | { kind: "slot"; showId: string; uploadId: number; slotId: number }
@@ -29,7 +29,7 @@ export const DeleteMineButton = ({
   target: DeleteTarget;
   label: string;
 }) => {
-  const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${target.showId}`);
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,12 +51,7 @@ export const DeleteMineButton = ({
             : await deleteMyUpload(target.showId, target.uploadId);
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(
-            `/login?next=${encodeURIComponent(`/show/${target.showId}`)}`,
-          );
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         setError(result.message);
         return;

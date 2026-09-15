@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -81,6 +82,7 @@ export const CastingUploadButton = ({
   isLoggedIn: boolean;
 }) => {
   const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${showId}`);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewUrlsRef = useRef<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -201,7 +203,7 @@ export const CastingUploadButton = ({
 
   const handleClick = () => {
     if (!isLoggedIn) {
-      router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+      loginRedirect("로그인이 필요해요.");
       return;
     }
 
@@ -229,7 +231,7 @@ export const CastingUploadButton = ({
     const userId = data?.claims?.sub;
 
     if (!userId) {
-      router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
+      loginRedirect("로그인이 필요해요.");
       return;
     }
 
