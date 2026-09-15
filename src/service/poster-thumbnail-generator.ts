@@ -34,6 +34,7 @@ const STEP_TIMEOUT_MS = 5_000;
 // 포스터가 바뀐 뒤 예전 썸네일 파일을 남겨 두는 기간
 const STALE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const STALE_CLEANUP_BATCH = 100;
+const USER_SHOW_THUMBNAIL_BUDGET_MS = 30_000;
 
 const timeLeft = (deadline: number, max: number) =>
   Math.max(0, Math.min(max, deadline - Date.now()));
@@ -110,6 +111,34 @@ export async function getPosterThumbnailTargets(
       }),
     ),
   ];
+}
+
+// 새로 등록된 공연은 다음 날 크론까지 원본이 나가므로 등록 직후 한 번 만든다. 실패하면 크론이 다시 시도한다
+export async function generateUserShowThumbnail(
+  showId: string,
+  posterPath: string,
+) {
+  const poster = createAdminClient()
+    .storage.from(USER_SHOW_POSTER_BUCKET)
+    .getPublicUrl(posterPath).data.publicUrl;
+
+  try {
+    const { failed, bookkeepingErrors } = await generatePosterThumbnails(
+      [{ showId, poster }],
+      { deadline: Date.now() + USER_SHOW_THUMBNAIL_BUDGET_MS },
+    );
+
+    if (failed.length > 0 || bookkeepingErrors.length > 0) {
+      console.error(
+        "등록 공연 썸네일 생성 실패",
+        showId,
+        failed,
+        bookkeepingErrors,
+      );
+    }
+  } catch (error) {
+    console.error("등록 공연 썸네일 생성 실패", showId, error);
+  }
 }
 
 type FailureRow = {
