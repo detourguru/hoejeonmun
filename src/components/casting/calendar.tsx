@@ -31,6 +31,7 @@ export const Calendar = ({
   events = [],
   panels,
   initialDate,
+  overlapFilter,
 }: {
   showId?: string;
   // null이면 1일 앞의 빈칸
@@ -41,6 +42,7 @@ export const Calendar = ({
   panels: Record<number, ReactNode>;
   // 진입 시 보여줄 날짜
   initialDate?: string;
+  overlapFilter?: { overlappingIds: Set<number> };
 }) => {
   const byDate = new Map<string, CalendarSlot[]>();
 
@@ -204,6 +206,9 @@ export const Calendar = ({
           const daySlots = byDate.get(date) ?? [];
           const dayEvents = eventsByDate.get(date) ?? [];
           const isEmpty = daySlots.length === 0 && dayEvents.length === 0;
+          const hasOverlap = daySlots.some(({ id }) =>
+            overlapFilter?.overlappingIds.has(id),
+          );
 
           return (
             <button
@@ -215,6 +220,7 @@ export const Calendar = ({
                 "flex min-h-11 flex-col overflow-hidden py-0.5",
                 isEmpty && "text-text-muted",
                 date === openDate && "border-primary border-2",
+                hasOverlap && "border-2 border-red-500",
               )}
             >
               <span className="self-center text-[10px] leading-none">
