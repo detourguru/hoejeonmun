@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { TodayShowSlot } from "@/service/casting";
 import { LARGE_VENUE_SEAT_THRESHOLD } from "@/type/show";
+
+const SCROLL_STORAGE_KEY = "todayShowListScrollY";
 
 function isDaehakro(slot: TodayShowSlot) {
   return slot.daehakro === "Y";
@@ -40,6 +42,35 @@ export function TodayShowList({
   const [showAll, setShowAll] = useState(false);
   const [showDaehakro, setShowDaehakro] = useState(true);
   const [showLargeVenue, setShowLargeVenue] = useState(true);
+  const restoredScrollRef = useRef(false);
+
+  useEffect(() => {
+    if (restoredScrollRef.current) return;
+
+    restoredScrollRef.current = true;
+
+    let saved: string | null = null;
+
+    try {
+      saved = sessionStorage.getItem(SCROLL_STORAGE_KEY);
+      if (saved) sessionStorage.removeItem(SCROLL_STORAGE_KEY);
+    } catch {
+      // 사생활 보호 모드 등 sessionStorage를 못 쓰는 환경에서는 그냥 무시
+    }
+
+    if (!saved) return;
+
+    // 목록이 실제로 그려진 다음 높이가 반영된 상태에서 복원해야 한다
+    requestAnimationFrame(() => window.scrollTo(0, Number(saved)));
+  }, []);
+
+  const saveScrollPosition = () => {
+    try {
+      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY));
+    } catch {
+      // 사생활 보호 모드 등 sessionStorage를 못 쓰는 환경에서는 그냥 무시
+    }
+  };
 
   const noVenueFilter = !showDaehakro && !showLargeVenue;
 
@@ -103,6 +134,7 @@ export function TodayShowList({
                   <Link
                     key={slot.id}
                     href={`/show/${slot.showId}/castings?month=${month}&date=${today}`}
+                    onClick={saveScrollPosition}
                     className="border-border bg-surface hover:border-primary/40 flex items-stretch gap-3 overflow-hidden rounded-xl border transition-colors"
                   >
                     <div className="bg-point/40 w-14 shrink-0">
