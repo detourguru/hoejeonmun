@@ -572,13 +572,19 @@ export type TodayShowSlot = {
 };
 
 export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
+  return unstable_cache(loadShowSlotsOfDate, ["today-show-slots"], {
+    tags: [CASTING_FEED_CACHE_TAG],
+    revalidate: REVALIDATE,
+  })(toInputDate(getToday()));
+}
+
+async function loadShowSlotsOfDate(date: string): Promise<TodayShowSlot[]> {
   const admin = createAdminClient();
-  const today = toInputDate(getToday());
 
   const { data, error } = await admin
     .from("slot_castings")
     .select("slot_id, show_id, time")
-    .eq("date", today)
+    .eq("date", date)
     .order("time");
 
   if (error) throw error;
