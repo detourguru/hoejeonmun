@@ -12,10 +12,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { splitActorNames } from "@/lib/actor-name";
+import { getToday, toInputDate, toMonth } from "@/lib/date";
 import { toArray } from "@/lib/kopis";
 import { cn } from "@/lib/utils";
 import { getActorIdsByNames } from "@/service/actor";
-import { getShowFilterData } from "@/service/casting";
+import { getShowCastings, getShowFilterData } from "@/service/casting";
 import { getShow } from "@/service/show";
 import { isUserShowId } from "@/service/user-show";
 import { ShowRelate } from "@/type/show";
@@ -111,6 +112,14 @@ export const ShowDetail = async ({ id }: { id: string }) => {
     { label: "제작사", value: show.entrpsnm, icon: Building2 },
   ].filter(({ value }) => value);
 
+  const today = toInputDate(getToday());
+  const todaySlots = await getShowCastings(id, today, today);
+  const todayTimes = [...new Set(todaySlots.map(({ time }) => time))].sort();
+  const castingsHref =
+    todayTimes.length > 0
+      ? `/show/${id}/castings?month=${toMonth(getToday())}&date=${today}`
+      : `/show/${id}/castings`;
+
   return (
     <article className="flex flex-col">
       {/* 히어로 */}
@@ -193,10 +202,12 @@ export const ShowDetail = async ({ id }: { id: string }) => {
             </div>
 
             <Link
-              href={`/show/${id}/castings`}
+              href={castingsHref}
               className="bg-primary flex items-center justify-center gap-1.5 rounded-full py-3.5 text-[14.5px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              회차별 캐스팅 보기
+              {todayTimes.length > 0
+                ? `오늘 ${todayTimes.join(", ")} 공연 캐스팅 보기`
+                : "회차별 캐스팅 보기"}
               <ArrowRight className="size-4" />
             </Link>
           </div>
