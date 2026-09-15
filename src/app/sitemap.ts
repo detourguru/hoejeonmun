@@ -4,7 +4,11 @@ import { getShows } from "@/service/show";
 import type { MetadataRoute } from "next";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const shows = await getShows();
+  const shows = await getShows().catch((error) => {
+    console.error("사이트맵 공연 목록 조회 실패", error);
+
+    return [];
+  });
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
