@@ -143,13 +143,12 @@ async function TodayFeed() {
 }
 
 async function FavoriteActorFeed() {
-  const [favoritedShows, shows] = await Promise.all([
-    getShowsWithFavoritedActors(),
-    getShows(),
-  ]);
+  const favoritedShows = await getShowsWithFavoritedActors();
+
+  if (favoritedShows.length === 0) return <EmptyFavoriteFeed />;
 
   const showById = await fillMissingShows(
-    indexShowsById(shows),
+    indexShowsById(await getShows()),
     favoritedShows.map(({ showId }) => showId),
   );
 
