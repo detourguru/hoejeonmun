@@ -270,10 +270,19 @@ export type ShowSummary = {
   mt13id?: string;
 };
 
+// 목록의 공연 하나가 조회에 실패해도 나머지는 보여준다
 export async function getShowSummaries(
   showIds: string[],
 ): Promise<Map<string, ShowSummary>> {
-  const shows = await Promise.all(showIds.map((id) => getShow(id)));
+  const shows = await Promise.all(
+    showIds.map((id) =>
+      getShow(id).catch((error) => {
+        console.error("공연 요약 조회 실패", id, error);
+
+        return null;
+      }),
+    ),
+  );
 
   return new Map(
     showIds.map((id, index) => [

@@ -53,6 +53,7 @@ export function toArray<T>(value: T | T[] | undefined | null): T[] {
 // KOPIS 는 정상 요청에도 간헐적으로 400 을 준다 (같은 요청을 다시 보내면 성공)
 const KOPIS_MAX_ATTEMPTS = 4;
 const KOPIS_RETRY_DELAY_MS = 400;
+const KOPIS_RETRY_TIMEOUT_MS = 10_000;
 
 class KopisHttpError extends Error {
   constructor(
@@ -84,13 +85,19 @@ export async function fetchKopis<T>(
     );
   }
 
-  const request = () =>
+  const request = (attempt: number) =>
     withSlot(async () => {
       const response = await fetch(
         `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
-        revalidate === false
-          ? { cache: "no-store" }
-          : { next: { revalidate, tags } },
+        {
+          ...(revalidate === false
+            ? { cache: "no-store" as const }
+            : { next: { revalidate, tags } }),
+          // Next 는 한 렌더 안에서 같은 fetch 를 합쳐 첫 실패 응답을 그대로 돌려준다. signal 을 주면 새로 요청한다
+          ...(attempt > 1 && {
+            signal: AbortSignal.timeout(KOPIS_RETRY_TIMEOUT_MS),
+          }),
+        },
       );
 
       const text = await response.text();
@@ -106,7 +113,7 @@ export async function fetchKopis<T>(
 
   for (let attempt = 1; body === undefined; attempt++) {
     try {
-      body = await request();
+      body = await request(attempt);
     } catch (error) {
       if (attempt >= KOPIS_MAX_ATTEMPTS || !isRetryable(error)) throw error;
 
