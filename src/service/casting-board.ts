@@ -423,6 +423,7 @@ Casting board rules:
 
 Event rules:
 - An event/perk notice describes a promotion tied to a date or date range (e.g. a Polaroid giveaway, an autograph postcard giveaway, an opening-week event), not a cast.
+- A plain national/calendar holiday label attached to a date on a casting board (e.g. "한글날", "개천절", "대체공휴일", "추석", "설날") is not an event by itself -- it is just calendar context for that date. Skip it, unless that same label is also tied to an actual promotion, perk, or schedule change described in the notice.
 - A line stating that something will NOT happen is not an event but a note about its absence (e.g. "스페셜 커튼콜 주차에는 에필로그 장면은 진행되지 않습니다"). Skip it, even when it names a date range. (This is different from an entire performance being cancelled or a previously-announced event being called off entirely -- those belong in the cancellation/change notice category above, not here.)
 - A staged segment that an audience member would plan around IS an event, including one that rotates by period (e.g. "Epilogue 1 - 어부와 작가" one week, a different one the next). Extract each period as its own entry.
 - Extract its Korean title, an optional longer description, and the date range it runs in "periodStart"/"periodEnd" (use the same date for both when it runs a single day).
@@ -932,7 +933,10 @@ export async function attachSuggestedDuplicates(pending: PendingEvent[]) {
 
     if (!match) return event;
 
-    return { ...event, suggestedSameAsGroupId: match.groupId };
+    return {
+      ...event,
+      suggestedSameAsGroupId: event.suggestedSameAsGroupId ?? match.groupId,
+    };
   });
 }
 
@@ -1066,6 +1070,7 @@ const isExactSameEvent = (
   event: Pick<PendingEvent, "title" | "periodStart" | "periodEnd">,
   candidate: ExistingEvent,
 ) =>
+  !candidate.edited &&
   event.periodStart === candidate.periodStart &&
   event.periodEnd === candidate.periodEnd &&
   toTitleKey(event.title) === toTitleKey(candidate.title);
@@ -1336,12 +1341,14 @@ function normalizeCancelledEvents(
 ) {
   const { from, to } = resolveRunWindow(show);
 
+  const seen = new Set<string>();
   const valid: ParsedCancelledEvent[] = [];
 
   for (const event of events) {
     const title = event.title?.trim() ?? "";
     const periodStart = event.periodStart?.trim() ?? "";
     const periodEnd = event.periodEnd?.trim() ?? "";
+    const key = `${toTitleKey(title)} ${periodStart} ${periodEnd}`;
 
     const isValid =
       title.length > 0 &&
@@ -1350,12 +1357,14 @@ function normalizeCancelledEvents(
       periodStart <= periodEnd &&
       periodStart <= to &&
       periodEnd >= from &&
+      !seen.has(key) &&
       Number.isInteger(event.imageIndex) &&
       event.imageIndex >= 0 &&
       event.imageIndex < imageCount;
 
     if (!isValid) continue;
 
+    seen.add(key);
     valid.push({ title, periodStart, periodEnd, imageIndex: event.imageIndex });
   }
 
@@ -2627,7 +2636,7 @@ async function saveCastingBoardContent({
 
         if (!slotId || uploadImageId === undefined) return [];
 
-        return Object.entries(casting).flatMap(([role, actors]) =>
+        return Object.entries(casting).flatMap(([role, actors], roleOrder) =>
           actors.map((actor) => ({
             upload_id: upload.id,
             slot_id: slotId,
@@ -2635,6 +2644,7 @@ async function saveCastingBoardContent({
             actor_name_raw: actor,
             actor_id: actorIdByName.get(normalizeActorName(actor)) ?? null,
             upload_image_id: uploadImageId,
+            role_order: roleOrder,
           })),
         );
       },
