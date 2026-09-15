@@ -44,7 +44,7 @@ export const MyScheduleCalendar = ({
   const allSlots = [...mySlots, ...overlaySlots];
 
   const overlappingIds = findOverlappingSlotIds(
-    allSlots.map(({ id, date, time, showId }) => ({
+    mySlots.map(({ id, date, time, showId }) => ({
       id,
       date,
       time,
