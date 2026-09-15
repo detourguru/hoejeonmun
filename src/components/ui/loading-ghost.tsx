@@ -21,7 +21,7 @@ export const LoadingGhost = ({
         aria-hidden
       />
       <Image
-        src="/logo.png"
+        src="/logo.webp"
         alt=""
         width={56}
         height={56}
