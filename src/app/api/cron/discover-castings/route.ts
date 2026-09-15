@@ -1,4 +1,7 @@
+import { revalidateTag } from "next/cache";
+
 import { addDays, getToday, normalizeDate, toKopisDate } from "@/lib/date";
+import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { discoverCastingFromKopis } from "@/service/casting-board-discovery";
 import { getShows } from "@/service/show";
 import { syncVenuesFromKopis } from "@/service/venue";
@@ -31,7 +34,10 @@ export async function GET(request: Request) {
 
   for (const show of shows) {
     results.push(await discoverCastingFromKopis(show, systemUserId));
+    revalidateTag(showCastTag(show.mt20id), { expire: 0 });
   }
+
+  if (shows.length > 0) revalidateTag(CASTING_FEED_CACHE_TAG, { expire: 0 });
 
   // 대학로/대극장 필터용 공연장 좌석수 미러링
   const yesterday = toKopisDate(addDays(getToday(), -1));

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getToday, toInputDate } from "@/lib/date";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { GENRE, GenreName, Show, ShowDetail, StateName } from "@/type/show";
 import {
@@ -33,7 +34,7 @@ function computeState(periodStart: string): StateName {
 }
 
 async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const {
     data: { publicUrl },
   } = supabase.storage
@@ -64,7 +65,7 @@ async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
 }
 
 export async function getUserShow(id: string): Promise<ShowDetail | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("user_shows")
