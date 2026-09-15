@@ -50,6 +50,26 @@ export function toArray<T>(value: T | T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
+// KOPIS 는 정상 요청에도 간헐적으로 400 을 준다 (같은 요청을 다시 보내면 성공)
+const KOPIS_MAX_ATTEMPTS = 4;
+const KOPIS_RETRY_DELAY_MS = 400;
+
+class KopisHttpError extends Error {
+  constructor(
+    readonly status: number,
+    statusText: string,
+  ) {
+    super(`Failed to fetch data from KOPIS API: ${statusText}`);
+  }
+}
+
+const isRetryable = (error: unknown) =>
+  error instanceof KopisHttpError
+    ? error.status === 400 || error.status === 429 || error.status >= 500
+    : error instanceof TypeError;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function fetchKopis<T>(
   path: string,
   params: URLSearchParams,
@@ -64,24 +84,36 @@ export async function fetchKopis<T>(
     );
   }
 
-  const body = await withSlot(async () => {
-    const response = await fetch(
-      `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
-      revalidate === false
-        ? { cache: "no-store" }
-        : { next: { revalidate, tags } },
-    );
-
-    const text = await response.text();
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch data from KOPIS API: ${response.statusText}`,
+  const request = () =>
+    withSlot(async () => {
+      const response = await fetch(
+        `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
+        revalidate === false
+          ? { cache: "no-store" }
+          : { next: { revalidate, tags } },
       );
-    }
 
-    return text;
-  });
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new KopisHttpError(response.status, response.statusText);
+      }
+
+      return text;
+    });
+
+  let body: string | undefined;
+
+  for (let attempt = 1; body === undefined; attempt++) {
+    try {
+      body = await request();
+    } catch (error) {
+      if (attempt >= KOPIS_MAX_ATTEMPTS || !isRetryable(error)) throw error;
+
+      // 같이 실패한 요청들이 한꺼번에 다시 몰리지 않게 흩뜨린다
+      await sleep(KOPIS_RETRY_DELAY_MS * attempt + Math.random() * 200);
+    }
+  }
 
   const parsed = parser.parse(body);
 
