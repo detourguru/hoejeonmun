@@ -148,6 +148,7 @@ export async function correctSlotCasting({
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, count };
 }
@@ -239,6 +240,7 @@ export async function correctSlotDate(
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: false };
 }
@@ -293,6 +295,7 @@ export async function deleteMySlotCasting(
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: false };
 }
@@ -343,6 +346,7 @@ export async function reportSlot(
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: !!hidden };
 }
@@ -374,6 +378,7 @@ export async function cancelReport(
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
 
   return { ok: true, hidden: false };
 }
@@ -839,6 +844,7 @@ export async function submitManualCasting(
 
     revalidatePath(`/show/${showId}`);
     updateTag(showCastTag(showId));
+    updateTag(CASTING_FEED_CACHE_TAG);
 
     return { ok: true, slotCount };
   } catch (error) {
