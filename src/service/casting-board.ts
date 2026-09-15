@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 import * as z from "zod";
@@ -12,6 +10,7 @@ import {
   toInputDate,
   toIsoDate,
 } from "@/lib/date";
+import { sha256 } from "@/lib/hash";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
@@ -1952,9 +1951,6 @@ export async function parseCastingBoard(
 
   return result;
 }
-
-const sha256 = (input: Buffer) =>
-  createHash("sha256").update(input).digest("hex");
 
 export async function hashImages(images: Blob[]): Promise<string[]> {
   return Promise.all(

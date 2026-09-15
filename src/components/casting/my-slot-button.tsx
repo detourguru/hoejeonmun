@@ -1,10 +1,11 @@
 "use client";
 
 import { Bookmark } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { toggleMySlot } from "@/app/(main)/mypage/actions";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
 
 export const MySlotButton = ({
@@ -14,8 +15,7 @@ export const MySlotButton = ({
   slotId: number;
   bookmarked: boolean;
 }) => {
-  const router = useRouter();
-  const currentPage = usePathname();
+  const loginRedirect = useLoginRedirect(usePathname());
 
   const [bookmarked, setBookmarked] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -31,10 +31,7 @@ export const MySlotButton = ({
 
       if (!result.ok) {
         setBookmarked(bookmarked);
-
-        if (result.message === "로그인이 필요해요.") {
-          router.push(`/login?next=${encodeURIComponent(currentPage)}`);
-        }
+        loginRedirect(result.message);
       }
     });
   };

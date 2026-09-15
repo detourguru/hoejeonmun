@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +10,7 @@ import {
 import { BottomSheet } from "@/components/bottom-sheet";
 import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { EventSlotException } from "@/type/casting";
 
 export const CorrectEventTextButton = ({
@@ -28,7 +28,7 @@ export const CorrectEventTextButton = ({
   initialPeriodStart: string;
   initialPeriodEnd: string;
 }) => {
-  const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${showId}`);
 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(initialTitle);
@@ -102,10 +102,7 @@ export const CorrectEventTextButton = ({
       );
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(`/login?next=${encodeURIComponent(`/show/${showId}`)}`);
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         setError(result.message);
         return;

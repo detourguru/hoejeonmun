@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -13,6 +12,7 @@ import {
   SlotReportType,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
 
 type ReportTarget =
@@ -40,7 +40,7 @@ export const ReportButton = ({
   reported: boolean;
   label: string;
 }) => {
-  const router = useRouter();
+  const loginRedirect = useLoginRedirect(`/show/${target.showId}`);
 
   const [reported, setReported] = useState(initial);
   const [open, setOpen] = useState(false);
@@ -73,12 +73,7 @@ export const ReportButton = ({
       if (!result.ok) {
         setReported(true);
 
-        if (result.message === "로그인이 필요해요.") {
-          router.push(
-            `/login?next=${encodeURIComponent(`/show/${target.showId}`)}`,
-          );
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         toast.error(result.message);
         return;
@@ -109,12 +104,7 @@ export const ReportButton = ({
             );
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(
-            `/login?next=${encodeURIComponent(`/show/${target.showId}`)}`,
-          );
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         setError(result.message);
         return;
