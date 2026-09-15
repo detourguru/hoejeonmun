@@ -492,3 +492,44 @@ create index venue_halls_mt10id_idx on venue_halls (mt10id);
 alter table venue_halls enable row level security;
 
 create policy "venue halls are public" on venue_halls for select using (true);
+
+-- 목록 화면용 포스터 썸네일
+-- 쓰기는 크론/스크립트가 service role 로만 한다.
+create table poster_thumbnails (
+  show_id text primary key,
+  source_url text not null,
+  -- poster-thumbnails 버킷 안의 경로
+  path text not null,
+  width integer not null,
+  bytes integer not null,
+  source_bytes integer not null,
+  created_at timestamptz not null default now()
+);
+
+alter table poster_thumbnails enable row level security;
+
+create policy "poster thumbnails are public" on poster_thumbnails
+  for select using (true);
+
+insert into storage.buckets (id, name, public)
+values ('poster-thumbnails', 'poster-thumbnails', true)
+on conflict (id) do nothing;
+
+-- 썸네일 생성 실패 기록
+create table poster_thumbnail_failures (
+  show_id text primary key,
+  source_url text not null,
+  attempts integer not null default 1,
+  last_error text not null,
+  last_attempt_at timestamptz not null default now()
+);
+
+alter table poster_thumbnail_failures enable row level security;
+
+-- 포스터가 바뀌어 더 이상 참조하지 않는 썸네일 파일
+create table poster_thumbnail_stale_files (
+  path text primary key,
+  replaced_at timestamptz not null default now()
+);
+
+alter table poster_thumbnail_stale_files enable row level security;

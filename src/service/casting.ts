@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getPosterThumbnailUrls } from "@/service/poster-thumbnail";
 import { getShowSummaries } from "@/service/show";
 import { getVenueSeatScales } from "@/service/venue";
 import { CASTING_BOARD_BUCKET, SIGNED_URL_TTL_SECONDS } from "@/type/casting";
@@ -616,7 +617,15 @@ export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
     .map((summary) => summary.mt13id)
     .filter((mt13id): mt13id is string => !!mt13id);
 
-  const seatScaleByMt13id = await getVenueSeatScales(mt13ids);
+  const [seatScaleByMt13id, thumbnailByShowId] = await Promise.all([
+    getVenueSeatScales(mt13ids),
+    getPosterThumbnailUrls(
+      [...showSummaryById.entries()].map(([showId, { poster }]) => ({
+        showId,
+        poster,
+      })),
+    ),
+  ]);
 
   return slots.map((slot) => {
     const summary = showSummaryById.get(slot.showId);
@@ -624,7 +633,7 @@ export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
     return {
       ...slot,
       showName: summary?.name ?? "알 수 없는 공연",
-      poster: summary?.poster ?? "",
+      poster: thumbnailByShowId.get(slot.showId) ?? summary?.poster ?? "",
       events: eventsBySlot.get(slot.id) ?? [],
       daehakro: summary?.daehakro,
       seatScale: summary?.mt13id
