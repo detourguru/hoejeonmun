@@ -48,6 +48,8 @@ export function TodayShowList({
     .filter(
       (slot) =>
         noVenueFilter ||
+        // 정보를 못 받아 분류할 수 없는 공연은 필터로 숨기지 않는다
+        slot.lookupFailed ||
         (showDaehakro && isDaehakro(slot)) ||
         (showLargeVenue && isLargeVenue(slot)),
     );

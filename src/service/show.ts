@@ -268,32 +268,42 @@ export type ShowSummary = {
   poster: string;
   daehakro?: "N" | "Y";
   mt13id?: string;
+  // KOPIS 에 없는 공연(null)과 달리 조회 자체가 실패해 정보를 모르는 상태
+  lookupFailed: boolean;
 };
 
 // 목록의 공연 하나가 조회에 실패해도 나머지는 보여준다
 export async function getShowSummaries(
   showIds: string[],
 ): Promise<Map<string, ShowSummary>> {
-  const shows = await Promise.all(
+  const results = await Promise.all(
     showIds.map((id) =>
-      getShow(id).catch((error) => {
-        console.error("공연 요약 조회 실패", id, error);
+      getShow(id).then(
+        (show) => ({ show, lookupFailed: false }),
+        (error) => {
+          console.error("공연 요약 조회 실패", id, error);
 
-        return null;
-      }),
+          return { show: null, lookupFailed: true };
+        },
+      ),
     ),
   );
 
   return new Map(
-    showIds.map((id, index) => [
-      id,
-      {
-        name: shows[index]?.prfnm ?? "알 수 없는 공연",
-        poster: shows[index]?.poster ?? "",
-        daehakro: shows[index]?.daehakro,
-        mt13id: shows[index]?.mt13id,
-      },
-    ]),
+    showIds.map((id, index) => {
+      const { show, lookupFailed } = results[index];
+
+      return [
+        id,
+        {
+          name: show?.prfnm ?? "알 수 없는 공연",
+          poster: show?.poster ?? "",
+          daehakro: show?.daehakro,
+          mt13id: show?.mt13id,
+          lookupFailed,
+        },
+      ];
+    }),
   );
 }
 
