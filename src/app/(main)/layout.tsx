@@ -25,7 +25,7 @@ export default function MainLayout({
                 className="size-7"
                 alt="회전문 로고"
               />
-              <span className="font-heading text-primary">회전문</span>
+              <span className="font-wordmark text-primary">회전문</span>
             </Link>
           </h1>
 

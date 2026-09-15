@@ -47,7 +47,7 @@ export default async function LoginPage({
           />
         </div>
 
-        <span className="font-heading text-primary text-lg font-bold">
+        <span className="font-wordmark text-primary text-lg font-bold">
           회전문
         </span>
       </div>
