@@ -1,6 +1,7 @@
 import { Pagination } from "@/components/pagination";
 import { ShowCard } from "@/components/show/show-card";
 import { getLatestUploadsByShowIds } from "@/service/casting";
+import { withPosterThumbnails } from "@/service/poster-thumbnail";
 import {
   filterShows,
   filterShowsByVenue,
@@ -28,14 +29,15 @@ export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
     );
   }
 
-  const latestUploads = await getLatestUploadsByShowIds(
-    items.map((show) => show.mt20id),
-  );
+  const [latestUploads, itemsWithThumbnail] = await Promise.all([
+    getLatestUploadsByShowIds(items.map((show) => show.mt20id)),
+    withPosterThumbnails(items),
+  ]);
 
   return (
     <>
       <div className="flex-1">
-        {items.map((show, index) => (
+        {itemsWithThumbnail.map((show, index) => (
           <ShowCard
             key={show.mt20id}
             show={show}
