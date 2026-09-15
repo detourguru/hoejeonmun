@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   env: {
     APP_COMMIT_SHA: resolveCommitSha(),
   },
+  experimental: {
+    staleTimes: { dynamic: 30 },
+  },
   images: {
     unoptimized: true,
     // KOPIS 가 www 없이 주거나 https 로 주는 경우가 있음

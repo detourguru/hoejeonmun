@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { FavoriteActorShowCard } from "@/components/show/favorite-actor-show-card";
+import { FeedTabs } from "@/components/show/feed-tabs";
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
 import { TodayShowList } from "@/components/show/today-show-list";
@@ -14,7 +15,6 @@ import {
   toInputDate,
   toMonth,
 } from "@/lib/date";
-import { cn } from "@/lib/utils";
 import { getShowsWithFavoritedActors } from "@/service/actor";
 import {
   getRecentEvents,
@@ -50,22 +50,7 @@ export default async function Page({ searchParams }: Props) {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <div className="bg-sub flex gap-0.5 rounded-xl p-0.5">
-          {SHOW_FEED_TAB.options.map(({ value, label }) => (
-            <Link
-              key={value}
-              href={`/show?tab=${value}`}
-              className={cn(
-                "rounded-lg px-4 py-1.5 text-sm font-medium transition-all",
-                value === tab
-                  ? "bg-surface text-primary shadow-sm"
-                  : "text-text-muted hover:text-text",
-              )}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
+        <FeedTabs current={tab} />
 
         <Link
           href="/show/all"
