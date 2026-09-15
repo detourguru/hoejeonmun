@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, Home, User } from "lucide-react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -31,11 +31,34 @@ export const FooterNav = () => {
                 : "text-text-muted hover:text-text",
             )}
           >
-            <Icon className="size-5" strokeWidth={isActive ? 2.5 : 2} />
-            {label}
+            <TabContent icon={Icon} label={label} isActive={isActive} />
           </Link>
         );
       })}
     </nav>
+  );
+};
+
+const TabContent = ({
+  icon: Icon,
+  label,
+  isActive,
+}: {
+  icon: (typeof TABS)[number]["icon"];
+  label: string;
+  isActive: boolean;
+}) => {
+  const { pending } = useLinkStatus();
+
+  return (
+    <span
+      className={cn(
+        "flex flex-col items-center gap-1 transition-opacity",
+        pending && "opacity-50",
+      )}
+    >
+      <Icon className="size-5" strokeWidth={isActive ? 2.5 : 2} />
+      {label}
+    </span>
   );
 };
