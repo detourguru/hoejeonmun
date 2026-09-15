@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { cache } from "react";
 
 // 정수 타입을 숫자형으로 파싱하면 에러가 나므로 전부 문자열로 반환
 const parser = new XMLParser({ parseTagValue: false });
@@ -7,18 +8,53 @@ const parser = new XMLParser({ parseTagValue: false });
 export const KOPIS_MAX_ROWS = 100;
 
 const KOPIS_MAX_CONCURRENCY = 8;
+// 조회 한 번이 대기하는 최대 시간
+const KOPIS_TOTAL_TIMEOUT_MS = 10_000;
+// 요청 한 번에 주는 최대 시간
+const KOPIS_ATTEMPT_TIMEOUT_MS = 5_000;
+// KOPIS 는 정상 요청에도 간헐적으로 400 을 주므로 재시도
+const KOPIS_MAX_ATTEMPTS = 4;
+const KOPIS_RETRY_DELAY_MS = 400;
+
+class KopisHttpError extends Error {
+  constructor(
+    readonly status: number,
+    statusText: string,
+  ) {
+    super(`Failed to fetch data from KOPIS API: ${statusText}`);
+  }
+}
+
+class KopisBudgetError extends Error {}
 
 let inFlight = 0;
 const pending: (() => void)[] = [];
 
-function acquireSlot(): Promise<void> {
+function acquireSlot(deadline: number): Promise<void> {
   if (inFlight < KOPIS_MAX_CONCURRENCY) {
     inFlight++;
 
     return Promise.resolve();
   }
 
-  return new Promise((resolve) => pending.push(resolve));
+  return new Promise((resolve, reject) => {
+    const grant = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(
+      () => {
+        const index = pending.indexOf(grant);
+
+        if (index >= 0) pending.splice(index, 1);
+
+        reject(new KopisBudgetError("KOPIS 동시 요청 대기 중 시간 초과"));
+      },
+      Math.max(0, deadline - Date.now()),
+    );
+
+    pending.push(grant);
+  });
 }
 
 function releaseSlot() {
@@ -28,8 +64,8 @@ function releaseSlot() {
   else inFlight--;
 }
 
-async function withSlot<T>(task: () => Promise<T>): Promise<T> {
-  await acquireSlot();
+async function withSlot<T>(task: () => Promise<T>, deadline: number) {
+  await acquireSlot(deadline);
 
   try {
     return await task();
@@ -50,26 +86,65 @@ export function toArray<T>(value: T | T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-// KOPIS 는 정상 요청에도 간헐적으로 400 을 준다 (같은 요청을 다시 보내면 성공)
-const KOPIS_MAX_ATTEMPTS = 4;
-const KOPIS_RETRY_DELAY_MS = 400;
-const KOPIS_RETRY_TIMEOUT_MS = 10_000;
-
-class KopisHttpError extends Error {
-  constructor(
-    readonly status: number,
-    statusText: string,
-  ) {
-    super(`Failed to fetch data from KOPIS API: ${statusText}`);
-  }
-}
-
 const isRetryable = (error: unknown) =>
   error instanceof KopisHttpError
     ? error.status === 400 || error.status === 429 || error.status >= 500
-    : error instanceof TypeError;
+    : error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "TimeoutError");
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchKopisText = cache(
+  async (url: string, cacheOptionsJson: string): Promise<string> => {
+    const { revalidate, tags } = JSON.parse(cacheOptionsJson) as {
+      revalidate: number | false;
+      tags?: string[];
+    };
+    const deadline = Date.now() + KOPIS_TOTAL_TIMEOUT_MS;
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await withSlot(async () => {
+          const timeout = Math.min(
+            KOPIS_ATTEMPT_TIMEOUT_MS,
+            deadline - Date.now(),
+          );
+
+          if (timeout <= 0) {
+            throw new KopisBudgetError("KOPIS 조회 시간 초과");
+          }
+
+          const response = await fetch(url, {
+            ...(revalidate === false
+              ? { cache: "no-store" as const }
+              : { next: { revalidate, tags } }),
+            signal: AbortSignal.timeout(timeout),
+          });
+
+          const text = await response.text();
+
+          if (!response.ok) {
+            throw new KopisHttpError(response.status, response.statusText);
+          }
+
+          return text;
+        }, deadline);
+      } catch (error) {
+        const delay = KOPIS_RETRY_DELAY_MS * attempt + Math.random() * 200;
+
+        if (
+          attempt >= KOPIS_MAX_ATTEMPTS ||
+          !isRetryable(error) ||
+          Date.now() + delay >= deadline
+        ) {
+          throw error;
+        }
+
+        await sleep(delay);
+      }
+    }
+  },
+);
 
 export async function fetchKopis<T>(
   path: string,
@@ -85,42 +160,10 @@ export async function fetchKopis<T>(
     );
   }
 
-  const request = (attempt: number) =>
-    withSlot(async () => {
-      const response = await fetch(
-        `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
-        {
-          ...(revalidate === false
-            ? { cache: "no-store" as const }
-            : { next: { revalidate, tags } }),
-          // Next 는 한 렌더 안에서 같은 fetch 를 합쳐 첫 실패 응답을 그대로 돌려준다. signal 을 주면 새로 요청한다
-          ...(attempt > 1 && {
-            signal: AbortSignal.timeout(KOPIS_RETRY_TIMEOUT_MS),
-          }),
-        },
-      );
-
-      const text = await response.text();
-
-      if (!response.ok) {
-        throw new KopisHttpError(response.status, response.statusText);
-      }
-
-      return text;
-    });
-
-  let body: string | undefined;
-
-  for (let attempt = 1; body === undefined; attempt++) {
-    try {
-      body = await request(attempt);
-    } catch (error) {
-      if (attempt >= KOPIS_MAX_ATTEMPTS || !isRetryable(error)) throw error;
-
-      // 같이 실패한 요청들이 한꺼번에 다시 몰리지 않게 흩뜨린다
-      await sleep(KOPIS_RETRY_DELAY_MS * attempt + Math.random() * 200);
-    }
-  }
+  const body = await fetchKopisText(
+    `${baseUrl}${path}?service=${apiKey}&${params.toString()}`,
+    JSON.stringify({ revalidate, tags }),
+  );
 
   const parsed = parser.parse(body);
 
