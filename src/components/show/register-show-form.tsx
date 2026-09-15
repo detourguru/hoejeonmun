@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from "react";
 import { createUserShowAction } from "@/app/(main)/show/register/actions";
 import { ImageZoom } from "@/components/image-zoom";
 import { Input } from "@/components/ui/input";
+import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { GENRE } from "@/type/show";
 import {
@@ -27,6 +28,7 @@ export const RegisterShowForm = ({
   initialTitle?: string;
 }) => {
   const router = useRouter();
+  const loginRedirect = useLoginRedirect("/show/register");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState(initialTitle);
@@ -87,7 +89,7 @@ export const RegisterShowForm = ({
       const userId = data?.claims?.sub;
 
       if (!userId) {
-        router.push(`/login?next=${encodeURIComponent("/show/register")}`);
+        loginRedirect("로그인이 필요해요.");
         return;
       }
 
@@ -114,10 +116,7 @@ export const RegisterShowForm = ({
       });
 
       if (!result.ok) {
-        if (result.message === "로그인이 필요해요.") {
-          router.push(`/login?next=${encodeURIComponent("/show/register")}`);
-          return;
-        }
+        if (loginRedirect(result.message)) return;
 
         setError(result.message);
         return;

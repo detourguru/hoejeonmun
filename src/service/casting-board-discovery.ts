@@ -1,6 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { getToday, toKopisDate, toIsoDate } from "@/lib/date";
+import { sha256 } from "@/lib/hash";
 import { toArray } from "@/lib/kopis";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -20,9 +21,6 @@ export type DiscoveryResult =
   | { showId: string; outcome: "no_image" }
   | { showId: string; outcome: "show_not_found" }
   | { showId: string; outcome: "failed"; error: string };
-
-const sha256 = (buffer: Buffer) =>
-  createHash("sha256").update(buffer).digest("hex");
 
 // KOPIS 소개 이미지 중 마지막 장이 캐스팅보드인 경우가 있어 후보로 삼는다
 async function fetchLastStoryImage(show: ShowDetail) {
