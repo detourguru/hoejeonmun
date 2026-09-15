@@ -2,7 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -38,11 +38,39 @@ export const SearchBar = () => {
   const [prevSearchParams, setPrevSearchParams] = useState(searchParams);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showRecent, setShowRecent] = useState(false);
+  const focusGuardPushedRef = useRef(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecentSearches(readRecentSearches());
   }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!focusGuardPushedRef.current) return;
+
+      focusGuardPushedRef.current = false;
+      (document.activeElement as HTMLElement | null)?.blur();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const pushFocusGuard = () => {
+    if (focusGuardPushedRef.current) return;
+
+    focusGuardPushedRef.current = true;
+    history.pushState({ searchFocusGuard: true }, "");
+  };
+
+  const clearFocusGuard = () => {
+    if (!focusGuardPushedRef.current) return;
+
+    focusGuardPushedRef.current = false;
+    history.back();
+  };
 
   if (searchParams !== prevSearchParams) {
     setPrevSearchParams(searchParams);
@@ -85,6 +113,7 @@ export const SearchBar = () => {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setShowRecent(false);
+          clearFocusGuard();
         }
       }}
     >
@@ -101,7 +130,10 @@ export const SearchBar = () => {
           enterKeyHint="search"
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          onFocus={() => setShowRecent(true)}
+          onFocus={() => {
+            setShowRecent(true);
+            pushFocusGuard();
+          }}
           placeholder="공연 또는 배우 검색"
           aria-label="공연 또는 배우 검색"
           className="h-auto min-w-0 rounded-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm"
