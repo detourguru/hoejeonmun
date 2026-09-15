@@ -295,6 +295,7 @@ export const CastingViews = ({
             events={visibleEvents}
             panels={panels}
             initialDate={initialDate}
+            overlapFilter={overlapFilter}
           />
         ) : listDates.length === 0 ? (
           <p className="text-text-muted py-16 text-center text-sm">

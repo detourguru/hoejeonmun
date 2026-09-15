@@ -53,22 +53,6 @@ export const MyScheduleCalendar = ({
     runtimeByShowId,
   );
 
-  const slotsWithOverlap = allSlots.map((slot) => {
-    if (!overlappingIds.has(slot.id)) return slot;
-
-    const baseChips = slot.chips ?? [
-      { label: slot.label, colorClass: slot.colorClass ?? "" },
-    ];
-
-    return {
-      ...slot,
-      chips: [
-        ...baseChips,
-        { label: "겹침", colorClass: "bg-red-100 text-red-700" },
-      ],
-    };
-  });
-
   return (
     <div className="flex flex-col gap-3">
       {!hasFavorites && (
@@ -88,7 +72,7 @@ export const MyScheduleCalendar = ({
         initialView={initialView}
         cells={cells}
         events={myEvents}
-        slots={slotsWithOverlap}
+        slots={allSlots}
         panels={{
           ...myPanels,
           ...Object.fromEntries(
