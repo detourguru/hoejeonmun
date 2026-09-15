@@ -41,7 +41,7 @@ export default async function LoginPage({
             priority
             width={80}
             height={80}
-            src="/logo.png"
+            src="/logo.webp"
             alt="회전문 로고"
             className="relative"
           />
