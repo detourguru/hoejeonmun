@@ -19,6 +19,15 @@ const maruBuri = localFont({
   ],
   variable: "--font-maruburi",
   display: "swap",
+  preload: false,
+});
+
+// 목록 화면에서 이 폰트를 쓰는 건 로고 글자뿐이라, 그 세 글자만 담은 파일을 따로 둔다
+const maruBuriWordmark = localFont({
+  src: "./fonts/MaruBuri-Bold-wordmark.woff2",
+  weight: "700",
+  variable: "--font-maruburi-wordmark",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -89,7 +98,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={maruBuri.variable}>
+    <html
+      lang="ko"
+      className={`${maruBuri.variable} ${maruBuriWordmark.variable}`}
+    >
       <Analytics />
       <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       <body className="bg-primary">
