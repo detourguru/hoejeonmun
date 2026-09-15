@@ -42,6 +42,7 @@ type SlotCastingRow = {
   actor_id: number | null;
   verified: boolean;
   assignment_id: number;
+  role_order: number;
   upload_source: "user" | "system";
   fallback: boolean;
 };
@@ -100,14 +101,15 @@ export async function getShowCastings(
   const { data, error } = await supabase
     .from("slot_castings")
     .select(
-      "slot_id, date, upload_id, time, role_name_raw, actor_name_raw, actor_id, verified, assignment_id, upload_source, fallback",
+      "slot_id, date, upload_id, time, role_name_raw, actor_name_raw, actor_id, verified, assignment_id, role_order, upload_source, fallback",
     )
     .eq("show_id", showId)
     .gte("date", start)
     .lte("date", end)
     .order("date")
     .order("time")
-    // 캐스팅보드 헤더 순서대로 넣었으므로 id 순 == 원본 표의 배역 순서
+    // 파싱 시점에 고정한 원본 캐스팅보드 헤더 순서
+    .order("role_order")
     .order("assignment_id");
 
   if (error) throw error;
@@ -569,6 +571,7 @@ export type TodayShowSlot = {
   events: { id: number; title: string }[];
   daehakro?: "N" | "Y";
   seatScale?: number | null;
+  lookupFailed: boolean;
 };
 
 // unstable_cache 안의 fetch 는 데이터 캐시를 거치지 않으므로 KOPIS 조회는 캐시 밖에서 한다
@@ -610,6 +613,7 @@ export async function getTodayShowSlots(): Promise<TodayShowSlot[]> {
       seatScale: summary?.mt13id
         ? (seatScaleByMt13id.get(summary.mt13id) ?? null)
         : null,
+      lookupFailed: summary?.lookupFailed ?? false,
     };
   });
 }

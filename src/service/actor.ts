@@ -263,6 +263,7 @@ type FavoriteActorSlotRow = {
   role_name_raw: string;
   actor_id: number;
   assignment_id: number;
+  role_order: number;
 };
 
 export async function getFavoriteActorSlots(
@@ -278,7 +279,7 @@ export async function getFavoriteActorSlots(
   const { data, error } = await supabase
     .from("slot_castings")
     .select(
-      "slot_id, show_id, date, time, role_name_raw, actor_id, assignment_id",
+      "slot_id, show_id, date, time, role_name_raw, actor_id, assignment_id, role_order",
     )
     .in(
       "actor_id",
@@ -288,6 +289,7 @@ export async function getFavoriteActorSlots(
     .lte("date", end)
     .order("date")
     .order("time")
+    .order("role_order")
     .order("assignment_id");
 
   if (error) throw error;
