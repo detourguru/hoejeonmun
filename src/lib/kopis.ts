@@ -130,6 +130,15 @@ const fetchKopisText = cache(
           return text;
         }, deadline);
       } catch (error) {
+        if (
+          error instanceof KopisBudgetError ||
+          (error instanceof DOMException && error.name === "TimeoutError")
+        ) {
+          console.warn(
+            `[kopis] 시간 초과 ${new URL(url).pathname} ${attempt}회차`,
+          );
+        }
+
         const delay = KOPIS_RETRY_DELAY_MS * attempt + Math.random() * 200;
 
         if (
