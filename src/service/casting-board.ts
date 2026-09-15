@@ -449,6 +449,8 @@ Always fill in "reason" as described in its schema, whether parsing succeeded or
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
+
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
 export const isPlaceholderActorName = (name: string) =>
@@ -604,7 +606,7 @@ function normalizePerformances(
         .filter(([role, names]) => role && names.length > 0),
     );
 
-    const key = `${date} ${time}`;
+    const key = slotKey(date, time);
 
     const reason = skipReason(
       performance,
@@ -1271,7 +1273,7 @@ function normalizeCancelledSlots(
   for (const slot of slots) {
     const date = slot.date?.trim() ?? "";
     const time = slot.time?.trim() ?? "";
-    const key = `${date} ${time}`;
+    const key = slotKey(date, time);
 
     const isValid =
       DATE_PATTERN.test(date) &&
@@ -1308,7 +1310,7 @@ function normalizeCastingChanges(
     const time = change.time?.trim() ?? "";
     const role = normalizeName(change.role ?? "");
     const actor = normalizeActorName(change.actor ?? "");
-    const key = `${date} ${time} ${role}`;
+    const key = `${slotKey(date, time)} ${role}`;
 
     const isValid =
       DATE_PATTERN.test(date) &&
@@ -1599,11 +1601,6 @@ const CONSENSUS_RUNS = 3;
 const CONSENSUS_THRESHOLD = 2;
 const CONSENSUS_DEADLINE_MS = 48_000;
 
-const performanceSlotKey = ({
-  date,
-  time,
-}: Pick<ParsedPerformance, "date" | "time">) => `${date} ${time}`;
-
 const serializeCastingValue = (actors: string[]) =>
   [...actors].sort().join("\u0000");
 
@@ -1632,7 +1629,7 @@ function buildConsensusPerformances(
 
   for (const run of runs) {
     for (const performance of run) {
-      const key = performanceSlotKey(performance);
+      const key = slotKey(performance.date, performance.time);
       const current = bySlot.get(key) ?? [];
 
       current.push(performance);
@@ -2157,8 +2154,6 @@ async function insertEvent(
   return existing?.id;
 }
 
-const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
-
 // 이벤트가 실제로 적용되는 회차 id 목록을 기간 + 막대 외 포함/제외 회차로 계산한다.
 // 새로 저장할 때와 정정 제안으로 다시 계산할 때 모두 이 로직을 그대로 써야 한다
 export async function computeEventSlotIds(
@@ -2597,8 +2592,7 @@ async function saveCastingBoardContent({
     if (slotSelectError) throw slotSelectError;
 
     const slotIdByKey = new Map(
-      // time -> HH:mm:ss
-      slots.map(({ id, date, time }) => [`${date} ${time.slice(0, 5)}`, id]),
+      slots.map(({ id, date, time }) => [slotKey(date, time), id]),
     );
 
     actorNames = [
@@ -2627,7 +2621,7 @@ async function saveCastingBoardContent({
 
     const assignments = performances.flatMap(
       ({ date, time, casting, imageIndex }) => {
-        const slotId = slotIdByKey.get(`${date} ${time}`);
+        const slotId = slotIdByKey.get(slotKey(date, time));
         const uploadImageId = uploadImageIdByPosition.get(imageIndex);
 
         if (!slotId || uploadImageId === undefined) return [];
