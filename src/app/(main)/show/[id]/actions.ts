@@ -153,6 +153,191 @@ export async function correctSlotCasting({
   return { ok: true, count };
 }
 
+export async function addSlotCasting({
+  showId,
+  slotId,
+  role,
+  actor,
+  applyToAllSlots,
+}: {
+  showId: string;
+  slotId: number;
+  role: string;
+  actor: string;
+  applyToAllSlots: boolean;
+}): Promise<CorrectCastingResult> {
+  const trimmedRole = role.trim();
+  const trimmedActor = actor.trim();
+
+  if (!trimmedRole) return { ok: false, message: "배역명을 입력해 주세요." };
+  if (!trimmedActor) return { ok: false, message: "배우명을 입력해 주세요." };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  const { data: castingData, error: castingError } = await admin
+    .from("current_castings")
+    .select("upload_id")
+    .eq("slot_id", slotId)
+    .maybeSingle();
+
+  if (castingError) {
+    console.error(castingError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!castingData)
+    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  const { data: actorRow, error: actorError } = await admin
+    .from("actors")
+    .upsert([{ name: trimmedActor }], {
+      onConflict: "name",
+      ignoreDuplicates: false,
+    })
+    .select("id")
+    .single();
+
+  if (actorError) {
+    console.error(actorError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  const targetSlotsQuery = admin
+    .from("assignments")
+    .select("slot_id, role_order")
+    .eq("upload_id", castingData.upload_id);
+
+  const { data: existingRows, error: existingError } = await (applyToAllSlots
+    ? targetSlotsQuery
+    : targetSlotsQuery.eq("slot_id", slotId));
+
+  if (existingError) {
+    console.error(existingError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  const maxOrderBySlot = new Map<number, number>();
+
+  for (const row of existingRows ?? []) {
+    const current = maxOrderBySlot.get(row.slot_id) ?? -1;
+
+    if (row.role_order > current) maxOrderBySlot.set(row.slot_id, row.role_order);
+  }
+
+  const targetSlotIds = applyToAllSlots ? [...maxOrderBySlot.keys()] : [slotId];
+
+  if (targetSlotIds.length === 0)
+    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  const { error: insertError, count } = await admin.from("assignments").upsert(
+    targetSlotIds.map((id) => ({
+      upload_id: castingData.upload_id,
+      slot_id: id,
+      role_name_raw: trimmedRole,
+      actor_name_raw: trimmedActor,
+      actor_id: actorRow.id,
+      upload_image_id: null,
+      verified: false,
+      role_order: (maxOrderBySlot.get(id) ?? -1) + 1,
+    })),
+    {
+      onConflict: "upload_id,slot_id,role_name_raw,actor_name_raw",
+      ignoreDuplicates: true,
+      count: "exact",
+    },
+  );
+
+  if (insertError) {
+    console.error(insertError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!count)
+    return { ok: false, message: "이미 같은 배역·배우가 있어요." };
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, count };
+}
+
+export async function deleteSlotCasting({
+  showId,
+  slotId,
+  role,
+  actor,
+  applyToAllSlots,
+}: {
+  showId: string;
+  slotId: number;
+  role: string;
+  actor: string;
+  applyToAllSlots: boolean;
+}): Promise<CorrectCastingResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  const { data: castingData, error: castingError } = await admin
+    .from("current_castings")
+    .select("upload_id")
+    .eq("slot_id", slotId)
+    .maybeSingle();
+
+  if (castingError) {
+    console.error(castingError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!castingData)
+    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  let deleteQuery = admin
+    .from("assignments")
+    .delete({ count: "exact" })
+    .eq("upload_id", castingData.upload_id)
+    .eq("role_name_raw", role)
+    .eq("actor_name_raw", actor);
+
+  if (!applyToAllSlots) deleteQuery = deleteQuery.eq("slot_id", slotId);
+
+  const { error: deleteError, count } = await deleteQuery;
+
+  if (deleteError) {
+    console.error(deleteError);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (!count) return { ok: false, message: "해당 배역을 찾을 수 없어요." };
+
+  await deleteUploadIfEmpty(admin, castingData.upload_id);
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, count };
+}
+
 // 날짜/시간이 잘못 읽힌 회차를 이 캐스팅보드 안에서만 다른 회차로 옮긴다
 export async function correctSlotDate(
   showId: string,
