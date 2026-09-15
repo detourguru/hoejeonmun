@@ -1,6 +1,9 @@
 "use server";
 
+import { after } from "next/server";
+
 import { createClient } from "@/lib/supabase/server";
+import { generateUserShowThumbnail } from "@/service/poster-thumbnail-generator";
 import { createUserShow } from "@/service/user-show";
 import { GENRE } from "@/type/show";
 import { MAX_TICKET_LINKS, TicketLink } from "@/type/user-show";
@@ -87,6 +90,9 @@ export async function createUserShowAction(input: {
       },
       userId,
     );
+
+    // 등록 응답을 늦추지 않게 응답을 보낸 뒤 만든다
+    after(() => generateUserShowThumbnail(id, input.posterPath));
 
     return { ok: true, id };
   } catch (error) {
