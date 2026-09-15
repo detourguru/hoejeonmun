@@ -22,6 +22,7 @@ import {
   getTodayShowSlots,
   RecentEvent,
 } from "@/service/casting";
+import { withPosterThumbnails } from "@/service/poster-thumbnail";
 import { getShow, getShows } from "@/service/show";
 import { DEFAULT_SHOW_FEED_TAB, SHOW_FEED_TAB, type Show } from "@/type/show";
 
@@ -100,6 +101,14 @@ export default async function Page({ searchParams }: Props) {
   );
 }
 
+async function applyPosterThumbnails<T extends { show: Show }>(
+  items: T[],
+): Promise<T[]> {
+  const shows = await withPosterThumbnails(items.map(({ show }) => show));
+
+  return items.map((item, index) => ({ ...item, show: shows[index] }));
+}
+
 function indexShowsById(shows: Show[]) {
   return new Map(shows.map((show) => [show.mt20id, show]));
 }
@@ -159,12 +168,14 @@ async function FavoriteActorFeed() {
     favoritedShows.map(({ showId }) => showId),
   );
 
-  const items = favoritedShows
-    .map((favorited) => {
-      const show = showById.get(favorited.showId);
-      return show ? { ...favorited, show } : null;
-    })
-    .filter((item) => item !== null);
+  const items = await applyPosterThumbnails(
+    favoritedShows
+      .map((favorited) => {
+        const show = showById.get(favorited.showId);
+        return show ? { ...favorited, show } : null;
+      })
+      .filter((item) => item !== null),
+  );
 
   if (items.length === 0) return <EmptyFavoriteFeed />;
 
@@ -215,9 +226,11 @@ async function RecentFeed() {
     })
     .filter((item) => item !== null);
 
-  const items = [...castingItems, ...eventItems]
-    .sort((a, b) => feedItemDate(b).localeCompare(feedItemDate(a)))
-    .slice(0, FEED_LIMIT);
+  const items = await applyPosterThumbnails(
+    [...castingItems, ...eventItems]
+      .sort((a, b) => feedItemDate(b).localeCompare(feedItemDate(a)))
+      .slice(0, FEED_LIMIT),
+  );
 
   if (items.length === 0) return <EmptyFeed />;
 

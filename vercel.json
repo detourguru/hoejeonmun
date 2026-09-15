@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/purge-parse-failures",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/generate-poster-thumbnails",
+      "schedule": "30 19 * * *"
     }
   ]
 }

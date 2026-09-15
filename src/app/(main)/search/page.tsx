@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ShowCard } from "@/components/show/show-card";
 import { searchActors } from "@/service/actor";
+import { withPosterThumbnails } from "@/service/poster-thumbnail";
 import { searchShows } from "@/service/show";
 
 import type { Metadata } from "next";
@@ -51,7 +52,7 @@ export default async function Page({ searchParams }: Props) {
 
   const [actors, shows] = await Promise.all([
     searchActors(keyword),
-    searchShows(keyword),
+    searchShows(keyword).then(withPosterThumbnails),
   ]);
 
   if (actors.length === 0 && shows.length === 0) {

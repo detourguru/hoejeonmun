@@ -2,10 +2,17 @@ import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-export function createAdminClient() {
+export function createAdminClient({
+  fetch,
+}: { fetch?: typeof globalThis.fetch } = {}) {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      ...(fetch && { global: { fetch } }),
+    },
   );
 }
+
+export type AdminClient = ReturnType<typeof createAdminClient>;
