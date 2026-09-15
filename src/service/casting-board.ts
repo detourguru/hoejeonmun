@@ -451,6 +451,19 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
 
+function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = keyOf(item);
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
 const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
 
 export const isPlaceholderActorName = (name: string) =>
@@ -767,7 +780,6 @@ function normalizeDateTags(
 ) {
   const { from, to } = resolveRunWindow(show);
 
-  const seen = new Set<string>();
   const valid: ParsedDateTag[] = [];
 
   for (const dateTag of dateTags) {
@@ -777,8 +789,6 @@ function normalizeDateTags(
     const printedStartWeekday = dateTag.printedStartWeekday?.trim() ?? "";
     const printedEndWeekday = dateTag.printedEndWeekday?.trim() ?? "";
     const time = dateTag.time?.trim() ?? "";
-
-    const key = `${startDate}~${endDate}::${tag}::${time}`;
 
     const isValid =
       tag.length > 0 &&
@@ -797,14 +807,12 @@ function normalizeDateTags(
           performances.some(
             ({ date, time: pTime }) => date === startDate && pTime === time,
           )) &&
-      !seen.has(key) &&
       Number.isInteger(dateTag.imageIndex) &&
       dateTag.imageIndex >= 0 &&
       dateTag.imageIndex < imageCount;
 
     if (!isValid) continue;
 
-    seen.add(key);
     valid.push({
       tag,
       startDate,
@@ -816,7 +824,13 @@ function normalizeDateTags(
     });
   }
 
-  return mergeSameDateTags(valid);
+  const deduped = dedupeByKey(
+    valid,
+    ({ startDate, endDate, tag, time }) =>
+      `${startDate}~${endDate}::${tag}::${time}`,
+  );
+
+  return mergeSameDateTags(deduped);
 }
 
 const eventMatchJsonSchema = {
@@ -1257,7 +1271,11 @@ function normalizeEvents(
     });
   }
 
-  return valid;
+  return dedupeByKey(
+    valid,
+    ({ title, periodStart, periodEnd }) =>
+      `${toTitleKey(title)} ${periodStart} ${periodEnd}`,
+  );
 }
 
 function normalizeCancelledSlots(
@@ -1267,31 +1285,27 @@ function normalizeCancelledSlots(
 ) {
   const { from, to } = resolveRunWindow(show);
 
-  const seen = new Set<string>();
   const valid: ParsedCancelledSlot[] = [];
 
   for (const slot of slots) {
     const date = slot.date?.trim() ?? "";
     const time = slot.time?.trim() ?? "";
-    const key = slotKey(date, time);
 
     const isValid =
       DATE_PATTERN.test(date) &&
       TIME_PATTERN.test(time) &&
       date >= from &&
       date <= to &&
-      !seen.has(key) &&
       Number.isInteger(slot.imageIndex) &&
       slot.imageIndex >= 0 &&
       slot.imageIndex < imageCount;
 
     if (!isValid) continue;
 
-    seen.add(key);
     valid.push({ date, time, imageIndex: slot.imageIndex });
   }
 
-  return valid;
+  return dedupeByKey(valid, ({ date, time }) => slotKey(date, time));
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -1302,7 +1316,6 @@ function normalizeCastingChanges(
 ) {
   const { from, to } = resolveRunWindow(show);
 
-  const seen = new Set<string>();
   const valid: ParsedCastingChange[] = [];
 
   for (const change of changes) {
@@ -1310,7 +1323,6 @@ function normalizeCastingChanges(
     const time = change.time?.trim() ?? "";
     const role = normalizeName(change.role ?? "");
     const actor = normalizeActorName(change.actor ?? "");
-    const key = `${slotKey(date, time)} ${role}`;
 
     const isValid =
       DATE_PATTERN.test(date) &&
@@ -1320,18 +1332,19 @@ function normalizeCastingChanges(
       role.length > 0 &&
       actor.length > 0 &&
       !PLACEHOLDER_NAMES.has(actor.toLowerCase()) &&
-      !seen.has(key) &&
       Number.isInteger(change.imageIndex) &&
       change.imageIndex >= 0 &&
       change.imageIndex < imageCount;
 
     if (!isValid) continue;
 
-    seen.add(key);
     valid.push({ date, time, role, actor, imageIndex: change.imageIndex });
   }
 
-  return valid;
+  return dedupeByKey(
+    valid,
+    ({ date, time, role }) => `${slotKey(date, time)} ${role}`,
+  );
 }
 
 // Gemini 응답의 값을 보장하기 위해 여기서 한 번 더 거른다
@@ -1342,14 +1355,12 @@ function normalizeCancelledEvents(
 ) {
   const { from, to } = resolveRunWindow(show);
 
-  const seen = new Set<string>();
   const valid: ParsedCancelledEvent[] = [];
 
   for (const event of events) {
     const title = event.title?.trim() ?? "";
     const periodStart = event.periodStart?.trim() ?? "";
     const periodEnd = event.periodEnd?.trim() ?? "";
-    const key = `${toTitleKey(title)} ${periodStart} ${periodEnd}`;
 
     const isValid =
       title.length > 0 &&
@@ -1358,18 +1369,20 @@ function normalizeCancelledEvents(
       periodStart <= periodEnd &&
       periodStart <= to &&
       periodEnd >= from &&
-      !seen.has(key) &&
       Number.isInteger(event.imageIndex) &&
       event.imageIndex >= 0 &&
       event.imageIndex < imageCount;
 
     if (!isValid) continue;
 
-    seen.add(key);
     valid.push({ title, periodStart, periodEnd, imageIndex: event.imageIndex });
   }
 
-  return valid;
+  return dedupeByKey(
+    valid,
+    ({ title, periodStart, periodEnd }) =>
+      `${toTitleKey(title)} ${periodStart} ${periodEnd}`,
+  );
 }
 
 const eventGroupJsonSchema = {
