@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { chunkArray, selectAllRows } from "@/lib/supabase/select-all";
 import { createClient } from "@/lib/supabase/server";
 import { getPosterThumbnailUrls } from "@/service/poster-thumbnail";
 import { getShowSummaries } from "@/service/show";
@@ -385,36 +386,36 @@ export function groupByDate<T extends { date: string }>(items: T[]) {
   return grouped;
 }
 
+const SIGN_BATCH_SIZE = 100;
+
 async function getSignedUrlsByPath(paths: string[]) {
   const uniquePaths = [...new Set(paths)];
 
   if (uniquePaths.length === 0) return new Map<string, string>();
 
-  const supabase = createAdminClient();
-
-  const { data, error } = await supabase.storage
-    .from(CASTING_BOARD_BUCKET)
-    .createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
-
-  if (error) throw error;
-
+  const storage = createAdminClient().storage.from(CASTING_BOARD_BUCKET);
   const signedByPath = new Map<string, string>();
 
-  for (const [index, { path, signedUrl }] of data.entries()) {
-    const requestedPath = path || uniquePaths[index];
+  await Promise.all(
+    chunkArray(uniquePaths, SIGN_BATCH_SIZE).map(async (batch) => {
+      const { data, error } = await storage.createSignedUrls(
+        batch,
+        SIGNED_URL_TTL_SECONDS,
+      );
 
-    if (requestedPath && signedUrl) {
-      signedByPath.set(requestedPath, signedUrl);
-    }
-  }
+      if (error) throw error;
+
+      for (const [index, { path, signedUrl }] of data.entries()) {
+        const requestedPath = path || batch[index];
+
+        if (requestedPath && signedUrl) {
+          signedByPath.set(requestedPath, signedUrl);
+        }
+      }
+    }),
+  );
 
   return signedByPath;
-}
-
-async function signPaths(paths: string[]): Promise<string[]> {
-  const signedByPath = await getSignedUrlsByPath(paths);
-
-  return paths.flatMap((path) => signedByPath.get(path) ?? []);
 }
 
 // uploads의 "read own uploads" 정책이 user_id = auth.uid()로 걸러주므로
@@ -495,22 +496,51 @@ export async function getEventsWithReportStatus(
   }));
 }
 
-export async function getUploadImages(
-  uploadId: number | null,
-): Promise<string[]> {
+const UPLOAD_ID_CHUNK_SIZE = 100;
+
+// 업로드 여러 개의 이미지를 업로드마다 따로 조회하지 않고 묶어서 가져온다
+export async function getUploadImagesByUploadIds(
+  uploadIds: number[],
+): Promise<Map<number, string[]>> {
+  if (uploadIds.length === 0) return new Map();
+
   const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("upload_images")
-    .select("storage_path")
-    .eq("upload_id", uploadId)
-    .order("position");
+  // 업로드마다 이미지가 여러 장이라 행 수가 한 응답 제한을 넘을 수 있다
+  const rows = (
+    await Promise.all(
+      chunkArray(uploadIds, UPLOAD_ID_CHUNK_SIZE).map((ids) =>
+        selectAllRows<Pick<UploadImageRow, "upload_id" | "storage_path">>(
+          (from, to) =>
+            supabase
+              .from("upload_images")
+              .select("upload_id, storage_path")
+              .in("upload_id", ids)
+              .order("upload_id")
+              .order("position")
+              .order("id")
+              .range(from, to),
+        ),
+      ),
+    )
+  ).flat();
+  const signedByPath = await getSignedUrlsByPath(
+    rows.map(({ storage_path }) => storage_path),
+  );
+  const imagesByUploadId = new Map<number, string[]>();
 
-  if (error) throw error;
+  for (const { upload_id, storage_path } of rows) {
+    const url = signedByPath.get(storage_path);
 
-  const rows = data as Pick<UploadImageRow, "storage_path">[];
+    if (!url) continue;
 
-  return signPaths(rows.map(({ storage_path }) => storage_path));
+    imagesByUploadId.set(upload_id, [
+      ...(imagesByUploadId.get(upload_id) ?? []),
+      url,
+    ]);
+  }
+
+  return imagesByUploadId;
 }
 
 export async function getEventsBySlotIds(

@@ -1,9 +1,10 @@
+import { selectAllRows } from "@/lib/supabase/select-all";
 import { createClient } from "@/lib/supabase/server";
 import {
   CalendarEvent,
   getEventsWithReportStatus,
   getSlotIdsByEvent,
-  getUploadImages,
+  getUploadImagesByUploadIds,
   ShowEvent,
 } from "@/service/casting";
 import { getShowNames } from "@/service/show";
@@ -16,36 +17,61 @@ export type MyUpload = {
   images: string[];
 };
 
-export async function getMyUploads(userId: string): Promise<MyUpload[]> {
-  const supabase = await createClient();
+type UploadRow = { id: number; show_id: string; created_at: string };
 
-  const { data, error } = await supabase
+async function toMyUploads(rows: UploadRow[]): Promise<MyUpload[]> {
+  const [showNameById, imagesByUploadId] = await Promise.all([
+    getShowNames([...new Set(rows.map(({ show_id }) => show_id))]),
+    getUploadImagesByUploadIds(rows.map(({ id }) => id)),
+  ]);
+
+  return rows.map((row) => ({
+    id: row.id,
+    showId: row.show_id,
+    showName: showNameById.get(row.show_id) ?? "알 수 없는 공연",
+    createdAt: row.created_at,
+    images: imagesByUploadId.get(row.id) ?? [],
+  }));
+}
+
+function selectMyUploads(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  return supabase
     .from("uploads")
     .select("id, show_id, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
+}
+
+export async function getMyUploads(userId: string): Promise<MyUpload[]> {
+  const supabase = await createClient();
+  const rows = await selectAllRows<UploadRow>((from, to) =>
+    selectMyUploads(supabase, userId).order("id").range(from, to),
+  );
+
+  return toMyUploads(rows);
+}
+
+// 미리보기용. 하나 더 가져와서 더 있는지만 판단한다
+export async function getMyRecentUploads(
+  userId: string,
+  limit: number,
+): Promise<{ uploads: MyUpload[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await selectMyUploads(supabase, userId).limit(
+    limit + 1,
+  );
 
   if (error) throw error;
 
-  const uploads = data as {
-    id: number;
-    show_id: string;
-    created_at: string;
-  }[];
+  const rows = data as UploadRow[];
 
-  const showNameById = await getShowNames([
-    ...new Set(uploads.map(({ show_id }) => show_id)),
-  ]);
-
-  return Promise.all(
-    uploads.map(async (upload) => ({
-      id: upload.id,
-      showId: upload.show_id,
-      showName: showNameById.get(upload.show_id) ?? "알 수 없는 공연",
-      createdAt: upload.created_at,
-      images: await getUploadImages(upload.id),
-    })),
-  );
+  return {
+    uploads: await toMyUploads(rows.slice(0, limit)),
+    hasMore: rows.length > limit,
+  };
 }
 
 export type MyContributionStats = {

@@ -2,21 +2,20 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { UploadList } from "@/components/mypage/upload-list";
-import { getMyUploads } from "@/service/mypage";
+import { LoadingGhost } from "@/components/ui/loading-ghost";
+import { getMyRecentUploads } from "@/service/mypage";
 
 const PREVIEW_COUNT = 1;
 
 export const MyUploadsSection = async ({ userId }: { userId: string }) => {
-  const uploads = await getMyUploads(userId);
+  const { uploads, hasMore } = await getMyRecentUploads(userId, PREVIEW_COUNT);
 
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-text text-lg font-bold">
-          내가 최근 올린 캐스팅보드
-        </h2>
+        <SectionTitle />
 
-        {uploads.length > PREVIEW_COUNT && (
+        {hasMore && (
           <Link
             href="/mypage/uploads"
             className="text-text-muted hover:text-text flex items-center text-xs"
@@ -27,7 +26,18 @@ export const MyUploadsSection = async ({ userId }: { userId: string }) => {
         )}
       </div>
 
-      <UploadList uploads={uploads.slice(0, PREVIEW_COUNT)} />
+      <UploadList uploads={uploads} />
     </section>
   );
 };
+
+const SectionTitle = () => (
+  <h2 className="text-text text-lg font-bold">내가 최근 올린 캐스팅보드</h2>
+);
+
+export const MyUploadsSectionLoading = () => (
+  <section className="flex flex-col gap-3">
+    <SectionTitle />
+    <LoadingGhost className="py-4" label="캐스팅보드 불러오는 중..." />
+  </section>
+);

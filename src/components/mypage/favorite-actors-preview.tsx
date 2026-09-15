@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
+import { LoadingGhost } from "@/components/ui/loading-ghost";
 import { getFavoriteActors } from "@/service/actor";
 
 const PREVIEW_COUNT = 4;
@@ -11,7 +12,7 @@ export const FavoriteActorsPreview = async () => {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-text text-lg font-bold">애정배우</h2>
+        <SectionTitle />
 
         {actors.length > 0 && (
           <Link
@@ -67,3 +68,14 @@ export const FavoriteActorsPreview = async () => {
     </section>
   );
 };
+
+const SectionTitle = () => (
+  <h2 className="text-text text-lg font-bold">애정배우</h2>
+);
+
+export const FavoriteActorsPreviewLoading = () => (
+  <section className="flex flex-col gap-3">
+    <SectionTitle />
+    <LoadingGhost className="py-4" label="애정배우 불러오는 중..." />
+  </section>
+);

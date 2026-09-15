@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { InstallGuideButton } from "@/components/install-guide-button";
 import { DonateButton } from "@/components/mypage/donate-button";
-import { FavoriteActorsPreview } from "@/components/mypage/favorite-actors-preview";
-import { MyUploadsSection } from "@/components/mypage/my-uploads-section";
+import {
+  FavoriteActorsPreview,
+  FavoriteActorsPreviewLoading,
+} from "@/components/mypage/favorite-actors-preview";
+import {
+  MyUploadsSection,
+  MyUploadsSectionLoading,
+} from "@/components/mypage/my-uploads-section";
 import { ProfileHero } from "@/components/mypage/profile-hero";
 import { SignOutButton } from "@/components/mypage/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
@@ -40,9 +47,13 @@ export default async function Page() {
 
       <ProfileHero userId={userId} displayName={displayName} />
 
-      <FavoriteActorsPreview />
+      <Suspense fallback={<FavoriteActorsPreviewLoading />}>
+        <FavoriteActorsPreview />
+      </Suspense>
 
-      <MyUploadsSection userId={userId} />
+      <Suspense fallback={<MyUploadsSectionLoading />}>
+        <MyUploadsSection userId={userId} />
+      </Suspense>
 
       <div className="border-border bg-surface divide-border overflow-hidden rounded-xl border divide-y">
         <DonateButton />
