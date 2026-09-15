@@ -498,6 +498,26 @@ export async function getEventsWithReportStatus(
 
 const UPLOAD_ID_CHUNK_SIZE = 100;
 
+function groupSignedUrlsByUploadId(
+  rows: Pick<UploadImageRow, "upload_id" | "storage_path">[],
+  signedByPath: Map<string, string>,
+): Map<number, string[]> {
+  const imagesByUploadId = new Map<number, string[]>();
+
+  for (const { upload_id, storage_path } of rows) {
+    const url = signedByPath.get(storage_path);
+
+    if (!url) continue;
+
+    imagesByUploadId.set(upload_id, [
+      ...(imagesByUploadId.get(upload_id) ?? []),
+      url,
+    ]);
+  }
+
+  return imagesByUploadId;
+}
+
 // 업로드 여러 개의 이미지를 업로드마다 따로 조회하지 않고 묶어서 가져온다
 export async function getUploadImagesByUploadIds(
   uploadIds: number[],
@@ -527,20 +547,8 @@ export async function getUploadImagesByUploadIds(
   const signedByPath = await getSignedUrlsByPath(
     rows.map(({ storage_path }) => storage_path),
   );
-  const imagesByUploadId = new Map<number, string[]>();
 
-  for (const { upload_id, storage_path } of rows) {
-    const url = signedByPath.get(storage_path);
-
-    if (!url) continue;
-
-    imagesByUploadId.set(upload_id, [
-      ...(imagesByUploadId.get(upload_id) ?? []),
-      url,
-    ]);
-  }
-
-  return imagesByUploadId;
+  return groupSignedUrlsByUploadId(rows, signedByPath);
 }
 
 export async function getEventsBySlotIds(
@@ -747,19 +755,7 @@ export async function getSlotsWithStatus(
   const signedByPath = await getSignedUrlsByPath(
     imageRows.map(({ storage_path }) => storage_path),
   );
-
-  const imagesByUpload = new Map<number, string[]>();
-
-  for (const { upload_id, storage_path } of imageRows) {
-    const url = signedByPath.get(storage_path);
-
-    if (!url) continue;
-
-    imagesByUpload.set(upload_id, [
-      ...(imagesByUpload.get(upload_id) ?? []),
-      url,
-    ]);
-  }
+  const imagesByUpload = groupSignedUrlsByUploadId(imageRows, signedByPath);
 
   return slots.map((slot) => ({
     ...slot,
