@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import sharp from "sharp";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   ParsedCancelledEvent,
   ParsedCancelledSlot,
@@ -259,6 +260,50 @@ export function buildConsensusPerformances(
   );
 }
 
+async function logConsensusStats({
+  showId,
+  runsRequested,
+  runsSucceeded,
+  performances,
+}: {
+  showId: string;
+  runsRequested: number;
+  runsSucceeded: number;
+  performances: ParsedPerformance[];
+}) {
+  const performancesUnsureCount = performances.filter(
+    ({ unsureRoles }) => (unsureRoles?.length ?? 0) > 0,
+  ).length;
+  const rolesUnsureCount = performances.reduce(
+    (sum, { unsureRoles }) => sum + (unsureRoles?.length ?? 0),
+    0,
+  );
+  const rolesCount = performances.reduce(
+    (sum, { casting, unsureRoles }) =>
+      sum + Object.keys(casting).length + (unsureRoles?.length ?? 0),
+    0,
+  );
+
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("casting_parse_consensus_logs")
+      .insert({
+        show_id: showId,
+        runs_requested: runsRequested,
+        runs_succeeded: runsSucceeded,
+        performances_count: performances.length,
+        performances_unsure_count: performancesUnsureCount,
+        roles_count: rolesCount,
+        roles_unsure_count: rolesUnsureCount,
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("[gemini-consensus] 합의 통계 기록 실패", error);
+  }
+}
+
 export async function parseCastingBoardWithConsensus(
   images: Blob[],
   show: ShowDetail,
@@ -319,6 +364,13 @@ export async function parseCastingBoardWithConsensus(
   const base = successful[0].value;
 
   if (successful.length === 1) {
+    await logConsensusStats({
+      showId: show.mt20id,
+      runsRequested: runs,
+      runsSucceeded: successful.length,
+      performances: base.performances,
+    });
+
     return base;
   }
 
@@ -331,6 +383,13 @@ export async function parseCastingBoardWithConsensus(
   console.log(
     `[gemini-consensus] ${successful.length}/${runs} runs succeeded, threshold=${effectiveThreshold}, performances=${performances.length}`,
   );
+
+  await logConsensusStats({
+    showId: show.mt20id,
+    runsRequested: runs,
+    runsSucceeded: successful.length,
+    performances,
+  });
 
   return {
     ...base,
