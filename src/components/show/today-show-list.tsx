@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { getAppScrollContainer } from "@/lib/scroll";
 import type { TodayShowSlot } from "@/service/casting";
 import { LARGE_VENUE_SEAT_THRESHOLD } from "@/type/show";
 
@@ -61,12 +62,17 @@ export function TodayShowList({
     if (!saved) return;
 
     // 목록이 실제로 그려진 다음 높이가 반영된 상태에서 복원해야 한다
-    requestAnimationFrame(() => window.scrollTo(0, Number(saved)));
+    requestAnimationFrame(() =>
+      getAppScrollContainer()?.scrollTo(0, Number(saved)),
+    );
   }, []);
 
   const saveScrollPosition = () => {
     try {
-      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY));
+      sessionStorage.setItem(
+        SCROLL_STORAGE_KEY,
+        String(getAppScrollContainer()?.scrollTop ?? 0),
+      );
     } catch {
       // 사생활 보호 모드 등 sessionStorage를 못 쓰는 환경에서는 그냥 무시
     }
