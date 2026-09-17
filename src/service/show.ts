@@ -1,6 +1,10 @@
+import { unstable_cache } from "next/cache";
+
 import { addMonths, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
 import { parseRuntimeMinutes } from "@/lib/runtime";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { selectAllRows } from "@/lib/supabase/select-all";
 import {
   getUserShow,
   isUserShowId,
@@ -236,21 +240,58 @@ export function sortShows(shows: Show[], sort: SortKey = DEFAULT_SORT): Show[] {
 
 const SEARCH_TERM_LIMIT = 20;
 
+const UPLOADED_SHOW_IDS_REVALIDATE = 60 * 60;
+
+const getUploadedShowIds = unstable_cache(
+  async () => {
+    const supabase = createAdminClient();
+
+    const rows = await selectAllRows<{ show_id: string }>((from, to) =>
+      supabase.from("uploads").select("show_id").range(from, to),
+    );
+
+    return [...new Set(rows.map((row) => row.show_id))];
+  },
+  ["uploaded-show-ids"],
+  { revalidate: UPLOADED_SHOW_IDS_REVALIDATE },
+);
+
 export async function searchShows(keyword: string): Promise<Show[]> {
   const normalized = normalizeText(keyword);
 
   if (!normalized) return [];
 
-  const [kopisShows, userShows] = await Promise.all([
+  const [kopisShows, userShows, uploadedShowIds] = await Promise.all([
     getShows(),
     searchUserShows(keyword),
+    getUploadedShowIds(),
   ]);
 
   const matched = kopisShows.filter((show) =>
     normalizeText(show.prfnm).includes(normalized),
   );
 
-  return sortShows([...userShows, ...matched]).slice(0, SEARCH_TERM_LIMIT);
+  const knownIds = new Set([
+    ...kopisShows.map((show) => show.mt20id),
+    ...userShows.map((show) => show.mt20id),
+  ]);
+
+  const endedShowCandidates = (
+    await Promise.all(
+      uploadedShowIds
+        .filter((id) => !knownIds.has(id))
+        .map((id) => getShow(id).catch(() => null)),
+    )
+  ).filter((show): show is ShowDetail => show !== null);
+
+  const endedShows = endedShowCandidates.filter((show) =>
+    normalizeText(show.prfnm).includes(normalized),
+  );
+
+  return sortShows([...userShows, ...matched, ...endedShows]).slice(
+    0,
+    SEARCH_TERM_LIMIT,
+  );
 }
 
 export async function getShowNames(
