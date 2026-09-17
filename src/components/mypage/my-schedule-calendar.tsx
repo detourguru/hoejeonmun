@@ -86,7 +86,6 @@ export const MyScheduleCalendar = ({
           ),
         }}
         filterOptions={favoriteActorNames}
-        filterMode="or"
         overlapFilter={{ overlappingIds }}
         empty={
           <p className="text-text-muted py-16 text-center text-sm">
