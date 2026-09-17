@@ -44,6 +44,7 @@ export const showCacheTag = (id: string) => `show:${id}`;
 const STATE_PRIORITY: Record<StateName, number> = {
   공연중: 0,
   공연예정: 1,
+  공연완료: 2,
 };
 
 const compareState = (a: Show, b: Show) =>
@@ -83,9 +84,7 @@ function getPeriod() {
   };
 }
 
-export async function getShows(): Promise<Show[]> {
-  const { stdate, eddate } = getPeriod();
-
+async function fetchShowsForPeriod(stdate: string, eddate: string) {
   const pages = await Promise.all(
     // or 필터를 지원하지 않으므로 모든 장르를 순회를 돌며 조회 후 합친다
     GENRE.codes.map((shcate) => {
@@ -101,6 +100,34 @@ export async function getShows(): Promise<Show[]> {
   );
 
   return pages.flat().filter((show) => show?.mt20id);
+}
+
+export async function getShows(pastRange?: {
+  from: string;
+  to: string;
+}): Promise<Show[]> {
+  const { stdate, eddate } = getPeriod();
+
+  const needsPastFetch = pastRange && pastRange.from < stdate;
+
+  const [defaultShows, pastShows] = await Promise.all([
+    fetchShowsForPeriod(stdate, eddate),
+    needsPastFetch
+      ? fetchShowsForPeriod(
+          pastRange.from,
+          pastRange.to < stdate ? pastRange.to : stdate,
+        )
+      : Promise.resolve([]),
+  ]);
+
+  if (pastShows.length === 0) return defaultShows;
+
+  const seenIds = new Set(defaultShows.map((show) => show.mt20id));
+
+  return [
+    ...defaultShows,
+    ...pastShows.filter((show) => !seenIds.has(show.mt20id)),
+  ];
 }
 
 // 없는 mt20id를 넘기면 Kopis가 빈 dbs를 주므로 null로 구분
