@@ -69,7 +69,7 @@ export const SearchBar = () => {
     if (!focusGuardPushedRef.current) return;
 
     focusGuardPushedRef.current = false;
-    history.back();
+    history.replaceState(null, "");
   };
 
   if (searchParams !== prevSearchParams) {
