@@ -82,7 +82,6 @@ export const CastingViews = ({
   empty,
   filterOptions = [],
   initialActors = [],
-  filterMode = "or",
   overlapFilter,
 }: {
   showId?: string;
@@ -98,14 +97,10 @@ export const CastingViews = ({
   empty?: ReactNode;
   filterOptions?: string[];
   initialActors?: string[];
-  filterMode?: "and" | "or";
   overlapFilter?: { overlappingIds: Set<number> };
 }) => {
   const [view, setView] = useState<CastingView>(initialView);
   const [actors, setActors] = useState<string[]>(initialActors);
-  const [actorMatchMode, setActorMatchMode] = useState<"and" | "or">(
-    filterMode,
-  );
   const [onlyOverlapping, setOnlyOverlapping] = useState(false);
   const [pending, startTransition] = useTransition();
   const [visibleMonth, setVisibleMonth] = useOptimistic(month);
@@ -181,9 +176,7 @@ export const CastingViews = ({
   const visible = slots.filter((slot) => {
     const matchesActors = !slot.filterKeys
       ? true
-      : actorMatchMode === "or"
-        ? actors.some((name) => slot.filterKeys?.includes(name))
-        : actors.every((name) => slot.filterKeys?.includes(name));
+      : actors.some((name) => slot.filterKeys?.includes(name));
 
     if (!matchesActors) return false;
 
@@ -251,29 +244,6 @@ export const CastingViews = ({
         />
       )}
 
-      {!isEmpty && actors.length >= 2 && (
-        <div className="flex gap-1">
-          {(
-            [
-              { value: "or", label: "선택 배우 아무나" },
-              { value: "and", label: "선택 배우 전부(페어)" },
-            ] as const
-          ).map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setActorMatchMode(value)}
-              className={cn(
-                "border-border rounded-4xl border px-3 py-1 text-xs transition-colors",
-                value === actorMatchMode ? "bg-primary text-white" : "text-text",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {!isEmpty && overlapFilter && (
         <div className="flex gap-1">
           {(
@@ -309,9 +279,7 @@ export const CastingViews = ({
           <p className="text-text-muted py-16 text-center text-sm">
             {onlyOverlapping
               ? "겹치는 일정이 없어요."
-              : actorMatchMode === "or"
-                ? `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`
-                : `${actors.join(", ")} 배우가 함께 나오는 이 달 회차가 없어요.`}
+              : `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`}
           </p>
         ) : view === "calendar" ? (
           <Calendar
