@@ -1,5 +1,6 @@
 "use client";
 
+import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
 import {
   ConfirmedEvent,
@@ -131,6 +132,24 @@ export const EventConfirmList = ({
               시작일이 종료일보다 늦어요.
             </p>
           )}
+
+          <SlotExceptionEditor
+            label="기간 막대 밖에서 추가로 포함되는 회차"
+            items={event.includedSlots ?? []}
+            disabled={!include}
+            onChange={(includedSlots) =>
+              updateEvent(index, { includedSlots })
+            }
+          />
+
+          <SlotExceptionEditor
+            label="기간 안에서 제외되는 회차"
+            items={event.excludedSlots ?? []}
+            disabled={!include}
+            onChange={(excludedSlots) =>
+              updateEvent(index, { excludedSlots })
+            }
+          />
 
           {event.overlapping.length > 0 && (
             <select
