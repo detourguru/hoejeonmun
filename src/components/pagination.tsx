@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
+import { getAppScrollContainer } from "@/lib/scroll";
 
 export const Pagination = ({
   page,
@@ -18,7 +19,7 @@ export const Pagination = ({
     updateSearchParams({ page: next === 1 ? null : String(next) });
 
     // 스크롤 위치 초기화
-    window.scrollTo({ top: 0 });
+    getAppScrollContainer()?.scrollTo({ top: 0 });
   };
 
   const buttonClassName =

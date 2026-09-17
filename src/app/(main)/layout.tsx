@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { BugReportButton } from "@/components/bug-report-button";
 import { FooterNav } from "@/components/footer-nav";
 import { SearchBar } from "@/components/search/search-bar";
+import { APP_SCROLL_CONTAINER_ID } from "@/lib/scroll";
 
 export default function MainLayout({
   children,
@@ -13,7 +14,10 @@ export default function MainLayout({
 }>) {
   return (
     <div className="bg-sub mx-auto flex h-dvh flex-col overflow-hidden sm:max-w-md">
-      <div className="flex flex-1 flex-col overflow-y-auto">
+      <div
+        id={APP_SCROLL_CONTAINER_ID}
+        className="flex flex-1 flex-col overflow-y-auto"
+      >
         <header className="bg-point border-border flex w-full items-center gap-3 border-b p-4">
           <h1 className="text-lg font-bold">
             <Link className="flex items-center gap-2" href="/show">
