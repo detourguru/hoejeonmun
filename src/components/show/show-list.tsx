@@ -12,7 +12,10 @@ import {
 } from "@/service/show";
 
 export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
-  const filteredShows = filterShows(await getShows(), filters);
+  const filteredShows = filterShows(
+    await getShows({ from: filters.from, to: filters.to }),
+    filters,
+  );
   const shows = sortShows(
     await filterShowsByVenue(filteredShows, filters),
     filters.sort,

@@ -38,9 +38,10 @@ export const FilterBar = () => {
 
   useEffect(updateScrollFade, []);
 
-  // 캐싱된 데이터만큼 (SEARCHABLE_MONTHS) pick 가능
+  // 앞뒤로 SEARCHABLE_MONTHS만큼 pick 가능 (종료된 공연도 이만큼은 찾을 수 있게)
   const startOfToday = getToday();
   const today = toInputDate(startOfToday);
+  const earliest = toInputDate(addMonths(startOfToday, -SEARCHABLE_MONTHS));
   const limit = toInputDate(addMonths(startOfToday, SEARCHABLE_MONTHS));
 
   const from = searchParams.get("from") || today;
@@ -120,7 +121,7 @@ export const FilterBar = () => {
         <Input
           type="date"
           value={from}
-          min={today}
+          min={earliest}
           max={limit}
           onKeyDown={blockTyping}
           onChange={(event) => updatePeriod("from", event.target.value)}
