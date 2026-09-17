@@ -174,7 +174,18 @@ export const Calendar = ({
   const hasContent = (date: string) =>
     byDate.has(date) || eventsByDate.has(date);
 
-  const firstFilled = cells.find((date) => date && hasContent(date)) ?? null;
+  const filledCells = cells.filter(
+    (date): date is string => !!date && hasContent(date),
+  );
+
+  const nearestFilled = (target: string) =>
+    filledCells.find((date) => date >= target) ??
+    [...filledCells].reverse().find((date) => date < target) ??
+    null;
+
+  const firstFilled = initialDate
+    ? nearestFilled(initialDate)
+    : (filledCells[0] ?? null);
 
   const [selected, setSelected] = useState<string | null>(
     initialDate && hasContent(initialDate) ? initialDate : firstFilled,
