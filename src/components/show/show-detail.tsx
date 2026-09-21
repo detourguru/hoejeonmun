@@ -14,11 +14,12 @@ import { Suspense } from "react";
 import { splitActorNames } from "@/lib/actor-name";
 import { getToday, toInputDate, toMonth } from "@/lib/date";
 import { toArray } from "@/lib/kopis";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { getActorIdsByNames } from "@/service/actor";
 import { getShowCastings, getShowFilterData } from "@/service/casting";
 import { getShow } from "@/service/show";
-import { isUserShowId } from "@/service/user-show";
+import { isUserShowId, isUserShowOwner } from "@/service/user-show";
 import { ShowRelate } from "@/type/show";
 
 import { Badge } from "../ui/badge";
@@ -96,8 +97,22 @@ const CastSection = async ({
   );
 };
 
+// 직접 등록한 공연은 등록한 본인에게만 수정 링크를 보여준다
+async function canEditUserShow(id: string) {
+  if (!isUserShowId(id)) return false;
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+
+  return userId ? isUserShowOwner(id, userId).catch(() => false) : false;
+}
+
 export const ShowDetail = async ({ id }: { id: string }) => {
-  const show = await getShow(id);
+  const [show, editable] = await Promise.all([
+    getShow(id),
+    canEditUserShow(id),
+  ]);
 
   if (!show) notFound();
 
@@ -149,6 +164,14 @@ export const ShowDetail = async ({ id }: { id: string }) => {
               <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold text-white backdrop-blur-sm">
                 사용자 등록 공연
               </span>
+            )}
+            {editable && (
+              <Link
+                href={`/show/${id}/edit`}
+                className="rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold text-white backdrop-blur-sm"
+              >
+                수정
+              </Link>
             )}
           </div>
 

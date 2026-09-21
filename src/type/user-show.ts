@@ -16,3 +16,8 @@ export type UserShowInput = {
   venue: string;
   ticketLinks: TicketLink[];
 };
+
+export type UserShowForEdit = UserShowInput & {
+  id: string;
+  posterUrl: string;
+};
