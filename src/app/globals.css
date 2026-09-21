@@ -59,6 +59,24 @@
   --color-text: var(--brand-text);
   --color-text-muted: var(--brand-text-muted);
   --color-border: var(--brand-border);
+
+  /* 배우 구분 색 토큰 */
+  --color-tone-1: var(--tone-1-bg);
+  --color-tone-1-fg: var(--tone-1-fg);
+  --color-tone-2: var(--tone-2-bg);
+  --color-tone-2-fg: var(--tone-2-fg);
+  --color-tone-3: var(--tone-3-bg);
+  --color-tone-3-fg: var(--tone-3-fg);
+  --color-tone-4: var(--tone-4-bg);
+  --color-tone-4-fg: var(--tone-4-fg);
+  --color-tone-5: var(--tone-5-bg);
+  --color-tone-5-fg: var(--tone-5-fg);
+  --color-tone-6: var(--tone-6-bg);
+  --color-tone-6-fg: var(--tone-6-fg);
+  --color-tone-7: var(--tone-7-bg);
+  --color-tone-7-fg: var(--tone-7-fg);
+  --color-tone-8: var(--tone-8-bg);
+  --color-tone-8-fg: var(--tone-8-fg);
 }
 
 :root {
@@ -104,6 +122,24 @@
   --brand-text: #14152b;
   --brand-text-muted: #686b82;
   --brand-border: #e3e4ef;
+
+  /* 배우 구분 색: 남색(275)·노랑(90)에서 출발해 명도·채도를 맞춘 차분한 톤 */
+  --tone-1-bg: oklch(0.92 0.04 275);
+  --tone-1-fg: oklch(0.38 0.09 275);
+  --tone-2-bg: oklch(0.94 0.06 90);
+  --tone-2-fg: oklch(0.4 0.08 90);
+  --tone-3-bg: oklch(0.92 0.04 20);
+  --tone-3-fg: oklch(0.4 0.09 20);
+  --tone-4-bg: oklch(0.92 0.04 155);
+  --tone-4-fg: oklch(0.38 0.07 155);
+  --tone-5-bg: oklch(0.92 0.04 225);
+  --tone-5-fg: oklch(0.38 0.08 225);
+  --tone-6-bg: oklch(0.92 0.04 325);
+  --tone-6-fg: oklch(0.38 0.09 325);
+  --tone-7-bg: oklch(0.93 0.05 55);
+  --tone-7-fg: oklch(0.4 0.09 55);
+  --tone-8-bg: oklch(0.92 0.04 190);
+  --tone-8-fg: oklch(0.38 0.07 190);
 }
 
 .dark {
@@ -148,6 +184,23 @@
   --brand-text: #f5f5fa;
   --brand-text-muted: #9698ad;
   --brand-border: #2a2c4d;
+
+  --tone-1-bg: oklch(0.34 0.07 275);
+  --tone-1-fg: oklch(0.9 0.05 275);
+  --tone-2-bg: oklch(0.38 0.07 90);
+  --tone-2-fg: oklch(0.92 0.07 90);
+  --tone-3-bg: oklch(0.34 0.07 20);
+  --tone-3-fg: oklch(0.9 0.05 20);
+  --tone-4-bg: oklch(0.34 0.06 155);
+  --tone-4-fg: oklch(0.9 0.05 155);
+  --tone-5-bg: oklch(0.34 0.06 225);
+  --tone-5-fg: oklch(0.9 0.05 225);
+  --tone-6-bg: oklch(0.34 0.07 325);
+  --tone-6-fg: oklch(0.9 0.05 325);
+  --tone-7-bg: oklch(0.36 0.07 55);
+  --tone-7-fg: oklch(0.91 0.06 55);
+  --tone-8-bg: oklch(0.34 0.06 190);
+  --tone-8-fg: oklch(0.9 0.05 190);
 }
 
 @layer base {
