@@ -5,7 +5,7 @@ import { FavoriteScheduleCalendar } from "@/components/mypage/favorite-schedule-
 import { MyScheduleCalendar } from "@/components/mypage/my-schedule-calendar";
 import { MyShowsTabs } from "@/components/mypage/my-shows-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
-import { SLOT_COLOR, getActorColor } from "@/lib/actor-color";
+import { SLOT_COLOR, getActorColorMap } from "@/lib/actor-color";
 import {
   getCalendarCells,
   getMonthRange,
@@ -94,6 +94,11 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
   const favoriteActors = await getFavoriteActors();
   const favoriteSlots = await getFavoriteActorSlots(favoriteActors, start, end);
 
+  // 먼저 즐겨찾기한 배우부터 색을 나눠 줘서, 새로 추가해도 기존 배우 색은 그대로다
+  const actorColors = getActorColorMap(
+    [...favoriteActors].reverse().map(({ id }) => id),
+  );
+
   return (
     <FavoriteScheduleCalendar
       month={toMonth(monthDate)}
@@ -115,7 +120,7 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
           filterKeys: castingActors.map(([, actor]) => actor),
           chips: castingActors.map(([actorId, actor]) => ({
             label: actor,
-            colorClass: getActorColor(actorId),
+            colorClass: actorColors.get(actorId) ?? SLOT_COLOR,
           })),
         };
       })}

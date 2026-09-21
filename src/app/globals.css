@@ -60,23 +60,31 @@
   --color-text-muted: var(--brand-text-muted);
   --color-border: var(--brand-border);
 
-  /* 배우 구분 색 토큰 */
-  --color-tone-1: var(--tone-1-bg);
-  --color-tone-1-fg: var(--tone-1-fg);
-  --color-tone-2: var(--tone-2-bg);
-  --color-tone-2-fg: var(--tone-2-fg);
-  --color-tone-3: var(--tone-3-bg);
-  --color-tone-3-fg: var(--tone-3-fg);
-  --color-tone-4: var(--tone-4-bg);
-  --color-tone-4-fg: var(--tone-4-fg);
-  --color-tone-5: var(--tone-5-bg);
-  --color-tone-5-fg: var(--tone-5-fg);
-  --color-tone-6: var(--tone-6-bg);
-  --color-tone-6-fg: var(--tone-6-fg);
-  --color-tone-7: var(--tone-7-bg);
-  --color-tone-7-fg: var(--tone-7-fg);
-  --color-tone-8: var(--tone-8-bg);
-  --color-tone-8-fg: var(--tone-8-fg);
+  /* 배우 구분 색 토큰: 색상환에서 고르게 떨어진 12색. 명도·채도는 :root의 --tone-* 로 통일 */
+  --color-tone-1: oklch(var(--tone-bg-l) var(--tone-bg-c) 275);
+  --color-tone-1-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 275);
+  --color-tone-2: oklch(var(--tone-bg-l) var(--tone-bg-c) 90);
+  --color-tone-2-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 90);
+  --color-tone-3: oklch(var(--tone-bg-l) var(--tone-bg-c) 20);
+  --color-tone-3-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 20);
+  --color-tone-4: oklch(var(--tone-bg-l) var(--tone-bg-c) 155);
+  --color-tone-4-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 155);
+  --color-tone-5: oklch(var(--tone-bg-l) var(--tone-bg-c) 225);
+  --color-tone-5-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 225);
+  --color-tone-6: oklch(var(--tone-bg-l) var(--tone-bg-c) 55);
+  --color-tone-6-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 55);
+  --color-tone-7: oklch(var(--tone-bg-l) var(--tone-bg-c) 325);
+  --color-tone-7-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 325);
+  --color-tone-8: oklch(var(--tone-bg-l) var(--tone-bg-c) 190);
+  --color-tone-8-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 190);
+  --color-tone-9: oklch(var(--tone-bg-l) var(--tone-bg-c) 120);
+  --color-tone-9-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 120);
+  --color-tone-10: oklch(var(--tone-bg-l) var(--tone-bg-c) 350);
+  --color-tone-10-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 350);
+  --color-tone-11: oklch(var(--tone-bg-l) var(--tone-bg-c) 250);
+  --color-tone-11-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 250);
+  --color-tone-12: oklch(var(--tone-bg-l) var(--tone-bg-c) 300);
+  --color-tone-12-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 300);
 }
 
 :root {
@@ -123,23 +131,11 @@
   --brand-text-muted: #686b82;
   --brand-border: #e3e4ef;
 
-  /* 배우 구분 색: 남색(275)·노랑(90)에서 출발해 명도·채도를 맞춘 차분한 톤 */
-  --tone-1-bg: oklch(0.92 0.04 275);
-  --tone-1-fg: oklch(0.38 0.09 275);
-  --tone-2-bg: oklch(0.94 0.06 90);
-  --tone-2-fg: oklch(0.4 0.08 90);
-  --tone-3-bg: oklch(0.92 0.04 20);
-  --tone-3-fg: oklch(0.4 0.09 20);
-  --tone-4-bg: oklch(0.92 0.04 155);
-  --tone-4-fg: oklch(0.38 0.07 155);
-  --tone-5-bg: oklch(0.92 0.04 225);
-  --tone-5-fg: oklch(0.38 0.08 225);
-  --tone-6-bg: oklch(0.92 0.04 325);
-  --tone-6-fg: oklch(0.38 0.09 325);
-  --tone-7-bg: oklch(0.93 0.05 55);
-  --tone-7-fg: oklch(0.4 0.09 55);
-  --tone-8-bg: oklch(0.92 0.04 190);
-  --tone-8-fg: oklch(0.38 0.07 190);
+  /* 배우 구분 색의 명도·채도: 남색·노랑 브랜드와 어울리는 차분한 톤 */
+  --tone-bg-l: 0.92;
+  --tone-bg-c: 0.045;
+  --tone-fg-l: 0.38;
+  --tone-fg-c: 0.085;
 }
 
 .dark {
@@ -185,22 +181,10 @@
   --brand-text-muted: #9698ad;
   --brand-border: #2a2c4d;
 
-  --tone-1-bg: oklch(0.34 0.07 275);
-  --tone-1-fg: oklch(0.9 0.05 275);
-  --tone-2-bg: oklch(0.38 0.07 90);
-  --tone-2-fg: oklch(0.92 0.07 90);
-  --tone-3-bg: oklch(0.34 0.07 20);
-  --tone-3-fg: oklch(0.9 0.05 20);
-  --tone-4-bg: oklch(0.34 0.06 155);
-  --tone-4-fg: oklch(0.9 0.05 155);
-  --tone-5-bg: oklch(0.34 0.06 225);
-  --tone-5-fg: oklch(0.9 0.05 225);
-  --tone-6-bg: oklch(0.34 0.07 325);
-  --tone-6-fg: oklch(0.9 0.05 325);
-  --tone-7-bg: oklch(0.36 0.07 55);
-  --tone-7-fg: oklch(0.91 0.06 55);
-  --tone-8-bg: oklch(0.34 0.06 190);
-  --tone-8-fg: oklch(0.9 0.05 190);
+  --tone-bg-l: 0.34;
+  --tone-bg-c: 0.065;
+  --tone-fg-l: 0.9;
+  --tone-fg-c: 0.055;
 }
 
 @layer base {
