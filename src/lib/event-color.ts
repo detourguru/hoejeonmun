@@ -9,16 +9,16 @@ const getEventKind = (title: string): EventKind =>
       ? "preview"
       : "normal";
 
-// 첫공/막공, 프리뷰는 일반 이벤트와 구분되도록 색을 달리한다
+// 브랜드 토큰만 쓴다. 일반 이벤트는 point, 첫공/막공은 point를 진하게, 프리뷰는 primary로 구분한다
 const BAR_COLORS: Record<EventKind, string> = {
-  opening: "bg-amber-400/70",
-  preview: "bg-sky-400/70",
+  opening: "bg-point",
+  preview: "bg-primary/25",
   normal: "bg-point/50",
 };
 
 const CARD_COLORS: Record<EventKind, string> = {
-  opening: "bg-amber-400/15",
-  preview: "bg-sky-400/15",
+  opening: "bg-point/35",
+  preview: "bg-primary/10",
   normal: "bg-point/10",
 };
 
