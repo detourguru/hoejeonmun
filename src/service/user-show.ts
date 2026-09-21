@@ -28,9 +28,13 @@ type UserShowRow = {
 
 const toKopisDateFormat = (isoDate: string) => isoDate.replaceAll("-", ".");
 
-// 종료된 공연은 KOPIS 목록/검색에서도 자연히 빠지므로 진행중/예정 둘만 구분한다
-function computeState(periodStart: string): StateName {
-  return toInputDate(getToday()) < periodStart ? "공연예정" : "공연중";
+function computeState(periodStart: string, periodEnd: string): StateName {
+  const today = toInputDate(getToday());
+
+  if (today < periodStart) return "공연예정";
+  if (today > periodEnd) return "공연완료";
+
+  return "공연중";
 }
 
 async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
@@ -51,7 +55,7 @@ async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
     area: "",
     genrenm: row.genre,
     openrun: "N",
-    prfstate: computeState(row.period_start),
+    prfstate: computeState(row.period_start, row.period_end),
     relates:
       row.ticket_links.length > 0
         ? {
