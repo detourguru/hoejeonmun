@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { FavoriteActorSlotCard } from "@/components/mypage/favorite-actor-slot-card";
+import { FavoriteScheduleCalendar } from "@/components/mypage/favorite-schedule-calendar";
 import { MyScheduleCalendar } from "@/components/mypage/my-schedule-calendar";
+import { MyShowsTabs } from "@/components/mypage/my-shows-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
 import { SLOT_COLOR, getActorColor } from "@/lib/actor-color";
 import {
@@ -15,7 +17,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getFavoriteActors, getFavoriteActorSlots } from "@/service/actor";
 import { getMyEvents, getMySlots } from "@/service/mypage";
 import { getShowRuntimes } from "@/service/show";
-import { CASTING_VIEW, DEFAULT_CASTING_VIEW } from "@/type/casting";
+import {
+  CASTING_VIEW,
+  CastingView,
+  DEFAULT_CASTING_VIEW,
+  DEFAULT_MY_SHOWS_TAB,
+  MY_SHOWS_TAB,
+} from "@/type/casting";
 
 import type { Metadata } from "next";
 
@@ -24,8 +32,109 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: Promise<{ view?: string; month?: string }>;
+  searchParams: Promise<{ view?: string; month?: string; tab?: string }>;
 };
+
+type SectionProps = {
+  userId: string;
+  monthDate: Date;
+  view: CastingView;
+};
+
+async function MineSection({ userId, monthDate, view }: SectionProps) {
+  const { start, end } = getMonthRange(monthDate);
+
+  const [slots, events] = await Promise.all([
+    getMySlots(userId, start, end),
+    getMyEvents(userId, start, end),
+  ]);
+
+  const runtimeByShowId = await getShowRuntimes([
+    ...new Set(slots.map((slot) => slot.showId)),
+  ]).catch((error) => {
+    console.error("공연 러닝타임 조회 실패", error);
+
+    return {};
+  });
+
+  return (
+    <MyScheduleCalendar
+      month={toMonth(monthDate)}
+      initialView={view}
+      cells={getCalendarCells(monthDate)}
+      myEvents={events}
+      mySlots={slots.map((slot) => ({
+        id: slot.id,
+        date: slot.date,
+        time: slot.time,
+        showId: slot.showId,
+        label: slot.showName,
+        colorClass: SLOT_COLOR,
+      }))}
+      myPanels={Object.fromEntries(
+        slots.map((slot) => [
+          slot.id,
+          <MySlotCard key={slot.id} slot={slot} />,
+        ]),
+      )}
+      myListItems={Object.fromEntries(
+        slots.map((slot) => [
+          slot.id,
+          <MySlotCard key={slot.id} slot={slot} showDate />,
+        ]),
+      )}
+      runtimeByShowId={runtimeByShowId}
+    />
+  );
+}
+
+async function FavoriteSection({ monthDate, view }: SectionProps) {
+  const { start, end } = getMonthRange(monthDate);
+
+  const favoriteActors = await getFavoriteActors();
+  const favoriteSlots = await getFavoriteActorSlots(favoriteActors, start, end);
+
+  return (
+    <FavoriteScheduleCalendar
+      month={toMonth(monthDate)}
+      initialView={view}
+      cells={getCalendarCells(monthDate)}
+      favoriteSlots={favoriteSlots.map((slot) => {
+        const castingActors = [
+          ...new Map(
+            slot.casting.map(({ actor, actorId }) => [actorId, actor]),
+          ),
+        ];
+
+        return {
+          id: slot.id,
+          date: slot.date,
+          time: slot.time,
+          showId: slot.showId,
+          label: slot.showName,
+          filterKeys: castingActors.map(([, actor]) => actor),
+          chips: castingActors.map(([actorId, actor]) => ({
+            label: actor,
+            colorClass: getActorColor(actorId),
+          })),
+        };
+      })}
+      favoritePanels={Object.fromEntries(
+        favoriteSlots.map((slot) => [
+          slot.id,
+          <FavoriteActorSlotCard key={slot.id} slot={slot} />,
+        ]),
+      )}
+      favoriteListItems={Object.fromEntries(
+        favoriteSlots.map((slot) => [
+          slot.id,
+          <FavoriteActorSlotCard key={slot.id} slot={slot} showDate />,
+        ]),
+      )}
+      favoriteActorNames={favoriteActors.map(({ name }) => name)}
+    />
+  );
+}
 
 export default async function Page({ searchParams }: Props) {
   const supabase = await createClient();
@@ -35,109 +144,23 @@ export default async function Page({ searchParams }: Props) {
 
   if (!userId) redirect("/login?next=/mypage/shows");
 
-  const { view: rawView, month: rawMonth } = await searchParams;
+  const { view: rawView, month: rawMonth, tab: rawTab } = await searchParams;
 
   const monthDate = parseMonth(rawMonth ?? "") ?? getToday();
-  const month = toMonth(monthDate);
   const view = CASTING_VIEW.isCode(rawView) ? rawView : DEFAULT_CASTING_VIEW;
-
-  const { start, end } = getMonthRange(monthDate);
-
-  const [slots, events, favorites] = await Promise.all([
-    getMySlots(userId, start, end),
-    getMyEvents(userId, start, end),
-    getFavoriteActors()
-      .then(async (favoriteActors) => ({
-        favoriteActors,
-        favoriteSlots: await getFavoriteActorSlots(favoriteActors, start, end),
-      }))
-      .catch((error) => {
-        // 즐겨찾기 배우 조회가 실패해도 '내 공연' 탭은 계속 보여준다
-        console.error("즐겨찾기 배우 일정 조회 실패", error);
-
-        return { favoriteActors: [], favoriteSlots: [] };
-      }),
-  ]);
-
-  const { favoriteActors, favoriteSlots } = favorites;
-
-  const showIds = [
-    ...new Set([
-      ...slots.map((slot) => slot.showId),
-      ...favoriteSlots.map((slot) => slot.showId),
-    ]),
-  ];
-
-  const runtimeByShowId = await getShowRuntimes(showIds).catch((error) => {
-    console.error("공연 러닝타임 조회 실패", error);
-
-    return {};
-  });
+  const tab = MY_SHOWS_TAB.isCode(rawTab) ? rawTab : DEFAULT_MY_SHOWS_TAB;
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-text text-xl font-bold">내 공연</h1>
 
-      <MyScheduleCalendar
-        month={month}
-        initialView={view}
-        cells={getCalendarCells(monthDate)}
-        myEvents={events}
-        mySlots={slots.map((slot) => ({
-          id: slot.id,
-          date: slot.date,
-          time: slot.time,
-          showId: slot.showId,
-          label: slot.showName,
-          colorClass: SLOT_COLOR,
-        }))}
-        myPanels={Object.fromEntries(
-          slots.map((slot) => [
-            slot.id,
-            <MySlotCard key={slot.id} slot={slot} />,
-          ]),
-        )}
-        myListItems={Object.fromEntries(
-          slots.map((slot) => [
-            slot.id,
-            <MySlotCard key={slot.id} slot={slot} showDate />,
-          ]),
-        )}
-        favoriteSlots={favoriteSlots.map((slot) => {
-          const castingActors = [
-            ...new Map(
-              slot.casting.map(({ actor, actorId }) => [actorId, actor]),
-            ),
-          ];
+      <MyShowsTabs current={tab} />
 
-          return {
-            id: slot.id,
-            date: slot.date,
-            time: slot.time,
-            showId: slot.showId,
-            label: slot.showName,
-            filterKeys: castingActors.map(([, actor]) => actor),
-            chips: castingActors.map(([actorId, actor]) => ({
-              label: actor,
-              colorClass: getActorColor(actorId),
-            })),
-          };
-        })}
-        favoritePanels={Object.fromEntries(
-          favoriteSlots.map((slot) => [
-            slot.id,
-            <FavoriteActorSlotCard key={slot.id} slot={slot} />,
-          ]),
-        )}
-        favoriteListItems={Object.fromEntries(
-          favoriteSlots.map((slot) => [
-            slot.id,
-            <FavoriteActorSlotCard key={slot.id} slot={slot} showDate />,
-          ]),
-        )}
-        favoriteActorNames={favoriteActors.map(({ name }) => name)}
-        runtimeByShowId={runtimeByShowId}
-      />
+      {tab === "favorite" ? (
+        <FavoriteSection userId={userId} monthDate={monthDate} view={view} />
+      ) : (
+        <MineSection userId={userId} monthDate={monthDate} view={view} />
+      )}
     </div>
   );
 }
