@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ReactNode } from "react";
 
 import { CastingViews } from "@/components/casting/casting-views";
@@ -8,6 +7,7 @@ import { findOverlappingSlotIds } from "@/lib/schedule-overlap";
 import type { CalendarEvent } from "@/service/casting";
 import { CastingView, CalendarSlot } from "@/type/casting";
 
+// 내가 담은 회차/이벤트만 보여주는 달력
 export const MyScheduleCalendar = ({
   month,
   initialView,
@@ -16,10 +16,6 @@ export const MyScheduleCalendar = ({
   mySlots,
   myPanels,
   myListItems,
-  favoriteSlots,
-  favoritePanels,
-  favoriteListItems,
-  favoriteActorNames,
   runtimeByShowId,
 }: {
   month: string;
@@ -29,20 +25,8 @@ export const MyScheduleCalendar = ({
   mySlots: CalendarSlot[];
   myPanels: Record<number, ReactNode>;
   myListItems: Record<number, ReactNode>;
-  favoriteSlots: CalendarSlot[];
-  favoritePanels: Record<number, ReactNode>;
-  favoriteListItems: Record<number, ReactNode>;
-  favoriteActorNames: string[];
   runtimeByShowId: Record<string, number | null>;
 }) => {
-  const hasFavorites = favoriteActorNames.length > 0;
-
-  // 내가 담아둔 회차랑 즐겨찾기 배우 회차가 겹치면 내 공연 쪽으로만 보여준다
-  const mySlotIds = new Set(mySlots.map(({ id }) => id));
-  const overlaySlots = favoriteSlots.filter(({ id }) => !mySlotIds.has(id));
-
-  const allSlots = [...mySlots, ...overlaySlots];
-
   const overlappingIds = findOverlappingSlotIds(
     mySlots.map(({ id, date, time, showId }) => ({
       id,
@@ -54,45 +38,20 @@ export const MyScheduleCalendar = ({
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      {!hasFavorites && (
-        <p className="text-text-muted text-xs">
-          즐겨찾기한 배우가 없어요.{" "}
-          <Link
-            href="/mypage/favorite"
-            className="text-primary underline underline-offset-2"
-          >
-            배우 즐겨찾기하러 가기
-          </Link>
+    <CastingViews
+      month={month}
+      initialView={initialView}
+      cells={cells}
+      events={myEvents}
+      slots={mySlots}
+      panels={myPanels}
+      listItems={myListItems}
+      overlapFilter={{ overlappingIds }}
+      empty={
+        <p className="text-text-muted py-16 text-center text-sm">
+          아직 담아둔 회차/이벤트가 없어요.
         </p>
-      )}
-
-      <CastingViews
-        month={month}
-        initialView={initialView}
-        cells={cells}
-        events={myEvents}
-        slots={allSlots}
-        panels={{
-          ...myPanels,
-          ...Object.fromEntries(
-            overlaySlots.map(({ id }) => [id, favoritePanels[id]]),
-          ),
-        }}
-        listItems={{
-          ...myListItems,
-          ...Object.fromEntries(
-            overlaySlots.map(({ id }) => [id, favoriteListItems[id]]),
-          ),
-        }}
-        filterOptions={favoriteActorNames}
-        overlapFilter={{ overlappingIds }}
-        empty={
-          <p className="text-text-muted py-16 text-center text-sm">
-            아직 담아둔 회차/이벤트가 없어요.
-          </p>
-        }
-      />
-    </div>
+      }
+    />
   );
 };
