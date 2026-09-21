@@ -308,6 +308,12 @@ export const Calendar = ({
 
       {openDate && (
         <div className="border-border flex flex-col gap-3 border-t pt-4">
+          <ul className="flex flex-col gap-2">
+            {openDateSlots.map((slot) => (
+              <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
+            ))}
+          </ul>
+
           {openDateEvents.length > 0 && (
             <ul className="flex flex-col gap-2">
               {openDateEvents.map((event) => (
@@ -322,12 +328,6 @@ export const Calendar = ({
               ))}
             </ul>
           )}
-
-          <ul className="flex flex-col gap-2">
-            {openDateSlots.map((slot) => (
-              <Fragment key={slot.id}>{panels[slot.id]}</Fragment>
-            ))}
-          </ul>
         </div>
       )}
     </div>

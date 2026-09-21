@@ -463,6 +463,7 @@ const EventReview = ({
           <SlotExceptionEditor
             label="기간 막대 밖에서 추가로 포함되는 회차 (원본과 대조해주세요)"
             items={event.includedSlots ?? []}
+            knownSlots={knownSlots}
             disabled={!include}
             onChange={(items) => onEventChange({ includedSlots: items })}
           />

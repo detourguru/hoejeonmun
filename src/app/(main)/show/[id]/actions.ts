@@ -615,9 +615,27 @@ export async function reportEvent(
   return { ok: true, hidden: !!hidden };
 }
 
-// 이벤트가 현재 어느 회차에 적용되고 있는지를 "기간 막대 밖 포함/기간 안 제외"
-// 형태로 되돌려서 정정 시트에 미리 채워 넣는다. 이게 없으면 정정 저장 시
-// 기간만으로 다시 계산해서 막대 밖 회차 연결이 지워진다
+export async function getShowSlotTimes(
+  showId: string,
+): Promise<EventSlotException[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("slots")
+    .select("date, time")
+    .eq("show_id", showId)
+    .is("cancelled_at", null)
+    .order("date")
+    .order("time");
+
+  if (error) throw error;
+
+  return (data as EventSlotException[]).map(({ date, time }) => ({
+    date,
+    time: time.slice(0, 5),
+  }));
+}
+
 export async function getEventSlotAdjustments(
   showId: string,
   eventId: number,
