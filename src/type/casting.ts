@@ -14,6 +14,15 @@ export type CastingView = CodeOf<typeof CASTING_VIEW>;
 
 export const DEFAULT_CASTING_VIEW: CastingView = "calendar";
 
+export const MY_SHOWS_TAB = createCodeTable([
+  { value: "mine", label: "내가 담은 공연" },
+  { value: "favorite", label: "애정배우" },
+]);
+
+export type MyShowsTab = CodeOf<typeof MY_SHOWS_TAB>;
+
+export const DEFAULT_MY_SHOWS_TAB: MyShowsTab = "mine";
+
 // 캐스팅보드 업로드 검수 바텀시트 탭
 export const REPORT_TYPE_TAB = createCodeTable([
   { value: "casting", label: "캐스팅" },
