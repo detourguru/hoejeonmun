@@ -8,6 +8,7 @@ import {
   MAX_TICKET_LINKS,
   TicketLink,
   USER_SHOW_POSTER_BUCKET,
+  UserShowForEdit,
   UserShowInput,
 } from "@/type/user-show";
 
@@ -37,21 +38,19 @@ function computeState(periodStart: string, periodEnd: string): StateName {
   return "공연중";
 }
 
-async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
-  const supabase = createAdminClient();
-  const {
-    data: { publicUrl },
-  } = supabase.storage
-    .from(USER_SHOW_POSTER_BUCKET)
-    .getPublicUrl(row.poster_path);
+const getPosterUrl = (posterPath: string) =>
+  createAdminClient()
+    .storage.from(USER_SHOW_POSTER_BUCKET)
+    .getPublicUrl(posterPath).data.publicUrl;
 
+async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
   return {
     mt20id: row.id,
     prfnm: row.title,
     prfpdfrom: toKopisDateFormat(row.period_start),
     prfpdto: toKopisDateFormat(row.period_end),
     fcltynm: row.venue,
-    poster: publicUrl,
+    poster: getPosterUrl(row.poster_path),
     area: "",
     genrenm: row.genre,
     openrun: "N",
@@ -108,6 +107,18 @@ export async function searchUserShows(keyword: string): Promise<Show[]> {
   }
 }
 
+const toUserShowColumns = (input: UserShowInput) => ({
+  title: input.title.trim(),
+  poster_path: input.posterPath,
+  period_start: input.periodStart,
+  period_end: input.periodEnd,
+  genre: GENRE.nameByCode[input.genre],
+  venue: input.venue.trim(),
+  ticket_links: input.ticketLinks
+    .filter(({ name, url }) => name.trim() && url.trim())
+    .slice(0, MAX_TICKET_LINKS),
+});
+
 export async function createUserShow(
   input: UserShowInput,
   userId: string,
@@ -118,19 +129,76 @@ export async function createUserShow(
 
   const { error } = await supabase.from("user_shows").insert({
     id,
-    title: input.title.trim(),
-    poster_path: input.posterPath,
-    period_start: input.periodStart,
-    period_end: input.periodEnd,
-    genre: GENRE.nameByCode[input.genre],
-    venue: input.venue.trim(),
-    ticket_links: input.ticketLinks
-      .filter(({ name, url }) => name.trim() && url.trim())
-      .slice(0, MAX_TICKET_LINKS),
+    ...toUserShowColumns(input),
     created_by: userId,
   });
 
   if (error) throw error;
 
   return { id };
+}
+
+export async function getUserShowForEdit(
+  id: string,
+  userId: string,
+): Promise<UserShowForEdit | null> {
+  const { data, error } = await createAdminClient()
+    .from("user_shows")
+    .select(
+      "id, title, poster_path, period_start, period_end, genre, venue, ticket_links",
+    )
+    .eq("id", id)
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as UserShowRow;
+
+  return {
+    id: row.id,
+    title: row.title,
+    posterPath: row.poster_path,
+    posterUrl: getPosterUrl(row.poster_path),
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    genre: GENRE.options.find(({ label }) => label === row.genre)!.value,
+    venue: row.venue,
+    ticketLinks: row.ticket_links,
+  };
+}
+
+export async function isUserShowOwner(
+  id: string,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("user_shows")
+    .select("id")
+    .eq("id", id)
+    .eq("created_by", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data !== null;
+}
+
+// 등록한 본인의 공연일 때만 고친다. 고친 행이 없으면 false
+export async function updateUserShow(
+  id: string,
+  input: UserShowInput,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("user_shows")
+    .update(toUserShowColumns(input))
+    .eq("id", id)
+    .eq("created_by", userId)
+    .select("id");
+
+  if (error) throw error;
+
+  return data.length > 0;
 }
