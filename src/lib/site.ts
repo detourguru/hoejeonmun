@@ -13,5 +13,5 @@ export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
 export const CURRENT_UPDATE_ID = "2026-09-21";
 export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/21)]
-- 검색에서 최근 3개월 안에 끝난 공연도 "공연완료" 상태로 찾을 수 있도록 수정
+- 검색에서 종료된 공연도 "공연완료" 상태로 찾을 수 있도록 수정
 - 직접 등록한 공연이 기간이 끝난 뒤에도 "공연중"으로 표시되던 문제 수정`;

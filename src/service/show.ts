@@ -310,6 +310,8 @@ export function sortShows(shows: Show[], sort: SortKey = DEFAULT_SORT): Show[] {
 
 const SEARCH_TERM_LIMIT = 20;
 
+const SEARCH_FALLBACK_YEARS = 10;
+
 const UPLOADED_SHOW_IDS_REVALIDATE = 60 * 60;
 
 const getUploadedShowIds = unstable_cache(
@@ -326,13 +328,39 @@ const getUploadedShowIds = unstable_cache(
   { revalidate: UPLOADED_SHOW_IDS_REVALIDATE },
 );
 
-function getSearchPastRange() {
+async function fetchShowsByName(
+  keyword: string,
+  monthsBack: number,
+): Promise<Show[]> {
   const today = getToday();
 
-  return {
-    from: toKopisDate(addMonths(today, -SEARCHABLE_MONTHS)),
-    to: toKopisDate(today),
-  };
+  try {
+    const pages = await Promise.all(
+      GENRE.codes.map((shcate) =>
+        fetchKopisAll<Show>(
+          "/pblprfr",
+          new URLSearchParams({
+            stdate: toKopisDate(addMonths(today, -monthsBack)),
+            eddate: toKopisDate(today),
+            shcate,
+            shprfnm: keyword.trim(),
+          }),
+          {
+            rows: KOPIS_MAX_ROWS,
+            maxPages: 1,
+            revalidate: REVALIDATE,
+            tags: [SHOWS_CACHE_TAG],
+          },
+        ),
+      ),
+    );
+
+    return pages.flat().filter((show) => show?.mt20id);
+  } catch (error) {
+    console.error("KOPIS 공연명 검색 실패", error);
+
+    return [];
+  }
 }
 
 export async function searchShows(keyword: string): Promise<Show[]> {
@@ -340,15 +368,19 @@ export async function searchShows(keyword: string): Promise<Show[]> {
 
   if (!normalized) return [];
 
-  const [kopisShows, userShows, uploadedShowIds] = await Promise.all([
-    getShows(getSearchPastRange()).catch((error) => {
-      console.error("종료된 공연 조회 실패", error);
+  const [upcomingShows, recentEndedShows, userShows, uploadedShowIds] =
+    await Promise.all([
+      getShows(),
+      fetchShowsByName(keyword, SEARCHABLE_MONTHS),
+      searchUserShows(keyword),
+      getUploadedShowIds(),
+    ]);
 
-      return getShows();
-    }),
-    searchUserShows(keyword),
-    getUploadedShowIds(),
-  ]);
+  const upcomingIds = new Set(upcomingShows.map((show) => show.mt20id));
+  const kopisShows = [
+    ...upcomingShows,
+    ...recentEndedShows.filter((show) => !upcomingIds.has(show.mt20id)),
+  ];
 
   const matched = kopisShows.filter((show) =>
     normalizeText(show.prfnm).includes(normalized),
@@ -371,10 +403,20 @@ export async function searchShows(keyword: string): Promise<Show[]> {
     normalizeText(show.prfnm).includes(normalized),
   );
 
-  return sortShows([...userShows, ...matched, ...endedShows]).slice(
-    0,
-    SEARCH_TERM_LIMIT,
+  const results = sortShows([...userShows, ...matched, ...endedShows]);
+
+  if (results.length > 0) return results.slice(0, SEARCH_TERM_LIMIT);
+
+  // 최근 3개월 안에 결과가 없을 때
+  const olderShows = await fetchShowsByName(
+    keyword,
+    SEARCH_FALLBACK_YEARS * 12,
   );
+
+  return olderShows
+    .filter((show) => normalizeText(show.prfnm).includes(normalized))
+    .sort((a, b) => b.prfpdfrom.localeCompare(a.prfpdfrom))
+    .slice(0, SEARCH_TERM_LIMIT);
 }
 
 export async function getShowNames(
