@@ -4,11 +4,8 @@ import { Fragment, ReactNode, useState } from "react";
 
 import { EventCard } from "@/components/casting/event-card";
 import { WEEKDAYS } from "@/lib/date";
-import {
-  eventAppliesToDate,
-  isOpeningOrClosingEvent,
-  matchEventsToDate,
-} from "@/lib/event-slots";
+import { getEventBarColor } from "@/lib/event-color";
+import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/service/casting";
 import { CalendarSlot } from "@/type/casting";
@@ -244,9 +241,7 @@ export const Calendar = ({
                       key={entry.event.id}
                       className={cn(
                         "relative h-3 border-b border-white",
-                        isOpeningOrClosingEvent(entry.event.title)
-                          ? "bg-amber-400/70"
-                          : "bg-point/50",
+                        getEventBarColor(entry.event.title),
                         entry.start && "ml-px rounded-l-sm",
                         entry.end && "mr-px rounded-r-sm",
                       )}
