@@ -1,8 +1,13 @@
 import type { EventWithReportStatus } from "@/service/casting";
 import type { CalendarSlot } from "@/type/casting";
 
+const normalizeTitle = (title: string) => title.replace(/\s+/g, "");
+
 export const isOpeningOrClosingEvent = (title: string) =>
-  title.includes("첫공") || title.includes("막공");
+  ["첫공", "막공"].includes(normalizeTitle(title));
+
+export const isPreviewEvent = (title: string) =>
+  normalizeTitle(title) === "프리뷰";
 
 export function eventAppliesToDate(
   event: Pick<

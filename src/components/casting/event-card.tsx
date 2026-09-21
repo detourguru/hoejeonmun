@@ -6,10 +6,8 @@ import { CorrectEventTextButton } from "@/components/correct-event-text-button";
 import { DeleteMineButton } from "@/components/delete-mine-button";
 import { ReportButton } from "@/components/report-button";
 import { getWeekday } from "@/lib/date";
-import {
-  isOpeningOrClosingEvent,
-  type EventWithSlotTimes,
-} from "@/lib/event-slots";
+import { getEventCardColor } from "@/lib/event-color";
+import { type EventWithSlotTimes } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 
 export const EventCard = ({
@@ -27,12 +25,7 @@ export const EventCard = ({
   showDate?: boolean;
   readOnly?: boolean;
 }) => (
-  <li
-    className={cn(
-      "relative rounded p-2",
-      isOpeningOrClosingEvent(event.title) ? "bg-amber-400/15" : "bg-point/10",
-    )}
-  >
+  <li className={cn("relative rounded p-2", getEventCardColor(event.title))}>
     {readOnly && showId && (
       <Link
         href={`/show/${showId}/castings`}
