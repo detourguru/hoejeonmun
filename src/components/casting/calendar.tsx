@@ -15,6 +15,8 @@ type LaneEntry = {
   start: boolean;
   end: boolean;
   length: number;
+  // 제목이 이어서 보일 수 있는 칸 수 (막대 길이 이상)
+  room: number;
 };
 
 const DAYS_IN_WEEK = 7;
@@ -159,12 +161,28 @@ export const Calendar = ({
           length += 1;
         }
 
-        lanes[lane] = { event, start, end, length };
+        lanes[lane] = { event, start, end, length, room: length };
       }
 
       lanesByIndex.set(index, lanes);
 
       if (hidden > 0) hiddenCountByIndex.set(index, hidden);
+    }
+
+    // 여러 날에 걸친 이벤트는 제목이 막대보다 길면 같은 줄의 빈 칸까지 이어서 보여준다
+    for (const index of indexes) {
+      (lanesByIndex.get(index) ?? []).forEach((entry, lane) => {
+        if (!entry?.start) return;
+        if (entry.event.periodStart === entry.event.periodEnd) return;
+
+        while (
+          (index + entry.room) % DAYS_IN_WEEK !== 0 &&
+          index + entry.room < cells.length &&
+          !lanesByIndex.get(index + entry.room)?.[lane]
+        ) {
+          entry.room += 1;
+        }
+      });
     }
   }
 
@@ -225,10 +243,10 @@ export const Calendar = ({
               disabled={isEmpty}
               onClick={() => setSelected(date)}
               className={cn(
-                "flex min-h-11 flex-col overflow-hidden py-0.5",
+                "flex min-h-11 min-w-0 flex-col py-0.5",
                 isEmpty && "text-text-muted",
                 date === openDate && "border-primary border-2",
-                hasOverlap && "border-2 border-red-500",
+                hasOverlap && "border-destructive border-2",
               )}
             >
               <span className="self-center text-[10px] leading-none">
@@ -249,7 +267,11 @@ export const Calendar = ({
                       {entry.start && (
                         <span
                           className="text-text absolute inset-y-0 left-0 z-10 truncate px-1 text-left text-[9px] leading-3 font-bold"
-                          style={{ width: `${entry.length * 100}%` }}
+                          style={{
+                            width: "max-content",
+                            minWidth: `${entry.length * 100}%`,
+                            maxWidth: `${entry.room * 100}%`,
+                          }}
                         >
                           {entry.event.title}
                         </span>
