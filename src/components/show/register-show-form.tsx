@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
-import { createUserShowAction } from "@/app/(main)/show/register/actions";
+import {
+  createUserShowAction,
+  updateUserShowAction,
+} from "@/app/(main)/show/register/actions";
 import { ImageZoom } from "@/components/image-zoom";
 import { Input } from "@/components/ui/input";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
@@ -14,6 +17,7 @@ import {
   MAX_USER_SHOW_POSTER_BYTES,
   TicketLink,
   USER_SHOW_POSTER_BUCKET,
+  UserShowForEdit,
 } from "@/type/user-show";
 
 const EXTENSIONS: Record<string, string> = {
@@ -24,23 +28,30 @@ const EXTENSIONS: Record<string, string> = {
 
 export const RegisterShowForm = ({
   initialTitle = "",
+  show,
 }: {
   initialTitle?: string;
+  // 있으면 새로 등록하지 않고 이 공연을 수정한다
+  show?: UserShowForEdit;
 }) => {
   const router = useRouter();
-  const loginRedirect = useLoginRedirect("/show/register");
+  const loginRedirect = useLoginRedirect(
+    show ? `/show/${show.id}/edit` : "/show/register",
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [title, setTitle] = useState(initialTitle);
+  const [title, setTitle] = useState(show?.title ?? initialTitle);
   const [poster, setPoster] = useState<File | null>(null);
-  const [posterPreview, setPosterPreview] = useState<string | null>(null);
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
-  const [genre, setGenre] = useState(GENRE.options[0]!.value);
-  const [venue, setVenue] = useState("");
-  const [ticketLinks, setTicketLinks] = useState<TicketLink[]>([
-    { name: "", url: "" },
-  ]);
+  const [posterPreview, setPosterPreview] = useState<string | null>(
+    show?.posterUrl ?? null,
+  );
+  const [periodStart, setPeriodStart] = useState(show?.periodStart ?? "");
+  const [periodEnd, setPeriodEnd] = useState(show?.periodEnd ?? "");
+  const [genre, setGenre] = useState(show?.genre ?? GENRE.options[0]!.value);
+  const [venue, setVenue] = useState(show?.venue ?? "");
+  const [ticketLinks, setTicketLinks] = useState<TicketLink[]>(
+    show?.ticketLinks.length ? show.ticketLinks : [{ name: "", url: "" }],
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -78,7 +89,7 @@ export const RegisterShowForm = ({
     setError(null);
 
     if (!title.trim()) return setError("제목을 입력해 주세요.");
-    if (!poster) return setError("포스터 이미지를 올려주세요.");
+    if (!poster && !show) return setError("포스터 이미지를 올려주세요.");
     if (!periodStart || !periodEnd)
       return setError("공연 기간을 입력해 주세요.");
     if (periodStart > periodEnd) return setError("시작일이 종료일보다 늦어요.");
@@ -93,19 +104,24 @@ export const RegisterShowForm = ({
         return;
       }
 
-      const extension = EXTENSIONS[poster.type] ?? "jpg";
-      const posterPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+      let posterPath = show?.posterPath ?? "";
 
-      const { error: uploadError } = await supabase.storage
-        .from(USER_SHOW_POSTER_BUCKET)
-        .upload(posterPath, poster, { contentType: poster.type });
+      if (poster) {
+        const extension = EXTENSIONS[poster.type] ?? "jpg";
 
-      if (uploadError) {
-        setError("포스터를 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
-        return;
+        posterPath = `${userId}/${crypto.randomUUID()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(USER_SHOW_POSTER_BUCKET)
+          .upload(posterPath, poster, { contentType: poster.type });
+
+        if (uploadError) {
+          setError("포스터를 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
+          return;
+        }
       }
 
-      const result = await createUserShowAction({
+      const input = {
         title,
         posterPath,
         periodStart,
@@ -113,7 +129,11 @@ export const RegisterShowForm = ({
         genre,
         venue,
         ticketLinks,
-      });
+      };
+
+      const result = show
+        ? await updateUserShowAction(show.id, input)
+        : await createUserShowAction(input);
 
       if (!result.ok) {
         if (loginRedirect(result.message)) return;
@@ -286,7 +306,13 @@ export const RegisterShowForm = ({
         disabled={pending}
         className="bg-primary rounded-full py-3.5 text-[14.5px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "등록하는 중…" : "공연 등록하기"}
+        {pending
+          ? show
+            ? "저장하는 중…"
+            : "등록하는 중…"
+          : show
+            ? "수정 저장하기"
+            : "공연 등록하기"}
       </button>
     </div>
   );
