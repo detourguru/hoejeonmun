@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   correctEventText,
   getEventSlotAdjustments,
+  getShowSlotTimes,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
@@ -37,6 +38,7 @@ export const CorrectEventTextButton = ({
   const [periodEnd, setPeriodEnd] = useState(initialPeriodEnd);
   const [includedSlots, setIncludedSlots] = useState<EventSlotException[]>([]);
   const [excludedSlots, setExcludedSlots] = useState<EventSlotException[]>([]);
+  const [knownSlots, setKnownSlots] = useState<EventSlotException[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -50,6 +52,10 @@ export const CorrectEventTextButton = ({
     setExcludedSlots([]);
     setError(null);
     setOpen(true);
+
+    getShowSlotTimes(showId)
+      .then(setKnownSlots)
+      .catch(() => setKnownSlots([]));
   };
 
   useEffect(() => {
@@ -163,6 +169,7 @@ export const CorrectEventTextButton = ({
               <SlotExceptionEditor
                 label="기간 막대 밖에서 추가로 포함되는 회차"
                 items={includedSlots}
+                knownSlots={knownSlots}
                 disabled={false}
                 onChange={setIncludedSlots}
               />
@@ -170,6 +177,7 @@ export const CorrectEventTextButton = ({
               <SlotExceptionEditor
                 label="기간 안에서 제외되는 회차"
                 items={excludedSlots}
+                knownSlots={knownSlots}
                 disabled={false}
                 onChange={setExcludedSlots}
               />
