@@ -229,7 +229,7 @@ export const RegisterShowForm = ({
           value={genre}
           onChange={({ target }) => setGenre(target.value as typeof genre)}
           disabled={pending}
-          className="border-input text-text h-8 rounded-lg border bg-transparent px-2 text-sm disabled:opacity-50"
+          className="border-input text-text rounded-control h-10 border bg-transparent px-2 text-base disabled:opacity-50 md:text-sm"
         >
           {GENRE.options.map(({ value, label }) => (
             <option key={value} value={value}>

@@ -12,6 +12,7 @@ import {
   SlotReportType,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
 
@@ -170,12 +171,11 @@ export const ReportButton = ({
           </div>
 
           {reason === "other" && (
-            <textarea
+            <Textarea
               value={context}
               onChange={(event) => setContext(event.target.value)}
               placeholder="어떤 부분이 잘못됐는지 알려주세요"
               rows={3}
-              className="border-border bg-surface text-text placeholder:text-text-muted w-full rounded-lg border p-2 text-left text-xs"
             />
           )}
 

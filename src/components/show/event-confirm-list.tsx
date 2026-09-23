@@ -156,7 +156,7 @@ export const EventConfirmList = ({
               value={replacesGroupId ?? ""}
               disabled={!include}
               aria-label="이미 등록된 이벤트와의 관계"
-              className="border-input text-text h-8 rounded-lg border bg-transparent px-2 text-xs disabled:opacity-50"
+              className="border-input text-text rounded-control h-10 border bg-transparent px-2 text-base disabled:opacity-50 md:text-sm"
               onChange={({ target }) =>
                 update(index, {
                   replacesGroupId: target.value

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { submitBugReport } from "@/app/(main)/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ImageZoom } from "@/components/image-zoom";
+import { Textarea } from "@/components/ui/textarea";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -187,12 +188,11 @@ export const BugReportButton = () => {
             pending && "pointer-events-none opacity-50",
           )}
         >
-          <textarea
+          <Textarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder="무엇이든 문의하세요"
             rows={4}
-            className="border-border bg-surface text-text placeholder:text-text-muted w-full rounded-lg border p-2 text-left text-xs"
           />
 
           <input

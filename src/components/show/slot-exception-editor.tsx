@@ -73,7 +73,7 @@ export const SlotExceptionEditor = ({
                   onChange={({ target }) =>
                     update(index, { time: target.value })
                   }
-                  className="border-input text-text h-8 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm disabled:opacity-50"
+                  className="border-input text-text rounded-control h-10 w-full min-w-0 border bg-transparent px-2 text-base disabled:opacity-50 md:text-sm"
                 >
                   <option value="">시간 선택</option>
                   {times.map((time) => (
