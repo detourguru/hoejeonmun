@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { FavoriteAliasForm } from "@/components/mypage/favorite-alias-form";
+import { firstGrapheme } from "@/lib/grapheme";
 import {
   displayActorName,
   getActorShows,
@@ -43,7 +44,7 @@ export const FavoriteActorsSection = async () => {
                 <div className="flex items-center gap-3">
                   <span className="bg-point/40 border-point flex size-10 shrink-0 items-center justify-center rounded-full border-2">
                     <span className="text-primary text-base font-bold">
-                      {display.charAt(0)}
+                      {firstGrapheme(display)}
                     </span>
                   </span>
 

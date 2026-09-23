@@ -210,7 +210,9 @@ export async function getShowsWithFavoritedActors(): Promise<
   if (favorites.length === 0) return [];
 
   const supabase = await createClient();
-  const nameById = new Map(favorites.map(({ id, name }) => [id, name]));
+  const nameById = new Map(
+    favorites.map((actor) => [actor.id, displayActorName(actor)]),
+  );
 
   const { data, error } = await supabase
     .from("slot_castings")

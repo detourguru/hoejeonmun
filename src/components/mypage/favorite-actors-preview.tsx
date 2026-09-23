@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { LoadingGhost } from "@/components/ui/loading-ghost";
+import { firstGrapheme } from "@/lib/grapheme";
 import { displayActorName, getFavoriteActors } from "@/service/actor";
 
 const PREVIEW_COUNT = 4;
@@ -42,7 +43,7 @@ export const FavoriteActorsPreview = async () => {
               >
                 <span className="bg-point/40 border-point flex size-12 items-center justify-center rounded-full border-2">
                   <span className="text-primary text-base font-bold">
-                    {display.charAt(0)}
+                    {firstGrapheme(display)}
                   </span>
                 </span>
                 <span className="text-text-muted w-full truncate text-center text-[10px]">
