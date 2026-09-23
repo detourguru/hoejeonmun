@@ -11,6 +11,7 @@ import {
 import { BottomSheet } from "@/components/bottom-sheet";
 import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { EventSlotException } from "@/type/casting";
 
@@ -184,12 +185,11 @@ export const CorrectEventTextButton = ({
             </>
           )}
 
-          <textarea
+          <Textarea
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="이벤트 설명 (선택)"
             rows={3}
-            className="border-border bg-surface text-text placeholder:text-text-muted w-full rounded-lg border p-2 text-left text-xs"
           />
 
           {error && <p className="text-destructive text-xs">{error}</p>}

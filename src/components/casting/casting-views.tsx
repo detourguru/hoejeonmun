@@ -57,7 +57,7 @@ const MonthNav = ({
       onChange={({ target }) => target.value && onJump(target.value)}
       disabled={pending}
       aria-label="연/월 선택"
-      className="text-text w-[7.5em] border-0 bg-transparent p-0 text-center text-sm font-bold outline-none disabled:opacity-50"
+      className="text-text w-[7.5em] border-0 bg-transparent p-0 text-center text-base font-bold outline-none disabled:opacity-50 md:text-sm"
     />
 
     <button
