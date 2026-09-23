@@ -2,7 +2,7 @@ import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { LoadingGhost } from "@/components/ui/loading-ghost";
-import { getFavoriteActors } from "@/service/actor";
+import { displayActorName, getFavoriteActors } from "@/service/actor";
 
 const PREVIEW_COUNT = 4;
 
@@ -31,22 +31,26 @@ export const FavoriteActorsPreview = async () => {
         </p>
       ) : (
         <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-0.5">
-          {actors.slice(0, PREVIEW_COUNT).map(({ id, name }) => (
-            <Link
-              key={id}
-              href={`/actor/${id}`}
-              className="flex w-14 shrink-0 flex-col items-center gap-1.5"
-            >
-              <span className="bg-point/40 border-point flex size-12 items-center justify-center rounded-full border-2">
-                <span className="text-primary text-base font-bold">
-                  {name.charAt(0)}
+          {actors.slice(0, PREVIEW_COUNT).map((actor) => {
+            const display = displayActorName(actor);
+
+            return (
+              <Link
+                key={actor.id}
+                href={`/actor/${actor.id}`}
+                className="flex w-14 shrink-0 flex-col items-center gap-1.5"
+              >
+                <span className="bg-point/40 border-point flex size-12 items-center justify-center rounded-full border-2">
+                  <span className="text-primary text-base font-bold">
+                    {display.charAt(0)}
+                  </span>
                 </span>
-              </span>
-              <span className="text-text-muted w-full truncate text-center text-[10px]">
-                {name}
-              </span>
-            </Link>
-          ))}
+                <span className="text-text-muted w-full truncate text-center text-[10px]">
+                  {display}
+                </span>
+              </Link>
+            );
+          })}
 
           {actors.length > PREVIEW_COUNT && (
             <Link
