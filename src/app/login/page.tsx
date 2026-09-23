@@ -29,7 +29,7 @@ export default async function LoginPage({
   if (data?.claims) redirect(next);
 
   return (
-    <main className="bg-bg flex min-h-screen flex-col items-center justify-center gap-6 px-6 py-12 text-center">
+    <main className="bg-bg flex min-h-dvh flex-col items-center justify-center gap-6 px-6 py-12 text-center">
       <span className="bg-point/30 text-primary rounded-full px-3 py-1 text-[11px] font-bold tracking-wide">
         BETA
       </span>
