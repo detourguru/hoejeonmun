@@ -54,7 +54,9 @@ type EventRow = {
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
-export async function createEventGroup(admin: ReturnType<typeof createAdminClient>) {
+export async function createEventGroup(
+  admin: ReturnType<typeof createAdminClient>,
+) {
   const { data, error } = await admin
     .from("event_groups")
     .insert({})
@@ -589,6 +591,23 @@ export async function saveCastingBoardContent({
     if (assignmentError) throw assignmentError;
   }
 
+  const groupIdByKey = new Map<string, Promise<number>>();
+
+  function resolveGroupId(event: ConfirmedEvent, reusedGroupId?: number) {
+    if (reusedGroupId !== undefined) return Promise.resolve(reusedGroupId);
+
+    const key = `${toTitleKey(event.title)}|${event.periodStart}|${event.periodEnd}`;
+    const pending = groupIdByKey.get(key);
+
+    if (pending) return pending;
+
+    const created = createEventGroup(admin);
+
+    groupIdByKey.set(key, created);
+
+    return created;
+  }
+
   async function saveEvent(event: ConfirmedEvent): Promise<boolean> {
     const uploadImageId = uploadImageIdByPosition.get(event.imageIndex);
 
@@ -605,10 +624,10 @@ export async function saveCastingBoardContent({
       isExactSameEvent(event, candidate),
     );
 
-    const groupId =
-      selectedReplacement ??
-      exactMatch?.groupId ??
-      (await createEventGroup(admin));
+    const groupId = await resolveGroupId(
+      event,
+      selectedReplacement ?? exactMatch?.groupId,
+    );
 
     const row: EventRow = {
       group_id: groupId,

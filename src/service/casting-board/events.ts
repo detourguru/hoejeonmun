@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ExistingEvent, ParsedEvent, PendingEvent } from "@/type/casting";
 
-import { normalizeName, toExistingEvent, isExactSameEvent } from "./normalize";
+import { toTitleKey, toExistingEvent, isExactSameEvent } from "./normalize";
 import {
   MODEL,
   buildEventGroupPrompt,
@@ -187,7 +187,9 @@ export async function attachAmbiguousBadgeFlags(
   });
 }
 
-export async function groupSameEvents(events: ParsedEvent[]): Promise<number[][]> {
+export async function groupSameEvents(
+  events: ParsedEvent[],
+): Promise<number[][]> {
   const client = new GoogleGenAI({});
 
   const interaction = await client.interactions.create({
@@ -217,11 +219,13 @@ export async function groupSameEvents(events: ParsedEvent[]): Promise<number[][]
 }
 
 // 같은 업로드에서 여러 이미지가 같은 이벤트를 중복으로 담고 있을 때(예: 겹치게 캡처한 캘린더, 캘린더+추가 공지) 하나로 합친다
-export async function dedupeEvents(events: ParsedEvent[]): Promise<ParsedEvent[]> {
+export async function dedupeEvents(
+  events: ParsedEvent[],
+): Promise<ParsedEvent[]> {
   const exact = new Map<string, ParsedEvent>();
 
   for (const event of events) {
-    const key = `${normalizeName(event.title).toLowerCase()}|${event.periodStart}|${event.periodEnd}`;
+    const key = `${toTitleKey(event.title)}|${event.periodStart}|${event.periodEnd}`;
 
     if (!exact.has(key)) exact.set(key, event);
   }
