@@ -12,7 +12,7 @@ import {
   GENRE,
   SEARCHABLE_MONTHS,
   SORT_OPTIONS,
-  STATE,
+  STATE_FILTER_OPTIONS,
   VENUE_TYPE,
 } from "@/type/show";
 
@@ -81,7 +81,7 @@ export const FilterBar = () => {
           <SelectBox
             name="prfstate"
             placeholder="공연 상태"
-            options={STATE.options}
+            options={STATE_FILTER_OPTIONS}
           />
 
           <SelectBox name="shcate" placeholder="장르" options={GENRE.options} />
