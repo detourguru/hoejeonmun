@@ -1,3 +1,4 @@
+import { CalendarOff, Heart, Inbox } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -6,6 +7,8 @@ import { FeedTabs } from "@/components/show/feed-tabs";
 import { RecentCastingCard } from "@/components/show/recent-casting-card";
 import { RecentEventCard } from "@/components/show/recent-event-card";
 import { TodayShowList } from "@/components/show/today-show-list";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingGhost } from "@/components/ui/loading-ghost";
 import {
   formatShortDate,
@@ -242,47 +245,40 @@ async function RecentFeed() {
 }
 
 const EmptyFeed = () => (
-  <div className="flex flex-col items-center gap-1 py-16 text-center">
-    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
-    <p className="text-text font-medium">아직 아무것도 올라오지 않았어요</p>
-    <p className="text-text-muted mb-2 text-sm">첫 번째 제보자가 되어볼까요?</p>
-    <Link
-      href="/show/all"
-      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
-    >
-      전체 공연 목록 둘러보기
-    </Link>
-  </div>
+  <EmptyState
+    icon={Inbox}
+    title="아직 올라온 소식이 없어요"
+    description="공연을 골라 캐스팅보드를 올리면 이곳에 바로 뜨고, 다른 관객도 볼 수 있어요."
+    action={
+      <Button size="lg" shape="pill" render={<Link href="/show/all" />}>
+        공연 목록에서 고르기
+      </Button>
+    }
+  />
 );
 
 const EmptyTodayFeed = () => (
-  <div className="flex flex-col items-center gap-1 py-16 text-center">
-    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
-    <p className="text-text font-medium">오늘 등록된 회차가 없어요</p>
-    <p className="text-text-muted mb-2 text-sm">
-      캐스팅보드를 올려서 오늘의 공연을 알려주세요
-    </p>
-    <Link
-      href="/show/all"
-      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
-    >
-      전체 공연 목록 둘러보기
-    </Link>
-  </div>
+  <EmptyState
+    icon={CalendarOff}
+    title="오늘 등록된 회차가 없어요"
+    description="공연을 골라 오늘 회차의 캐스팅보드를 올려주세요."
+    action={
+      <Button size="lg" shape="pill" render={<Link href="/show/all" />}>
+        공연 목록에서 고르기
+      </Button>
+    }
+  />
 );
 
 const EmptyFavoriteFeed = () => (
-  <div className="flex flex-col items-center gap-1 py-16 text-center">
-    <div className="bg-sub mb-3 flex h-16 w-16 items-center justify-center rounded-full"></div>
-    <p className="text-text font-medium">아직 애정배우가 없어요</p>
-    <p className="text-text-muted mb-2 text-sm">
-      배우를 검색해서 즐겨찾기해보세요
-    </p>
-    <Link
-      href="/search"
-      className="border-primary/30 text-primary hover:bg-primary mt-2 inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors hover:text-white"
-    >
-      배우 검색하러 가기
-    </Link>
-  </div>
+  <EmptyState
+    icon={Heart}
+    title="아직 애정배우가 없어요"
+    description="배우를 검색해 애정배우로 담아두면 그 배우가 나오는 공연만 모아 볼 수 있어요."
+    action={
+      <Button size="lg" shape="pill" render={<Link href="/search" />}>
+        배우 검색하러 가기
+      </Button>
+    }
+  />
 );
