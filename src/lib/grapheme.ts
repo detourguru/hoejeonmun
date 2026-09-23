@@ -14,3 +14,5 @@ export const graphemeLength = (value: string) => toGraphemes(value).length;
 
 export const truncateGraphemes = (value: string, max: number) =>
   toGraphemes(value).slice(0, max).join("");
+
+export const firstGrapheme = (value: string) => toGraphemes(value)[0] ?? "";
