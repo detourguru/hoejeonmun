@@ -67,7 +67,7 @@ export const FavoriteAliasForm = ({
           }
           placeholder="이모지나 애칭"
           aria-label="애정배우 별칭"
-          className="border-border text-text min-w-0 flex-1 rounded-md border px-2 py-1 text-xs"
+          className="border-border text-text rounded-control min-w-0 flex-1 border px-2 py-1.5 text-base md:text-sm"
         />
 
         <button
