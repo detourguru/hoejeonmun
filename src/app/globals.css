@@ -5,43 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     "Noto Sans KR", Arial, sans-serif;
-  --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-maruburi), serif;
   --font-wordmark: var(--font-maruburi-wordmark), var(--font-maruburi), serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
+
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 0.875rem;
+
+  --radius-control: 0.625rem;
+  --radius-card: 0.875rem;
+  --radius-sheet: 1.25rem;
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -50,17 +26,40 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* 커스텀 컬러토큰 */
+  /* 44px는 애플 HIG 최소 터치 타깃, 36px는 밀집 영역 하한 */
+  --spacing-tap: 2.75rem;
+  --spacing-tap-sm: 2.25rem;
+
   --color-primary: var(--brand-primary);
+  --color-primary-foreground: var(--brand-primary-fg);
   --color-point: var(--brand-point);
-  --color-sub: var(--brand-sub);
+  --color-point-foreground: var(--brand-point-fg);
   --color-bg: var(--brand-bg);
   --color-surface: var(--brand-surface);
+  --color-sub: var(--brand-sub);
   --color-text: var(--brand-text);
   --color-text-muted: var(--brand-text-muted);
   --color-border: var(--brand-border);
+  --color-hover: var(--brand-hover);
 
-  /* 배우 구분 색 토큰: 색상환에서 고르게 떨어진 12색. 명도·채도는 :root의 --tone-* 로 통일 */
+  /* ui/* 기성 컴포넌트가 쓰는 이름을 브랜드 시맨틱에 연결한다 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* 배우 구분 색: 색상환에서 고르게 떨어진 12색. 명도·채도는 --tone-* 로 통일 */
   --color-tone-1: oklch(var(--tone-bg-l) var(--tone-bg-c) 275);
   --color-tone-1-fg: oklch(var(--tone-fg-l) var(--tone-fg-c) 275);
   --color-tone-2: oklch(var(--tone-bg-l) var(--tone-bg-c) 90);
@@ -88,98 +87,75 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --navy-900: #14152b;
+  --navy-800: #1a1c3c;
+  --navy-700: #23285e;
+  --navy-600: #3a4184;
+  --indigo-500: #4d5bd9;
+  --yellow-400: #ffd76a;
+  --gray-50: #f4f5fa;
+  --gray-200: #e3e4ef;
+  --gray-500: #686b82;
+  --white: #ffffff;
+
+  --brand-primary: var(--navy-700);
+  --brand-primary-fg: var(--white);
+  --brand-point: var(--yellow-400);
+  --brand-point-fg: var(--navy-700);
+  --brand-bg: var(--white);
+  --brand-surface: var(--white);
+  --brand-sub: var(--gray-50);
+  --brand-text: var(--navy-900);
+  --brand-text-muted: var(--gray-500);
+  --brand-border: var(--gray-200);
+  --brand-hover: var(--gray-50);
+
+  /* 늘 어두운 면 위에 얹으므로 테마와 무관하게 고정 */
+  --brand-scrim: var(--navy-900);
+  --brand-hero-from: var(--navy-800);
+  --brand-hero-to: var(--navy-600);
+
+  --background: var(--brand-bg);
+  --foreground: var(--brand-text);
+  --card: var(--brand-surface);
+  --card-foreground: var(--brand-text);
+  --popover: var(--brand-surface);
+  --popover-foreground: var(--brand-text);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--brand-primary-fg);
+  --secondary: var(--brand-sub);
+  --secondary-foreground: var(--brand-text);
+  --muted: var(--brand-sub);
+  --muted-foreground: var(--brand-text-muted);
+  --accent: var(--brand-sub);
+  --accent-foreground: var(--brand-text);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: var(--brand-border);
+  --input: var(--brand-border);
+  --ring: var(--brand-primary);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
 
-  /* 커스텀 컬러토큰 */
-  --brand-primary: #23285e;
-  --brand-point: #ffd76a;
-  --brand-sub: #f4f5fa;
-  --brand-bg: #ffffff;
-  --brand-surface: #ffffff;
-  --brand-text: #14152b;
-  --brand-text-muted: #686b82;
-  --brand-border: #e3e4ef;
-
-  /* 배우 구분 색의 명도·채도: 남색·노랑 브랜드와 어울리는 차분한 톤 */
   --tone-bg-l: 0.92;
   --tone-bg-c: 0.045;
   --tone-fg-l: 0.38;
   --tone-fg-c: 0.085;
 }
 
+/* 아직 테마 스위치가 없다. 붙일 때 html에 .dark만 얹으면 되도록 값만 준비해 둔다 */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-
-  /* 커스텀 컬러토큰 */
-  --brand-primary: #4d5bd9;
-  --brand-point: #ffd76a;
-  --brand-sub: #1a1c3c;
+  --brand-primary: var(--indigo-500);
+  --brand-primary-fg: var(--white);
+  --brand-point: var(--yellow-400);
+  --brand-point-fg: var(--navy-900);
   --brand-bg: #101126;
   --brand-surface: #191b3a;
+  --brand-sub: var(--navy-800);
   --brand-text: #f5f5fa;
   --brand-text-muted: #9698ad;
   --brand-border: #2a2c4d;
+  --brand-hover: #21234a;
+
+  --destructive: oklch(0.704 0.191 22.216);
 
   --tone-bg-l: 0.34;
   --tone-bg-c: 0.065;
@@ -196,6 +172,10 @@
   }
   html {
     @apply font-sans;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--brand-primary);
   }
 }
 
