@@ -20,6 +20,22 @@ export const STATE = createCodeTable([
 export type StateCode = CodeOf<typeof STATE>;
 export type StateName = NameOf<typeof STATE>;
 
+// STATE의 이름은 KOPIS가 prfstate로 내려주는 값이라 필터·정렬이 이 값으로 맞물린다.
+// 값은 그대로 두고 화면에 보이는 이름만 따로 둔다
+const STATE_DISPLAY_NAME: Record<StateName, string> = {
+  공연예정: "공연예정",
+  공연중: "공연중",
+  공연완료: "공연종료",
+};
+
+export const stateDisplayName = (state: StateName) => STATE_DISPLAY_NAME[state];
+
+// 공연 상태 필터에 보이는 이름도 같이 바꾼다
+export const STATE_FILTER_OPTIONS = STATE.options.map(({ value, label }) => ({
+  value,
+  label: stateDisplayName(label),
+}));
+
 export const AREA = createCodeTable([
   { value: "11", label: "서울" },
   { value: "28", label: "인천" },

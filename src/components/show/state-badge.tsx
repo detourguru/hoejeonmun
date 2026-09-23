@@ -1,4 +1,4 @@
-import { StateName } from "@/type/show";
+import { StateName, stateDisplayName } from "@/type/show";
 
 import { Badge } from "../ui/badge";
 
@@ -9,5 +9,7 @@ const BADGE_VARIANT_BY_STATE = {
 } as const satisfies Record<StateName, string>;
 
 export const StateBadge = ({ state }: { state: StateName }) => (
-  <Badge variant={BADGE_VARIANT_BY_STATE[state]}>{state}</Badge>
+  <Badge variant={BADGE_VARIANT_BY_STATE[state]}>
+    {stateDisplayName(state)}
+  </Badge>
 );

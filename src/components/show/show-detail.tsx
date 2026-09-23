@@ -20,7 +20,7 @@ import { getActorIdsByNames } from "@/service/actor";
 import { getShowCastings, getShowFilterData } from "@/service/casting";
 import { getShow } from "@/service/show";
 import { isUserShowId, isUserShowOwner } from "@/service/user-show";
-import { ShowRelate } from "@/type/show";
+import { ShowRelate, stateDisplayName } from "@/type/show";
 
 import { Badge } from "../ui/badge";
 import { LoadingGhost } from "../ui/loading-ghost";
@@ -158,7 +158,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
               {show.genrenm}
             </span>
             <span className="bg-point text-primary rounded-full px-2.5 py-1 text-[10.5px] font-bold">
-              {show.prfstate}
+              {stateDisplayName(show.prfstate)}
             </span>
             {isUserShowId(id) && (
               <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold text-white backdrop-blur-sm">
