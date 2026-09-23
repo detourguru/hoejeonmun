@@ -114,16 +114,17 @@ const NavBar = ({ lastPaths }: { lastPaths: LastPaths }) => {
   return (
     <nav className="border-border bg-surface flex w-full items-center justify-around border-t px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {TABS.map(({ href, label, icon: Icon }) => {
-        const isActive = pathname === href;
+        const isActive = href === section;
         // 보고 있는 메뉴를 다시 누를 때는 그 메뉴의 첫 화면으로 돌아간다
-        const target = href === section ? href : (lastPaths[href] ?? href);
+        const target = isActive ? href : (lastPaths[href] ?? href);
 
         return (
           <Link
             key={href}
             href={target}
+            aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex min-w-16 flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[10px] font-medium transition-colors",
+              "text-2xs rounded-control flex min-w-16 flex-col items-center gap-1 px-3 py-1.5 font-medium transition-colors",
               isActive
                 ? "bg-point/40 text-primary"
                 : "text-text-muted hover:text-text",
