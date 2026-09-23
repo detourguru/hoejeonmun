@@ -225,10 +225,10 @@ export const Calendar = ({
               disabled={isEmpty}
               onClick={() => setSelected(date)}
               className={cn(
-                "flex min-h-11 min-w-0 flex-col border-2 border-transparent py-0.5",
+                "flex min-h-11 min-w-0 flex-col py-0.5 outline-2 -outline-offset-2 outline-transparent",
                 isEmpty && "text-text-muted",
-                date === openDate && "bg-primary/10 border-primary",
-                hasOverlap && "border-destructive",
+                date === openDate && "bg-primary/10 outline-primary",
+                hasOverlap && "outline-destructive",
               )}
             >
               <span className="self-center text-[10px] leading-none">
