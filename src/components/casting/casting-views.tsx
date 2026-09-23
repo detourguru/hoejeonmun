@@ -10,7 +10,10 @@ import {
   useTransition,
 } from "react";
 
-import { ActorFilter } from "@/components/casting/actor-filter";
+import {
+  ActorFilter,
+  type ActorFilterOption,
+} from "@/components/casting/actor-filter";
 import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
@@ -95,7 +98,7 @@ export const CastingViews = ({
   panels: Record<number, ReactNode>;
   listItems: Record<number, ReactNode>;
   empty?: ReactNode;
-  filterOptions?: string[];
+  filterOptions?: ActorFilterOption[];
   initialActors?: string[];
   overlapFilter?: { overlappingIds: Set<number> };
 }) => {
@@ -280,7 +283,13 @@ export const CastingViews = ({
           <p className="text-text-muted py-16 text-center text-sm">
             {onlyOverlapping
               ? "겹치는 일정이 없어요."
-              : `${actors.join(", ")} 배우가 나오는 이 달 회차가 없어요.`}
+              : `${actors
+                  .map(
+                    (name) =>
+                      filterOptions.find(({ value }) => value === name)
+                        ?.label ?? name,
+                  )
+                  .join(", ")} 배우가 나오는 이 달 회차가 없어요.`}
           </p>
         ) : view === "calendar" ? (
           <Calendar

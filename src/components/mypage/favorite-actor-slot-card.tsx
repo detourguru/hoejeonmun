@@ -6,9 +6,11 @@ import type { FavoriteActorSlot } from "@/service/actor";
 export const FavoriteActorSlotCard = ({
   slot,
   showDate = false,
+  displayNameById,
 }: {
   slot: FavoriteActorSlot;
   showDate?: boolean;
+  displayNameById?: Map<number, string>;
 }) => (
   <li className="border-border bg-surface relative flex flex-col gap-2 rounded-lg border p-3">
     <Link
@@ -39,7 +41,7 @@ export const FavoriteActorSlotCard = ({
               href={`/actor/${actorId}`}
               className="relative z-10 underline underline-offset-2"
             >
-              {actor}
+              {displayNameById?.get(actorId) ?? actor}
             </Link>
           </dd>
         </div>

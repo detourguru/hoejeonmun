@@ -180,7 +180,10 @@ export default async function Page({ params, searchParams }: Props) {
             />,
           ]),
         )}
-        filterOptions={filterData.actors}
+        filterOptions={filterData.actors.map((name) => ({
+          value: name,
+          label: name,
+        }))}
         initialActors={initialActors}
         empty={
           <div className="flex flex-col items-center gap-3 py-16 text-center">

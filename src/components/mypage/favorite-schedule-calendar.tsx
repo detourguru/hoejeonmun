@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 
+import type { ActorFilterOption } from "@/components/casting/actor-filter";
 import { CastingViews } from "@/components/casting/casting-views";
 import { CastingView, CalendarSlot } from "@/type/casting";
 
@@ -14,7 +15,7 @@ export const FavoriteScheduleCalendar = ({
   favoriteSlots,
   favoritePanels,
   favoriteListItems,
-  favoriteActorNames,
+  favoriteActorOptions,
 }: {
   month: string;
   initialView: CastingView;
@@ -22,7 +23,7 @@ export const FavoriteScheduleCalendar = ({
   favoriteSlots: CalendarSlot[];
   favoritePanels: Record<number, ReactNode>;
   favoriteListItems: Record<number, ReactNode>;
-  favoriteActorNames: string[];
+  favoriteActorOptions: ActorFilterOption[];
 }) => (
   <CastingViews
     month={month}
@@ -31,9 +32,9 @@ export const FavoriteScheduleCalendar = ({
     slots={favoriteSlots}
     panels={favoritePanels}
     listItems={favoriteListItems}
-    filterOptions={favoriteActorNames}
+    filterOptions={favoriteActorOptions}
     empty={
-      favoriteActorNames.length === 0 ? (
+      favoriteActorOptions.length === 0 ? (
         <p className="text-text-muted py-16 text-center text-sm">
           즐겨찾기한 배우가 없어요.{" "}
           <Link

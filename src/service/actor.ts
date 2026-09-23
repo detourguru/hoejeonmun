@@ -169,17 +169,24 @@ export async function searchActors(keyword: string): Promise<Actor[]> {
   return data;
 }
 
-export async function getFavoriteActors(): Promise<Actor[]> {
+export type FavoriteActor = Actor & { alias: string | null };
+
+export const displayActorName = ({ name, alias }: FavoriteActor) =>
+  alias ?? name;
+
+export async function getFavoriteActors(): Promise<FavoriteActor[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("favorites")
-    .select("actors(id, name)")
+    .select("alias, actors(id, name)")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
 
-  return (data as unknown as { actors: Actor }[]).map(({ actors }) => actors);
+  return (data as unknown as { alias: string | null; actors: Actor }[]).map(
+    ({ alias, actors }) => ({ ...actors, alias }),
+  );
 }
 
 export type FavoritedActorShow = {

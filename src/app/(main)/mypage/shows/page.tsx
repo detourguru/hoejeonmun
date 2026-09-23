@@ -14,7 +14,11 @@ import {
   toMonth,
 } from "@/lib/date";
 import { createClient } from "@/lib/supabase/server";
-import { getFavoriteActors, getFavoriteActorSlots } from "@/service/actor";
+import {
+  displayActorName,
+  getFavoriteActors,
+  getFavoriteActorSlots,
+} from "@/service/actor";
 import { getMyEvents, getMySlots } from "@/service/mypage";
 import { getShowRuntimes } from "@/service/show";
 import {
@@ -95,6 +99,10 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
   const favoriteSlots = await getFavoriteActorSlots(favoriteActors, start, end);
 
   // 먼저 즐겨찾기한 배우부터 색을 나눠 줘서, 새로 추가해도 기존 배우 색은 그대로다
+  const displayNameById = new Map(
+    favoriteActors.map((actor) => [actor.id, displayActorName(actor)]),
+  );
+
   const actorColors = getActorColorMap(
     [...favoriteActors].reverse().map(({ id }) => id),
   );
@@ -119,7 +127,7 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
           label: slot.showName,
           filterKeys: castingActors.map(([, actor]) => actor),
           chips: castingActors.map(([actorId, actor]) => ({
-            label: actor,
+            label: displayNameById.get(actorId) ?? actor,
             colorClass: actorColors.get(actorId) ?? SLOT_COLOR,
           })),
         };
@@ -127,16 +135,28 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
       favoritePanels={Object.fromEntries(
         favoriteSlots.map((slot) => [
           slot.id,
-          <FavoriteActorSlotCard key={slot.id} slot={slot} />,
+          <FavoriteActorSlotCard
+            key={slot.id}
+            slot={slot}
+            displayNameById={displayNameById}
+          />,
         ]),
       )}
       favoriteListItems={Object.fromEntries(
         favoriteSlots.map((slot) => [
           slot.id,
-          <FavoriteActorSlotCard key={slot.id} slot={slot} showDate />,
+          <FavoriteActorSlotCard
+            key={slot.id}
+            slot={slot}
+            showDate
+            displayNameById={displayNameById}
+          />,
         ]),
       )}
-      favoriteActorNames={favoriteActors.map(({ name }) => name)}
+      favoriteActorOptions={favoriteActors.map((actor) => ({
+        value: actor.name,
+        label: displayActorName(actor),
+      }))}
     />
   );
 }
