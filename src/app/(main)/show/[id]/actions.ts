@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getIsAdmin } from "@/service/admin";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
@@ -458,7 +459,9 @@ export async function deleteMySlotCasting(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!upload || upload.user_id !== userId) {
+  if (!upload) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
     return { ok: false, message: "본인이 올린 회차만 지울 수 있어요." };
   }
 
@@ -825,7 +828,9 @@ export async function deleteMyEvent(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!upload || upload.user_id !== userId) {
+  if (!upload) return { ok: false, message: "이벤트를 찾을 수 없어요." };
+
+  if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
     return { ok: false, message: "본인이 올린 이벤트만 지울 수 있어요." };
   }
 

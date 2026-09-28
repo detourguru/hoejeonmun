@@ -43,7 +43,7 @@ export const SlotCard = ({
   showDate?: boolean;
   events?: SlotEventBadge[];
 }) => {
-  const { reported, bookmarked, images, isMine, fallback } = slot;
+  const { reported, bookmarked, images, isMine, canDelete, fallback } = slot;
   const slotLabel = `${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`;
 
   return (
@@ -83,7 +83,7 @@ export const SlotCard = ({
             castings={slot.casting.map(({ role, actor }) => ({ role, actor }))}
           />
 
-          {isMine ? (
+          {canDelete && (
             <DeleteMineButton
               target={{
                 kind: "slot",
@@ -92,8 +92,11 @@ export const SlotCard = ({
                 slotId: slot.id,
               }}
               label={slotLabel}
+              mine={isMine}
             />
-          ) : (
+          )}
+
+          {!isMine && (
             <ReportButton
               target={{
                 kind: "slot",
