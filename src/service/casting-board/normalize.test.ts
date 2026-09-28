@@ -4,10 +4,14 @@ import { ParsedDateTag } from "@/type/casting";
 
 import {
   agreesWithPrintedWeekday,
+  dedupeByKey,
   isNextDay,
+  isPlaceholderActorName,
   mergePerSlotRuns,
   mergeSameDateTags,
   mergeWholeDayRuns,
+  normalizeName,
+  slotKey,
   toKoreanWeekday,
 } from "./normalize";
 
@@ -292,5 +296,54 @@ describe("isNextDay", () => {
     ["2026-09-29", "2026-09-28"],
   ])("같은 날, 이틀 뒤, 전날은 false를 반환한다: %s → %s", (date, next) => {
     expect(isNextDay(date, next)).toBe(false);
+  });
+});
+
+describe("normalizeName", () => {
+  it("앞뒤 공백을 지우고 사이의 연속 공백/줄바꿈은 공백 하나로 줄인다", () => {
+    expect(normalizeName("  스페셜\n 커튼콜   위크 ")).toBe(
+      "스페셜 커튼콜 위크",
+    );
+  });
+});
+
+describe("isPlaceholderActorName", () => {
+  it.each([[""], ["-"], ["–"], ["—"], ["미정"], ["n/a"], ["N/A"], [" 미정 "]])(
+    "배우 자리를 비워 둔 표시는 실제 배우가 아니다: %j",
+    (name) => {
+      expect(isPlaceholderActorName(name)).toBe(true);
+    },
+  );
+
+  it("대소문자가 섞여 있어도 비워 둔 표시로 본다", () => {
+    expect(isPlaceholderActorName("N/a")).toBe(true);
+  });
+
+  it("실제 배우 이름은 비워 둔 표시가 아니다", () => {
+    expect(isPlaceholderActorName("정휘")).toBe(false);
+  });
+});
+
+describe("slotKey", () => {
+  it("날짜와 시각으로 회차 키를 만들고 시각의 초는 버린다", () => {
+    expect(slotKey("2026-09-28", "19:30:00")).toBe("2026-09-28 19:30");
+    expect(slotKey("2026-09-28", "19:30")).toBe("2026-09-28 19:30");
+  });
+});
+
+describe("dedupeByKey", () => {
+  it("키가 같은 항목은 처음 나온 것만 남기고 순서를 유지한다", () => {
+    const items = [
+      { id: 1, key: "a" },
+      { id: 2, key: "b" },
+      { id: 3, key: "a" },
+      { id: 4, key: "c" },
+    ];
+
+    expect(dedupeByKey(items, (item) => item.key)).toStrictEqual([
+      { id: 1, key: "a" },
+      { id: 2, key: "b" },
+      { id: 4, key: "c" },
+    ]);
   });
 });
