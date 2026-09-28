@@ -144,3 +144,15 @@ export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as con
 export function getWeekday(isoDate: string): string {
   return WEEKDAYS[new Date(`${isoDate}T00:00:00Z`).getUTCDay()];
 }
+
+// 오름차순 날짜 목록에서 target 당일이나 그 뒤 첫 날짜를, 없으면 바로 앞 날짜를 고른다
+export function findNearestDate(
+  sortedDates: string[],
+  target: string,
+): string | null {
+  return (
+    sortedDates.find((date) => date >= target) ??
+    sortedDates.findLast((date) => date < target) ??
+    null
+  );
+}

@@ -3,7 +3,7 @@
 import { Fragment, ReactNode, useState } from "react";
 
 import { EventCard } from "@/components/casting/event-card";
-import { WEEKDAYS } from "@/lib/date";
+import { findNearestDate, WEEKDAYS } from "@/lib/date";
 import { getEventBarColor } from "@/lib/event-color";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
@@ -175,13 +175,8 @@ export const Calendar = ({
     (date): date is string => !!date && hasContent(date),
   );
 
-  const nearestFilled = (target: string) =>
-    filledCells.find((date) => date >= target) ??
-    [...filledCells].reverse().find((date) => date < target) ??
-    null;
-
   const firstFilled = initialDate
-    ? nearestFilled(initialDate)
+    ? findNearestDate(filledCells, initialDate)
     : (filledCells[0] ?? null);
 
   const [selected, setSelected] = useState<string | null>(
