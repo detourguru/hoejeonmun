@@ -19,6 +19,7 @@ import {
   mergePerSlotRuns,
   mergeSameDateTags,
   mergeWholeDayRuns,
+  normalizeDateTags,
   normalizeName,
   normalizePerformances,
   resolveRunWindow,
@@ -685,5 +686,107 @@ describe("normalizePerformances", () => {
     expect(performances).toStrictEqual([
       performance(0, { 주인공: ["다른배우"] }, { castMismatch: true }),
     ]);
+  });
+});
+
+describe("normalizeDateTags", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 2장
+  // 회차: 9/28(월) 19:30, 9/29(화) 14:00/19:30
+  const performances = [
+    performance(0, { 주인공: ["정휘"] }),
+    performance(0, { 주인공: ["정휘"] }, { date: "2026-09-29", time: "14:00" }),
+    performance(0, { 주인공: ["정휘"] }, { date: "2026-09-29", time: "19:30" }),
+  ];
+
+  const normalize = (dateTags: ParsedDateTag[]) =>
+    normalizeDateTags(dateTags, show(), 2, performances);
+
+  it("배지 이름, 날짜, 요일, 시각의 앞뒤 공백을 지운다", () => {
+    expect(
+      normalize([
+        dateTag(" 막공 ", " 2026-09-28 ", " 2026-09-28 ", {
+          printedStartWeekday: " 월 ",
+          printedEndWeekday: " 월 ",
+          time: " 19:30 ",
+        }),
+      ]),
+    ).toStrictEqual([
+      dateTag("막공", "2026-09-28", "2026-09-28", {
+        printedStartWeekday: "월",
+        printedEndWeekday: "월",
+        time: "19:30",
+      }),
+    ]);
+  });
+
+  it("회차에 붙은 배지는 그 날짜, 시각의 회차가 있으면 남긴다", () => {
+    expect(
+      normalize([
+        dateTag("커튼콜데이", "2026-09-29", "2026-09-29", { time: "14:00" }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it.each<[string, ParsedDateTag]>([
+    ["배지 이름이 비어 있으면", dateTag(" ", "2026-09-28", "2026-09-28")],
+    ["날짜 형식이 틀리면", dateTag("프리뷰", "9/28", "2026-09-28")],
+    [
+      "시작일이 종료일보다 늦으면",
+      dateTag("프리뷰", "2026-09-29", "2026-09-28"),
+    ],
+    [
+      "공연 시작 전 날짜가 있으면",
+      dateTag("프리뷰", "2026-08-31", "2026-09-28"),
+    ],
+    [
+      "공연 종료 뒤 날짜가 있으면",
+      dateTag("프리뷰", "2026-09-28", "2026-12-01"),
+    ],
+    [
+      "적힌 요일이 실제 요일과 다르면",
+      dateTag("프리뷰", "2026-09-28", "2026-09-28", {
+        printedStartWeekday: "화",
+      }),
+    ],
+    [
+      "하루 전체 배지인데 그 기간에 회차가 하나도 없으면",
+      dateTag("프리뷰", "2026-10-05", "2026-10-06"),
+    ],
+    [
+      "회차 배지의 시각 형식이 틀리면",
+      dateTag("막공", "2026-09-28", "2026-09-28", { time: "7시 30분" }),
+    ],
+    [
+      "회차 배지가 하루가 아니라 기간에 걸쳐 있으면",
+      dateTag("막공", "2026-09-28", "2026-09-29", { time: "19:30" }),
+    ],
+    [
+      "회차 배지의 날짜, 시각에 해당하는 회차가 없으면",
+      dateTag("막공", "2026-09-28", "2026-09-28", { time: "14:00" }),
+    ],
+    [
+      "없는 이미지 번호면",
+      dateTag("프리뷰", "2026-09-28", "2026-09-28", { imageIndex: 2 }),
+    ],
+  ])("%s 버린다", (_, invalid) => {
+    expect(normalize([invalid])).toStrictEqual([]);
+  });
+
+  it("같은 배지가 여러 번 읽히면 하나만 남긴다", () => {
+    expect(
+      normalize([
+        dateTag("프리뷰", "2026-09-28", "2026-09-28"),
+        dateTag("프리뷰", "2026-09-28", "2026-09-28", { imageIndex: 0 }),
+      ]),
+    ).toStrictEqual([dateTag("프리뷰", "2026-09-28", "2026-09-28")]);
+  });
+
+  it("검증을 통과한 배지는 연속된 날짜끼리 합친다", () => {
+    expect(
+      normalize([
+        dateTag("프리뷰", "2026-09-28", "2026-09-28"),
+        dateTag("프리뷰", "2026-09-29", "2026-09-29"),
+      ]),
+    ).toStrictEqual([dateTag("프리뷰", "2026-09-28", "2026-09-29")]);
   });
 });
