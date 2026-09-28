@@ -566,6 +566,7 @@ export const isExactSameEvent = (
   event: Pick<PendingEvent, "title" | "periodStart" | "periodEnd">,
   candidate: ExistingEvent,
 ) =>
+  // 제목과 기간만 비교하므로 정정된 이벤트에 확인 없이 합치면 최신 버전이 정정된 설명, 회차를 덮어쓸수있다.
   !candidate.edited &&
   event.periodStart === candidate.periodStart &&
   event.periodEnd === candidate.periodEnd &&
