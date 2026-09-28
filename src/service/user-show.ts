@@ -1,9 +1,10 @@
 import "server-only";
 
 import { getToday, toInputDate } from "@/lib/date";
+import { computeShowState } from "@/lib/show-state";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { GENRE, GenreName, Show, ShowDetail, StateName } from "@/type/show";
+import { GENRE, GenreName, Show, ShowDetail } from "@/type/show";
 import {
   MAX_TICKET_LINKS,
   TicketLink,
@@ -29,15 +30,6 @@ type UserShowRow = {
 
 const toKopisDateFormat = (isoDate: string) => isoDate.replaceAll("-", ".");
 
-function computeState(periodStart: string, periodEnd: string): StateName {
-  const today = toInputDate(getToday());
-
-  if (today < periodStart) return "공연예정";
-  if (today > periodEnd) return "공연완료";
-
-  return "공연중";
-}
-
 const getPosterUrl = (posterPath: string) =>
   createAdminClient()
     .storage.from(USER_SHOW_POSTER_BUCKET)
@@ -54,7 +46,11 @@ async function toShowDetail(row: UserShowRow): Promise<ShowDetail> {
     area: "",
     genrenm: row.genre,
     openrun: "N",
-    prfstate: computeState(row.period_start, row.period_end),
+    prfstate: computeShowState(
+      row.period_start,
+      row.period_end,
+      toInputDate(getToday()),
+    ),
     relates:
       row.ticket_links.length > 0
         ? {
