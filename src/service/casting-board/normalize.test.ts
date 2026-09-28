@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExistingEvent, ParsedDateTag } from "@/type/casting";
+import {
+  ExistingEvent,
+  ParsedDateTag,
+  ParsedPerformance,
+} from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
 import {
   agreesWithPrintedWeekday,
   dedupeByKey,
+  findCastMismatchImageIndexes,
+  hasKnownCastOverlap,
   isExactSameEvent,
   isNextDay,
   isPlaceholderActorName,
@@ -485,7 +491,7 @@ describe("resolveRunWindow", () => {
   });
 
   it("오픈런은 공연 기간 대신 오늘 기준 앞뒤 3개월을 쓴다", () => {
-    // 서비스 내 최대 호출 범위가 3개월이기 때문임
+    // 캐스팅보드엔 월/일만 적혀 있어, 수년짜리 오픈런 기간으로는 연도를 정할 수 없다
     vi.setSystemTime(new Date("2026-09-28T03:00:00Z"));
 
     expect(
@@ -502,6 +508,93 @@ describe("resolveRunWindow", () => {
     expect(resolveRunWindow(show({ openrun: "Y" }))).toStrictEqual({
       from: "2026-06-28",
       to: "2026-12-28",
+    });
+  });
+});
+
+describe("findCastMismatchImageIndexes", () => {
+  const performance = (
+    imageIndex: number,
+    casting: Record<string, string[]>,
+  ): ParsedPerformance => ({
+    date: "2026-09-28",
+    weekday: "월",
+    time: "19:30",
+    casting,
+    imageIndex,
+    confidence: 1,
+  });
+
+  const knownShow = show({ prfcast: "정휘, 김철수 등" });
+
+  it("KOPIS 출연진과 겹치는 배우가 하나도 없는 이미지만 골라낸다", () => {
+    expect(
+      findCastMismatchImageIndexes(
+        [
+          performance(0, { 주인공: ["정휘"] }),
+          performance(1, { 주인공: ["다른배우"] }),
+        ],
+        knownShow,
+      ),
+    ).toStrictEqual(new Set([1]));
+  });
+
+  it("같은 이미지의 회차 중 하나라도 겹치는 배우가 있으면 그 이미지는 맞는 것으로 본다", () => {
+    expect(
+      findCastMismatchImageIndexes(
+        [
+          performance(0, { 주인공: ["다른배우"] }),
+          performance(0, { 주인공: ["다른배우"], 친구: ["김철수"] }),
+        ],
+        knownShow,
+      ),
+    ).toStrictEqual(new Set());
+  });
+
+  it("KOPIS 출연진 끝의 ' 등'을 떼고 대조한다", () => {
+    expect(
+      findCastMismatchImageIndexes(
+        [performance(0, { 친구: ["김철수"] })],
+        knownShow,
+      ),
+    ).toStrictEqual(new Set());
+  });
+
+  it("KOPIS 출연진 정보가 없으면 대조하지 않는다", () => {
+    expect(
+      findCastMismatchImageIndexes(
+        [performance(0, { 주인공: ["다른배우"] })],
+        show({ prfcast: undefined }),
+      ),
+    ).toStrictEqual(new Set());
+  });
+
+  it("오픈런은 KOPIS 출연진이 개막 당시 기준이라 대조하지 않는다", () => {
+    expect(
+      findCastMismatchImageIndexes(
+        [performance(0, { 주인공: ["다른배우"] })],
+        show({ openrun: "Y", prfcast: "정휘" }),
+      ),
+    ).toStrictEqual(new Set());
+  });
+
+  describe("hasKnownCastOverlap", () => {
+    it("모든 이미지가 KOPIS 출연진과 겹치면 true를 반환한다", () => {
+      expect(
+        hasKnownCastOverlap([performance(0, { 주인공: ["정휘"] })], knownShow),
+      ).toBe(true);
+    });
+
+    it("겹치지 않는 이미지가 하나라도 있으면 false를 반환한다", () => {
+      expect(
+        hasKnownCastOverlap(
+          [
+            performance(0, { 주인공: ["정휘"] }),
+            performance(1, { 주인공: ["다른배우"] }),
+          ],
+          knownShow,
+        ),
+      ).toBe(false);
     });
   });
 });
