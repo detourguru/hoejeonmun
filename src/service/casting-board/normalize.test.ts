@@ -4,6 +4,7 @@ import {
   ExistingEvent,
   ParsedDateTag,
   ParsedPerformance,
+  PerformanceSkipReason,
 } from "@/type/casting";
 import { ShowDetail } from "@/type/show";
 
@@ -19,6 +20,7 @@ import {
   mergeSameDateTags,
   mergeWholeDayRuns,
   normalizeName,
+  normalizePerformances,
   resolveRunWindow,
   sanitizeCutoffTime,
   sanitizeExactTimes,
@@ -39,6 +41,21 @@ const show = (overrides: Partial<ShowDetail> = {}): ShowDetail => ({
   genrenm: "뮤지컬",
   openrun: "N",
   prfstate: "공연중",
+  ...overrides,
+});
+
+// 2026-09-28은 월요일
+const performance = (
+  imageIndex: number,
+  casting: Record<string, string[]>,
+  overrides: Partial<ParsedPerformance> = {},
+): ParsedPerformance => ({
+  date: "2026-09-28",
+  weekday: "월",
+  time: "19:30",
+  casting,
+  imageIndex,
+  confidence: 1,
   ...overrides,
 });
 
@@ -513,18 +530,6 @@ describe("resolveRunWindow", () => {
 });
 
 describe("findCastMismatchImageIndexes", () => {
-  const performance = (
-    imageIndex: number,
-    casting: Record<string, string[]>,
-  ): ParsedPerformance => ({
-    date: "2026-09-28",
-    weekday: "월",
-    time: "19:30",
-    casting,
-    imageIndex,
-    confidence: 1,
-  });
-
   const knownShow = show({ prfcast: "정휘, 김철수 등" });
 
   it("KOPIS 출연진과 겹치는 배우가 하나도 없는 이미지만 골라낸다", () => {
@@ -596,5 +601,89 @@ describe("findCastMismatchImageIndexes", () => {
         ),
       ).toBe(false);
     });
+  });
+});
+
+describe("normalizePerformances", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 1장
+  const normalize = (performances: ParsedPerformance[]) =>
+    normalizePerformances(performances, show({ prfcast: "정휘, 김철수" }), 1);
+
+  it("날짜, 시각의 공백을 지우고 배역, 배우 이름을 정리한다", () => {
+    expect(
+      normalize([
+        performance(
+          0,
+          {
+            " 주인공 ": ["정 휘, 김철수 등", "정휘"],
+            친구: ["미정"],
+            "": ["이름없는배역"],
+          },
+          { date: " 2026-09-28 ", time: " 19:30 " },
+        ),
+      ]),
+    ).toStrictEqual({
+      performances: [performance(0, { 주인공: ["정휘", "김철수"] })],
+      skipped: [],
+    });
+  });
+
+  it.each<[string, Partial<ParsedPerformance>, PerformanceSkipReason]>([
+    ["날짜 형식이 틀리면", { date: "9/28" }, "invalid_date"],
+    ["시각 형식이 틀리면", { time: "7시 30분" }, "invalid_time"],
+    ["공연 기간 밖이면", { date: "2026-12-01", weekday: "화" }, "out_of_range"],
+    ["적힌 요일이 실제 요일과 다르면", { weekday: "화" }, "weekday_mismatch"],
+    ["남는 배우가 없으면", { casting: { 주인공: ["미정"] } }, "empty_casting"],
+    ["없는 이미지 번호면", { imageIndex: 1 }, "invalid_image_index"],
+  ])("%s 회차를 빼고 이유를 남긴다", (_, overrides, reason) => {
+    const raw = performance(0, { 주인공: ["정휘"] }, overrides);
+
+    expect(normalize([raw])).toStrictEqual({
+      performances: [],
+      skipped: [{ imageIndex: raw.imageIndex, raw, reason }],
+    });
+  });
+
+  it("같은 날짜, 시각의 회차가 또 나오면 처음 것만 남기고 뒤의 것은 중복으로 뺀다", () => {
+    const first = performance(0, { 주인공: ["정휘"] });
+    const second = performance(0, { 주인공: ["김철수"] });
+
+    expect(normalize([first, second])).toStrictEqual({
+      performances: [first],
+      skipped: [{ imageIndex: 0, raw: second, reason: "duplicate" }],
+    });
+  });
+
+  it("배역으로 잘못 읽힌 EPISODE 열은 회차 구분(variant)으로 옮긴다", () => {
+    const { performances } = normalize([
+      performance(0, { EPISODE: ["ROOM SEOUL"], 주인공: ["정휘"] }),
+    ]);
+
+    expect(performances).toStrictEqual([
+      performance(0, { 주인공: ["정휘"] }, { variant: "ROOM SEOUL" }),
+    ]);
+  });
+
+  it("회차 구분이 따로 읽혔으면 EPISODE 열보다 그 값을 쓴다", () => {
+    const { performances } = normalize([
+      performance(
+        0,
+        { EPISODE: ["ROOM SEOUL"], 주인공: ["정휘"] },
+        { variant: "ROOM ALEPPO" },
+      ),
+    ]);
+
+    expect(performances[0].variant).toBe("ROOM ALEPPO");
+    expect(performances[0].casting).toStrictEqual({ 주인공: ["정휘"] });
+  });
+
+  it("KOPIS 출연진과 겹치지 않는 이미지의 회차는 빼지 않고 castMismatch로 표시한다", () => {
+    const { performances } = normalize([
+      performance(0, { 주인공: ["다른배우"] }),
+    ]);
+
+    expect(performances).toStrictEqual([
+      performance(0, { 주인공: ["다른배우"] }, { castMismatch: true }),
+    ]);
   });
 });
