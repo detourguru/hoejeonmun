@@ -5,6 +5,7 @@ import { Fragment, ReactNode, useState } from "react";
 import { EventCard } from "@/components/casting/event-card";
 import { findNearestDate, WEEKDAYS } from "@/lib/date";
 import { getEventBarColor } from "@/lib/event-color";
+import { assignEventLanes } from "@/lib/event-lanes";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "@/service/casting";
@@ -91,37 +92,15 @@ export const Calendar = ({
       }
     }
 
-    const ordered = [...weekEvents.values()].sort(
-      (a, b) =>
-        a.periodStart.localeCompare(b.periodStart) ||
-        b.periodEnd.localeCompare(a.periodEnd) ||
-        a.id - b.id,
+    const { laneOf, laneCount } = assignEventLanes(
+      [...weekEvents.values()].map((event) => ({
+        ...event,
+        span: indexes.filter((index) => isActiveAt(index, event.id)),
+      })),
     );
 
-    const occupied: Set<number>[] = [];
-    const laneOf = new Map<number, number>();
-
-    for (const event of ordered) {
-      const span = indexes.filter((index) => isActiveAt(index, event.id));
-
-      let lane = 0;
-
-      while (
-        occupied[lane]?.size &&
-        span.some((at) => occupied[lane].has(at))
-      ) {
-        lane += 1;
-      }
-
-      occupied[lane] ??= new Set();
-
-      for (const at of span) occupied[lane].add(at);
-
-      laneOf.set(event.id, lane);
-    }
-
-    const overflow = occupied.length > MAX_EVENT_LANES;
-    const barLanes = overflow ? MAX_EVENT_LANES - 1 : occupied.length;
+    const overflow = laneCount > MAX_EVENT_LANES;
+    const barLanes = overflow ? MAX_EVENT_LANES - 1 : laneCount;
 
     if (overflow) overflowWeeks.add(week);
 
