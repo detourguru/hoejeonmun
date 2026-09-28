@@ -16,6 +16,7 @@ import {
 
 import { hashImages } from "./duplicate";
 import {
+  createEventGroupResolver,
   isExactSameEvent,
   isPlaceholderActorName,
   slotKey,
@@ -612,22 +613,9 @@ export async function saveCastingBoardContent({
     }
   }
 
-  const groupIdByKey = new Map<string, Promise<number>>();
-
-  function resolveGroupId(event: ConfirmedEvent, reusedGroupId?: number) {
-    if (reusedGroupId !== undefined) return Promise.resolve(reusedGroupId);
-
-    const key = `${toTitleKey(event.title)}|${event.periodStart}|${event.periodEnd}`;
-    const pending = groupIdByKey.get(key);
-
-    if (pending) return pending;
-
-    const created = createEventGroup(admin);
-
-    groupIdByKey.set(key, created);
-
-    return created;
-  }
+  const resolveGroupId = createEventGroupResolver(() =>
+    createEventGroup(admin),
+  );
 
   async function saveEvent(event: ConfirmedEvent): Promise<boolean> {
     const uploadImageId = uploadImageIdByPosition.get(event.imageIndex);
