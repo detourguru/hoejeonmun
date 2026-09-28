@@ -1225,9 +1225,8 @@ describe("normalizeCancelledEvents", () => {
 });
 
 describe("createEventGroupResolver", () => {
-  const createGroup = vi.fn(() => Promise.resolve(1));
-
   it("같은 업로드 안의 같은 이벤트는 그룹을 하나만 만들어 공유한다", async () => {
+    const createGroup = vi.fn(() => Promise.resolve(1));
     const resolveGroupId = createEventGroupResolver(createGroup);
     const event = {
       title: "test",
@@ -1238,7 +1237,35 @@ describe("createEventGroupResolver", () => {
     const first = await resolveGroupId(event);
     const second = await resolveGroupId(event);
 
-    expect(createGroup).toHaveBeenCalledTimes(1)
-    expect(second).toBe(first)
+    expect(createGroup).toHaveBeenCalledTimes(1);
+    expect(first).toBe(1);
+    expect(second).toBe(first);
   });
+
+  it.each([
+    ["제목", { title: "사인회" }],
+    ["시작일", { periodStart: "2026-09-02" }],
+    ["종료일", { periodEnd: "2026-09-08" }],
+  ])(
+    "%s이 다른 이벤트는 별도 그룹을 만들고 각각 재사용한다",
+    async (_, overrides) => {
+      const createGroup = vi
+        .fn<() => Promise<number>>()
+        .mockResolvedValueOnce(11)
+        .mockResolvedValueOnce(22);
+      const resolveGroupId = createEventGroupResolver(createGroup);
+      const first = {
+        title: "커튼콜",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-07",
+      };
+      const second = { ...first, ...overrides };
+
+      expect(await resolveGroupId(first)).toBe(11);
+      expect(await resolveGroupId(second)).toBe(22);
+      expect(await resolveGroupId(first)).toBe(11);
+      expect(await resolveGroupId(second)).toBe(22);
+      expect(createGroup).toHaveBeenCalledTimes(2);
+    },
+  );
 });

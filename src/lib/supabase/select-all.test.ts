@@ -17,8 +17,9 @@ describe("selectAllRows", () => {
 
     const rows = await selectAllRows(query);
 
-    expect(rows).toHaveLength(2500);
-    expect(rows.at(-1)).toBe(2499);
+    expect(rows).toStrictEqual(
+      Array.from({ length: 2500 }, (_, index) => index),
+    );
     expect(query).toHaveBeenCalledTimes(3);
   });
 
@@ -50,6 +51,17 @@ describe("selectAllRows", () => {
       .mockResolvedValueOnce({ data: null, error: failure });
 
     await expect(selectAllRows(query)).rejects.toBe(failure);
+  });
+
+  it("지정한 페이지 크기로 요청하고 모든 행을 순서대로 합친다", async () => {
+    const query = fakeTable(5);
+
+    expect(await selectAllRows(query, 2)).toStrictEqual([0, 1, 2, 3, 4]);
+    expect(query.mock.calls).toStrictEqual([
+      [0, 1],
+      [2, 3],
+      [4, 5],
+    ]);
   });
 });
 
