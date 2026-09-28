@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   addDays,
@@ -14,6 +14,7 @@ import {
   toIsoDate,
   toKopisDate,
   toMonth,
+  getToday,
 } from "./date";
 
 const utc = (isoDate: string) => new Date(`${isoDate}T00:00:00Z`);
@@ -146,4 +147,24 @@ describe("getWeekday", () => {
   ])("%s는 %s요일이다", (isoDate, expected) => {
     expect(getWeekday(isoDate)).toBe(expected);
   });
+});
+
+describe("getToday", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["2026-09-27T15:00:00Z", "2026-09-28T00:00:00Z"],
+    ["2026-09-27T14:59:59Z", "2026-09-27T00:00:00Z"],
+  ])(
+    "항상 서울 기준 오늘 날짜 자정시간을 반환한다 %s → %s",
+    (now, expected) => {
+      vi.setSystemTime(new Date(now));
+      expect(getToday()).toStrictEqual(new Date(expected));
+    },
+  );
 });

@@ -404,7 +404,7 @@ describe("isExactSameEvent", () => {
 });
 
 describe("sanitizeSlotExceptions", () => {
-  it("날짜·시각 형식이 맞지 않는 회차는 버린다", () => {
+  it("날짜 및 시각 형식이 맞지 않는 회차는 버린다", () => {
     expect(
       sanitizeSlotExceptions([
         { date: "2026-09-28", time: "19:30" },
