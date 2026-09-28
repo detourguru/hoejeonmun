@@ -176,7 +176,9 @@ export const EventConfirmList = ({
           )}
 
           {event.description && (
-            <p className="text-text-muted text-xs">{event.description}</p>
+            <p className="text-text-muted text-xs whitespace-pre-line">
+              {event.description}
+            </p>
           )}
         </li>
       ))}

@@ -94,7 +94,9 @@ export const EventCard = ({
     )}
 
     {event.description && (
-      <p className="text-text-muted mt-1 text-xs">{event.description}</p>
+      <p className="text-text-muted mt-1 text-xs whitespace-pre-line">
+        {event.description}
+      </p>
     )}
 
     {!readOnly && (
