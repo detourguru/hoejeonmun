@@ -77,14 +77,16 @@ describe("날짜 포맷 변환", () => {
 });
 
 describe("isIsoDate", () => {
-  it.each([
-    ["2026-09-28", true],
-    ["2026.09.28", false],
-    ["2026-9-28", false],
-    ["2026-09-28T00:00:00Z", false],
-  ])("%j → %s", (value, expected) => {
-    expect(isIsoDate(value)).toBe(expected);
+  it("YYYY-MM-DD 형식이면 true를 반환한다", () => {
+    expect(isIsoDate("2026-09-28")).toBe(true);
   });
+
+  it.each([["2026.09.28"], ["2026-9-28"], ["2026-09-28T00:00:00Z"]])(
+    "구분자·자릿수가 다르거나 시각이 붙으면 false를 반환한다: %j",
+    (value) => {
+      expect(isIsoDate(value)).toBe(false);
+    },
+  );
 });
 
 describe("parseMonth", () => {
@@ -141,7 +143,7 @@ describe("getWeekday", () => {
     ["2026-09-27", "일"],
     ["2026-09-28", "월"],
     ["2026-10-03", "토"],
-  ])("%s → %s", (isoDate, expected) => {
+  ])("%s는 %s요일이다", (isoDate, expected) => {
     expect(getWeekday(isoDate)).toBe(expected);
   });
 });
