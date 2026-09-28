@@ -43,7 +43,8 @@ export const SlotCard = ({
   showDate?: boolean;
   events?: SlotEventBadge[];
 }) => {
-  const { reported, bookmarked, images, isMine, canDelete, fallback } = slot;
+  const { reported, bookmarked, images, isMine, canDelete, fallback, variant } =
+    slot;
   const slotLabel = `${slot.date.slice(5).replace("-", ".")} ${slot.time} 회차`;
 
   return (
@@ -57,6 +58,11 @@ export const SlotCard = ({
             </span>
           )}
           {slot.time}
+          {variant && (
+            <span className="bg-primary text-primary-foreground inline-flex shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+              {variant}
+            </span>
+          )}
           {slot.uploadSource === "system" && (
             <span className="border-border text-text-muted inline-flex shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-normal">
               시스템 업로드
@@ -81,6 +87,8 @@ export const SlotCard = ({
             date={slot.date}
             time={slot.time}
             castings={slot.casting.map(({ role, actor }) => ({ role, actor }))}
+            variant={variant}
+            canDelete={canDelete}
           />
 
           {canDelete && (

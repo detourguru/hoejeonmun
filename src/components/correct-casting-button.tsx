@@ -7,12 +7,15 @@ import {
   addSlotCasting,
   correctSlotCasting,
   correctSlotDate,
+  correctSlotVariant,
   deleteSlotCasting,
+  deleteSlotVariant,
 } from "@/app/(main)/show/[id]/actions";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { Input } from "@/components/ui/input";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { cn } from "@/lib/utils";
+import { SLOT_VARIANT_MAX_LENGTH } from "@/type/casting";
 
 export type CorrectableCasting = { role: string; actor: string };
 
@@ -22,12 +25,16 @@ export const CorrectCastingButton = ({
   date,
   time,
   castings,
+  variant,
+  canDelete,
 }: {
   showId: string;
   slotId: number;
   date: string;
   time: string;
   castings: CorrectableCasting[];
+  variant: string | null;
+  canDelete: boolean;
 }) => {
   const loginRedirect = useLoginRedirect(`/show/${showId}`);
 
@@ -47,6 +54,7 @@ export const CorrectCastingButton = ({
   const [actor, setActor] = useState("");
   const [newDate, setNewDate] = useState(date);
   const [newTime, setNewTime] = useState(time);
+  const [newVariant, setNewVariant] = useState(variant ?? "");
   const [applyToAllSlots, setApplyToAllSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -59,6 +67,7 @@ export const CorrectCastingButton = ({
     setActor("");
     setNewDate(date);
     setNewTime(time);
+    setNewVariant(variant ?? "");
     setApplyToAllSlots(false);
     setError(null);
     setOpen(true);
@@ -89,8 +98,10 @@ export const CorrectCastingButton = ({
 
   const handleSubmit = () => {
     const dateChanged = newDate !== date || newTime !== time;
+    const variantChanged =
+      newVariant.trim() !== "" && newVariant.trim() !== (variant ?? "");
 
-    if (!isAdding && !role && !dateChanged) {
+    if (!isAdding && !role && !dateChanged && !variantChanged) {
       setError("고칠 내용을 입력해 주세요.");
       return;
     }
@@ -118,6 +129,13 @@ export const CorrectCastingButton = ({
           newActor: actor,
           applyToAllSlots,
         });
+
+        if (!result.ok && handleActionError(result)) return;
+      }
+
+      // 날짜를 옮기기 전에 달아야 회차 구분도 새 회차로 같이 옮겨진다
+      if (variantChanged) {
+        const result = await correctSlotVariant(showId, slotId, newVariant);
 
         if (!result.ok && handleActionError(result)) return;
       }
@@ -151,6 +169,19 @@ export const CorrectCastingButton = ({
 
       setOpen(false);
       toast.success("배역이 삭제됐어요.");
+    });
+  };
+
+  const handleDeleteVariant = () => {
+    setError(null);
+
+    startTransition(async () => {
+      const result = await deleteSlotVariant(showId, slotId);
+
+      if (!result.ok && handleActionError(result)) return;
+
+      setOpen(false);
+      toast.success("회차 구분이 삭제됐어요.");
     });
   };
 
@@ -192,6 +223,31 @@ export const CorrectCastingButton = ({
                 aria-label="시간"
                 onChange={({ target }) => setNewTime(target.value)}
               />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-text-muted text-[11px] font-bold">
+              회차 구분
+            </span>
+            <div className="flex items-center gap-1">
+              <Input
+                value={newVariant}
+                onChange={({ target }) => setNewVariant(target.value)}
+                placeholder="에피소드·버전 (예: ROOM SEOUL)"
+                aria-label="회차 구분"
+                maxLength={SLOT_VARIANT_MAX_LENGTH}
+              />
+              {variant && canDelete && (
+                <button
+                  type="button"
+                  onClick={handleDeleteVariant}
+                  disabled={pending}
+                  className="text-destructive hover:bg-destructive/10 inline-flex shrink-0 rounded-4xl px-2 py-1 text-[11px] transition-colors disabled:opacity-60"
+                >
+                  삭제
+                </button>
+              )}
             </div>
           </div>
 

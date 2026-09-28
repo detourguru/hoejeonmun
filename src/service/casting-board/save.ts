@@ -11,6 +11,7 @@ import {
   ParsedCastingChange,
   ParsedPerformance,
   SkippedPerformance,
+  SLOT_VARIANT_MAX_LENGTH,
 } from "@/type/casting";
 
 import { hashImages } from "./duplicate";
@@ -589,6 +590,26 @@ export async function saveCastingBoardContent({
       });
 
     if (assignmentError) throw assignmentError;
+
+    const variants = performances.flatMap(({ date, time, variant }) => {
+      const slotId = slotIdByKey.get(slotKey(date, time));
+      const label = variant?.trim().slice(0, SLOT_VARIANT_MAX_LENGTH);
+
+      return slotId && label
+        ? [{ upload_id: upload.id, slot_id: slotId, label }]
+        : [];
+    });
+
+    if (variants.length > 0) {
+      const { error: variantError } = await admin
+        .from("slot_variants")
+        .upsert(variants, {
+          onConflict: "upload_id,slot_id",
+          ignoreDuplicates: true,
+        });
+
+      if (variantError) throw variantError;
+    }
   }
 
   const groupIdByKey = new Map<string, Promise<number>>();
