@@ -5,6 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useSyncExternalStore } from "react";
 
+import { findNavSection } from "@/lib/nav-section";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -15,17 +16,12 @@ const TABS = [
 
 const LAST_PATHS_KEY = "footer-nav-last-paths";
 
-// 경로가 긴 쪽부터 (그래야 더 하위페이지부터 조회가능)
-const SECTIONS = TABS.map(({ href }) => href).sort(
-  (a, b) => b.length - a.length,
-);
+const SECTIONS = TABS.map(({ href }) => href);
 
 const DEFAULT_SECTION = "/show";
 
 const sectionOf = (pathname: string) =>
-  SECTIONS.find(
-    (href) => pathname === href || pathname.startsWith(`${href}/`),
-  ) ?? DEFAULT_SECTION;
+  findNavSection(pathname, SECTIONS) ?? DEFAULT_SECTION;
 
 type LastPaths = Record<string, string>;
 
