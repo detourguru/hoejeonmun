@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ExistingEvent,
   ParsedDateTag,
+  ParsedEvent,
   ParsedPerformance,
   PerformanceSkipReason,
 } from "@/type/casting";
@@ -28,7 +29,9 @@ import {
   sanitizeSlotExceptions,
   slotKey,
   toKoreanWeekday,
+  toPendingEvents,
   toTitleKey,
+  unverifiedPoints,
 } from "./normalize";
 
 const show = (overrides: Partial<ShowDetail> = {}): ShowDetail => ({
@@ -788,5 +791,183 @@ describe("normalizeDateTags", () => {
         dateTag("프리뷰", "2026-09-29", "2026-09-29"),
       ]),
     ).toStrictEqual([dateTag("프리뷰", "2026-09-28", "2026-09-29")]);
+  });
+});
+
+describe("unverifiedPoints", () => {
+  // 9/28(월) 하루짜리 공지 이벤트, 요일까지 맞게 적혀 있어 확인할 게 없는 상태
+  const event = (
+    overrides: Partial<Parameters<typeof unverifiedPoints>[0]> = {},
+  ) => ({
+    source: "notice" as const,
+    periodStart: "2026-09-28",
+    periodEnd: "2026-09-28",
+    printedStartWeekday: "월",
+    printedEndWeekday: "월",
+    ...overrides,
+  });
+
+  it("날짜·요일이 확실하고 모든 회차에 적용되면 업로더에게 확인을 요청하지 않는다", () => {
+    expect(unverifiedPoints(event())).toStrictEqual([]);
+  });
+
+  it("캐스팅표 옆 배지가 여러 날에 걸치면, AI가 기간을 한 줄씩 잘못 읽었을 수 있어 확인을 요청한다", () => {
+    expect(
+      unverifiedPoints(
+        event({
+          source: "badge",
+          periodEnd: "2026-09-29",
+          printedEndWeekday: "화",
+        }),
+      ),
+    ).toStrictEqual(["range_badge"]);
+  });
+
+  it("공지 이벤트는 기간이 글자로 적혀 있어, 여러 날에 걸쳐도 기간 때문에 확인을 요청하지 않는다", () => {
+    expect(
+      unverifiedPoints(
+        event({ periodEnd: "2026-09-29", printedEndWeekday: "화" }),
+      ),
+    ).toStrictEqual([]);
+  });
+
+  it.each([[{ printedStartWeekday: "" }], [{ printedEndWeekday: "" }]])(
+    "요일이 안 적혀 있으면 날짜를 제대로 읽었는지 검증할 수 없어 확인을 요청한다: %j",
+    (overrides) => {
+      expect(unverifiedPoints(event(overrides))).toStrictEqual([
+        "no_printed_weekday",
+      ]);
+    },
+  );
+
+  it("적힌 요일이 날짜와 맞지 않으면 날짜(특히 연도)를 잘못 읽었을 수 있어 확인을 요청한다", () => {
+    expect(unverifiedPoints(event({ printedEndWeekday: "화" }))).toStrictEqual([
+      "weekday_mismatch",
+    ]);
+  });
+
+  it.each([
+    [{ includedSlots: [{ date: "2026-09-28", time: "19:30" }] }],
+    [{ excludedSlots: [{ date: "2026-09-28", time: "19:30" }] }],
+    [{ listedSlots: [{ date: "2026-09-28", time: "19:30" }] }],
+    [{ periodStartCutoffTime: "18:00" }],
+    [{ periodEndCutoffTime: "18:00" }],
+  ])(
+    "기간 중 일부 회차만 포함 혹은 제외되면 적용 회차를 잘못 읽었을 수 있어 확인을 요청한다: %j",
+    (overrides) => {
+      expect(unverifiedPoints(event(overrides))).toStrictEqual([
+        "has_slot_exceptions",
+      ]);
+    },
+  );
+
+  it("AI가 '예외 없음'을 빈 목록으로 보내도 예외로 착각해 확인을 요청하지 않는다", () => {
+    expect(
+      unverifiedPoints(event({ includedSlots: [], exactTimes: [] })),
+    ).toStrictEqual([]);
+  });
+
+  it("특정 시각 회차에만 적용되는 케이스는 AI가 시각을 잘못 해석했을 수 있어 확인을 요청한다", () => {
+    expect(unverifiedPoints(event({ exactTimes: ["19:30"] }))).toStrictEqual([
+      "has_specific_times",
+    ]);
+  });
+
+  it("확인이 필요한 이유가 여러 개면 모두 업로더에게 보여 준다", () => {
+    expect(
+      unverifiedPoints(
+        event({
+          source: "badge",
+          periodEnd: "2026-09-29",
+          printedEndWeekday: "",
+          exactTimes: ["19:30"],
+        }),
+      ),
+    ).toStrictEqual([
+      "range_badge",
+      "no_printed_weekday",
+      "has_specific_times",
+    ]);
+  });
+});
+
+describe("toPendingEvents", () => {
+  const notice = (overrides: Partial<ParsedEvent> = {}): ParsedEvent => ({
+    title: "폴라로이드 증정",
+    periodStart: "2026-09-28",
+    periodEnd: "2026-09-28",
+    printedStartWeekday: "월",
+    printedEndWeekday: "월",
+    imageIndex: 0,
+    ...overrides,
+  });
+
+  it("공지에서 읽은 이벤트를 확인 화면에 올릴 형태로 바꾸고, 확인이 필요한 이유를 붙인다", () => {
+    const [pending] = toPendingEvents([], [notice({ exactTimes: ["19:30"] })]);
+
+    expect(pending).toMatchObject({
+      title: "폴라로이드 증정",
+      source: "notice",
+      exactTimes: ["19:30"],
+      confirmReasons: ["has_specific_times"],
+      overlapping: [],
+    });
+  });
+
+  it("캐스팅표 내에 붙은 이벤트 배지도 이벤트와 같은 형식으로 저장하고 배지 이름을 이벤트 제목으로 쓴다", () => {
+    const [pending] = toPendingEvents(
+      [
+        dateTag("프리뷰", "2026-09-28", "2026-09-28", {
+          printedStartWeekday: "월",
+          printedEndWeekday: "월",
+        }),
+      ],
+      [],
+    );
+
+    expect(pending).toMatchObject({
+      title: "프리뷰",
+      periodStart: "2026-09-28",
+      periodEnd: "2026-09-28",
+      source: "badge",
+      confirmReasons: [],
+    });
+    expect(pending.exactTimes).toBeUndefined();
+  });
+
+  it("한 회차에만 붙은 배지는 그날의 다른 회차가 아니라 그 회차에만 적용되게 한다", () => {
+    const [pending] = toPendingEvents(
+      [dateTag("막공", "2026-09-28", "2026-09-28", { time: "19:30" })],
+      [],
+    );
+
+    expect(pending.exactTimes).toStrictEqual(["19:30"]);
+  });
+
+  it("커튼콜데이 표시가 9/28 19:30, 9/29 14:00에만 있으면, 확인 화면에서도 이 두 회차에만 체크되도록 넘긴다", () => {
+    const slots = [
+      { date: "2026-09-28", time: "19:30" },
+      { date: "2026-09-29", time: "14:00" },
+    ];
+
+    const [pending] = toPendingEvents(
+      [dateTag("커튼콜데이", "2026-09-28", "2026-09-29", { slots })],
+      [],
+    );
+
+    expect(pending.exactTimes).toBeUndefined();
+    expect(pending.listedSlots).toStrictEqual(slots);
+  });
+
+  it("공지 이벤트 뒤에 배지를 이어 붙인다", () => {
+    const pending = toPendingEvents(
+      [dateTag("프리뷰", "2026-09-28", "2026-09-28")],
+      [notice()],
+    );
+
+    expect(pending.map(({ source }) => source)).toStrictEqual([
+      "notice",
+      "badge",
+    ]);
   });
 });
