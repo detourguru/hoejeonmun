@@ -12,6 +12,9 @@ import {
   mergeSameDateTags,
   mergeWholeDayRuns,
   normalizeName,
+  sanitizeCutoffTime,
+  sanitizeExactTimes,
+  sanitizeSlotExceptions,
   slotKey,
   toKoreanWeekday,
   toTitleKey,
@@ -398,4 +401,52 @@ describe("isExactSameEvent", () => {
   it("정정된 이벤트는 최신 버전이 정정 내용을 가리지 않도록 자동으로 합칠 대상에서 뺀다", () => {
     expect(isExactSameEvent(pending, existing({ edited: true }))).toBe(false);
   });
+});
+
+describe("sanitizeSlotExceptions", () => {
+  it("날짜·시각 형식이 맞지 않는 회차는 버린다", () => {
+    expect(
+      sanitizeSlotExceptions([
+        { date: "2026-09-28", time: "19:30" },
+        { date: "2026.09.28", time: "19:30" },
+        { date: "2026-09-28", time: "7:30" },
+        { date: "2026-09-28", time: "24:00" },
+      ]),
+    ).toStrictEqual([{ date: "2026-09-28", time: "19:30" }]);
+  });
+
+  it.each([[undefined], [[]], [[{ date: "", time: "" }]]])(
+    "남는 회차가 없으면 undefined를 반환한다: %j",
+    (slots) => {
+      expect(sanitizeSlotExceptions(slots)).toBeUndefined();
+    },
+  );
+});
+
+describe("sanitizeExactTimes", () => {
+  it("형식이 맞지 않는 시각은 버리고 중복은 하나만 남긴다", () => {
+    expect(
+      sanitizeExactTimes(["14:00", "19:30", "14:00", "오후 3시", "25:00"]),
+    ).toStrictEqual(["14:00", "19:30"]);
+  });
+
+  it.each([[undefined], [[]], [["미정"]]])(
+    "남는 시각이 없으면 undefined를 반환한다: %j",
+    (times) => {
+      expect(sanitizeExactTimes(times)).toBeUndefined();
+    },
+  );
+});
+
+describe("sanitizeCutoffTime", () => {
+  it("앞뒤 공백을 지운 HH:mm 시각을 반환한다", () => {
+    expect(sanitizeCutoffTime(" 18:00 ")).toBe("18:00");
+  });
+
+  it.each([[undefined], [""], ["6시"], ["18:60"]])(
+    "HH:mm 형식이 아니면 undefined를 반환한다: %j",
+    (time) => {
+      expect(sanitizeCutoffTime(time)).toBeUndefined();
+    },
+  );
 });
