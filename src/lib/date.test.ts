@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addDays,
   addMonths,
+  findNearestDate,
   formatShortDate,
   getCalendarCells,
   getMonthRange,
@@ -167,4 +168,25 @@ describe("getToday", () => {
       expect(getToday()).toStrictEqual(new Date(expected));
     },
   );
+});
+
+describe("findNearestDate", () => {
+  // 캘린더에서 일정이 있는 날짜들
+  const filledDates = ["2026-09-05", "2026-09-20", "2026-09-25"];
+
+  it("들어온 날짜에 일정이 있으면 그 날짜를 고른다", () => {
+    expect(findNearestDate(filledDates, "2026-09-20")).toBe("2026-09-20");
+  });
+
+  it("들어온 날짜에 일정이 없으면 이번 달 첫 일정이 아니라 바로 다음 일정을 고른다", () => {
+    expect(findNearestDate(filledDates, "2026-09-18")).toBe("2026-09-20");
+  });
+
+  it("들어온 날짜 뒤로 일정이 없으면 가장 최근에 지난 일정을 고른다", () => {
+    expect(findNearestDate(filledDates, "2026-09-28")).toBe("2026-09-25");
+  });
+
+  it("일정이 하나도 없으면 아무 날짜도 고르지 않는다", () => {
+    expect(findNearestDate([], "2026-09-28")).toBeNull();
+  });
 });
