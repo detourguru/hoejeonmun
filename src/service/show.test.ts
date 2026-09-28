@@ -1,16 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Show } from "@/type/show";
+import { fetchKopis, fetchKopisAll } from "@/lib/kopis";
+import { selectAllRows } from "@/lib/supabase/select-all";
+import { Show, ShowDetail } from "@/type/show";
 
 import {
   filterShows,
+  getShowSummaries,
   paginateShows,
   parseShowFilters,
+  searchShows,
   ShowFilters,
   sortShows,
 } from "./show";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({
+  unstable_cache: <T>(fn: T) => fn,
+}));
+vi.mock("@/lib/kopis", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/kopis")>()),
+  fetchKopis: vi.fn(),
+  fetchKopisAll: vi.fn(),
+}));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+vi.mock("@/lib/supabase/select-all", () => ({ selectAllRows: vi.fn() }));
+vi.mock("@/service/user-show", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/service/user-show")>()),
+  searchUserShows: vi.fn(() => Promise.resolve([])),
+}));
 
 const show = (overrides: Partial<Show> = {}): Show => ({
   mt20id: "PF000001",
@@ -253,5 +271,90 @@ describe("sortShows", () => {
     sortShows(original);
 
     expect(original.map(({ prfnm }) => prfnm)).toStrictEqual(["나", "가"]);
+  });
+});
+
+// KOPIS 공연 상세 조회(getShow)가 공연 id별로 돌려줄 결과. Error면 조회 실패
+const stubShowDetails = (byId: Record<string, ShowDetail | null | Error>) => {
+  vi.mocked(fetchKopis).mockImplementation((path) => {
+    const result = byId[decodeURIComponent(path.replace("/pblprfr/", ""))];
+
+    if (result instanceof Error) return Promise.reject(result);
+
+    return Promise.resolve(result ? [result] : []);
+  });
+};
+
+describe("getShowSummaries", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("공연 정보 조회에 실패한 공연은 실패로 표시해서, KOPIS에 없는 공연처럼 오늘 탭 필터에서 숨겨지지 않게 한다", async () => {
+    stubShowDetails({
+      PF_FAILED: new Error("KOPIS 응답 없음"),
+      PF_MISSING: null,
+    });
+
+    const summaries = await getShowSummaries(["PF_FAILED", "PF_MISSING"]);
+
+    expect(summaries.get("PF_FAILED")?.lookupFailed).toBe(true);
+    expect(summaries.get("PF_MISSING")?.lookupFailed).toBe(false);
+  });
+
+  it("공연 하나가 조회에 실패해도 나머지 공연 정보는 그대로 보여 준다", async () => {
+    stubShowDetails({
+      PF_FAILED: new Error("KOPIS 응답 없음"),
+      PF_OK: show({ mt20id: "PF_OK", prfnm: "헬멧" }) as ShowDetail,
+    });
+
+    const summaries = await getShowSummaries(["PF_FAILED", "PF_OK"]);
+
+    expect(summaries.get("PF_OK")).toMatchObject({
+      name: "헬멧",
+      lookupFailed: false,
+    });
+  });
+});
+
+describe("searchShows", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-28T03:00:00Z"));
+    // 예정/진행 중 공연 목록과 최근 3개월 공연명 검색에는 아무것도 없다
+    vi.mocked(fetchKopisAll).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.resetAllMocks();
+  });
+
+  it("캐스팅이나 이벤트가 올라온 공연은 KOPIS 조회 기간이 지나도 검색에서 찾을 수 있다", async () => {
+    vi.mocked(selectAllRows).mockResolvedValue([{ show_id: "PF_ENDED" }]);
+    stubShowDetails({
+      PF_ENDED: show({
+        mt20id: "PF_ENDED",
+        prfnm: "더 헬멧",
+        prfstate: "공연완료",
+      }) as ShowDetail,
+    });
+
+    const results = await searchShows("헬멧");
+
+    expect(results.map(({ mt20id }) => mt20id)).toStrictEqual(["PF_ENDED"]);
+  });
+
+  it("올라온 공연이라도 검색어와 이름이 맞지 않으면 결과에 넣지 않는다", async () => {
+    vi.mocked(selectAllRows).mockResolvedValue([{ show_id: "PF_ENDED" }]);
+    stubShowDetails({
+      PF_ENDED: show({ mt20id: "PF_ENDED", prfnm: "다른 공연" }) as ShowDetail,
+    });
+
+    expect(await searchShows("헬멧")).toStrictEqual([]);
   });
 });
