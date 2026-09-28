@@ -14,6 +14,7 @@ import { ShowDetail } from "@/type/show";
 
 import {
   agreesWithPrintedWeekday,
+  createEventGroupResolver,
   dedupeByKey,
   findCastMismatchImageIndexes,
   hasKnownCastOverlap,
@@ -1220,5 +1221,24 @@ describe("normalizeCancelledEvents", () => {
     expect(
       normalize([cancelled(), cancelled({ title: "스페셜커튼콜위크!" })]),
     ).toStrictEqual([cancelled()]);
+  });
+});
+
+describe("createEventGroupResolver", () => {
+  const createGroup = vi.fn(() => Promise.resolve(1));
+
+  it("같은 업로드 안의 같은 이벤트는 그룹을 하나만 만들어 공유한다", async () => {
+    const resolveGroupId = createEventGroupResolver(createGroup);
+    const event = {
+      title: "test",
+      periodStart: "2026-09-28",
+      periodEnd: "2026-09-28",
+    };
+
+    const first = await resolveGroupId(event);
+    const second = await resolveGroupId(event);
+
+    expect(createGroup).toHaveBeenCalledTimes(1)
+    expect(second).toBe(first)
   });
 });
