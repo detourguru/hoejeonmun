@@ -77,11 +77,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("suggestSameEvents", () => {
   describe("Jev 키가 있으면 Jev로 판정한다", () => {
-    it("같은 이벤트일 확률이 기준(0.6)을 넘는 저장된 이벤트 중 가장 높은 것을 같은 이벤트로 제안한다", async () => {
+    it("같은 이벤트일 확률이 기준(0.6) 이상인 저장된 이벤트 중 가장 높은 것을 같은 이벤트로 제안한다", async () => {
       vi.mocked(judgeSameEventPairs).mockResolvedValue([0.7, 0.8]);
 
       const result = await suggestSameEvents(
@@ -92,7 +93,7 @@ describe("suggestSameEvents", () => {
       expect(result).toStrictEqual(new Map([[0, 2]]));
     });
 
-    it("기준(0.6)을 넘는 저장된 이벤트가 없으면 새 이벤트로 두고 아무것도 제안하지 않는다", async () => {
+    it("기준(0.6) 이상인 저장된 이벤트가 없으면 새 이벤트로 두고 아무것도 제안하지 않는다", async () => {
       vi.mocked(judgeSameEventPairs).mockResolvedValue([0.3, 0.59]);
 
       const result = await suggestSameEvents(
@@ -105,12 +106,20 @@ describe("suggestSameEvents", () => {
 
     it("새 이벤트가 여럿이면 각각 따로 가장 비슷한 저장된 이벤트를 제안한다", async () => {
       vi.mocked(judgeSameEventPairs).mockResolvedValue([0.9, 0.1, 0.2, 0.7]);
+      const newEvents = [incoming(), incoming({ title: "폴라로이드 증정" })];
+      const savedEvents = [
+        saved({ id: 1 }),
+        saved({ id: 2, title: "폴라로이드 제공" }),
+      ];
 
-      const result = await suggestSameEvents(
-        [incoming(), incoming({ title: "폴라로이드 증정" })],
-        [saved({ id: 1 }), saved({ id: 2 })],
-      );
+      const result = await suggestSameEvents(newEvents, savedEvents);
 
+      expect(judgeSameEventPairs).toHaveBeenCalledExactlyOnceWith([
+        [newEvents[0], savedEvents[0]],
+        [newEvents[0], savedEvents[1]],
+        [newEvents[1], savedEvents[0]],
+        [newEvents[1], savedEvents[1]],
+      ]);
       expect(result).toStrictEqual(
         new Map([
           [0, 1],
@@ -118,6 +127,17 @@ describe("suggestSameEvents", () => {
         ]),
       );
     });
+
+    it.each([0.5999, 0.6])(
+      "확률 0.6부터 같은 이벤트로 제안한다: %s",
+      async (probability) => {
+        vi.mocked(judgeSameEventPairs).mockResolvedValue([probability]);
+
+        expect(
+          await suggestSameEvents([incoming()], [saved({ id: 7 })]),
+        ).toStrictEqual(probability === 0.6 ? new Map([[0, 7]]) : new Map());
+      },
+    );
 
     it("Jev로 판정했으면 Gemini는 부르지 않는다", async () => {
       vi.mocked(judgeSameEventPairs).mockResolvedValue([0.9]);
@@ -152,6 +172,17 @@ describe("suggestSameEvents", () => {
 });
 
 describe("groupSameEvents", () => {
+  it.each([0.5999, 0.6])(
+    "확률 0.6부터 같은 그룹으로 묶는다: %s",
+    async (probability) => {
+      vi.mocked(judgeSameEventPairs).mockResolvedValue([probability]);
+
+      expect(
+        await groupSameEvents([parsed("커튼콜 위크"), parsed("커튼콜 주간")]),
+      ).toStrictEqual(probability === 0.6 ? [[0, 1]] : []);
+    },
+  );
+
   it("A와 B, B와 C가 같다고 판정되면 A와 C의 확률이 낮아도 셋을 한 이벤트로 묶는다", async () => {
     vi.mocked(judgeSameEventPairs).mockResolvedValue([0.9, 0.1, 0.8]);
 
