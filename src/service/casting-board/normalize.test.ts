@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { ParsedDateTag } from "@/type/casting";
+import { ExistingEvent, ParsedDateTag } from "@/type/casting";
 
 import {
   agreesWithPrintedWeekday,
   dedupeByKey,
+  isExactSameEvent,
   isNextDay,
   isPlaceholderActorName,
   mergePerSlotRuns,
@@ -13,6 +14,7 @@ import {
   normalizeName,
   slotKey,
   toKoreanWeekday,
+  toTitleKey,
 } from "./normalize";
 
 const dateTag = (
@@ -345,5 +347,55 @@ describe("dedupeByKey", () => {
       { id: 2, key: "b" },
       { id: 4, key: "c" },
     ]);
+  });
+});
+
+describe("toTitleKey", () => {
+  it.each([
+    ["스페셜 커튼콜 위크"],
+    [" 스페셜커튼콜위크 "],
+    ["스페셜·커튼콜·위크"],
+    ["[스페셜] 커튼콜 위크!"],
+  ])("띄어쓰기, 문장부호만 다른 제목은 같은 키가 된다: %j", (title) => {
+    expect(toTitleKey(title)).toBe("스페셜커튼콜위크");
+  });
+
+  it("영문은 소문자로 맞춘다", () => {
+    expect(toTitleKey("Special Week")).toBe("specialweek");
+  });
+});
+
+describe("isExactSameEvent", () => {
+  const existing = (overrides: Partial<ExistingEvent> = {}): ExistingEvent => ({
+    id: 1,
+    groupId: 1,
+    title: "스페셜 커튼콜 위크",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-09-07",
+    source: "badge",
+    edited: false,
+    ...overrides,
+  });
+
+  const pending = {
+    title: "스페셜커튼콜위크!",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-09-07",
+  };
+
+  it("제목 키와 기간이 모두 같으면 같은 이벤트다", () => {
+    expect(isExactSameEvent(pending, existing())).toBe(true);
+  });
+
+  it.each([
+    ["시작일", { periodStart: "2026-09-02" }],
+    ["종료일", { periodEnd: "2026-09-08" }],
+    ["제목", { title: "스페셜 커튼콜 데이" }],
+  ])("%s이 다르면 같은 이벤트가 아니다", (_, overrides) => {
+    expect(isExactSameEvent(pending, existing(overrides))).toBe(false);
+  });
+
+  it("정정된 이벤트는 최신 버전이 정정 내용을 가리지 않도록 자동으로 합칠 대상에서 뺀다", () => {
+    expect(isExactSameEvent(pending, existing({ edited: true }))).toBe(false);
   });
 });
