@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ExistingEvent, ParsedEvent, PendingEvent } from "@/type/casting";
 
+import { judgeSameEventPairs, SAME_EVENT_THRESHOLD } from "./event-judge";
 import { toTitleKey, toExistingEvent, isExactSameEvent } from "./normalize";
 import {
   MODEL,
@@ -15,7 +16,34 @@ import {
   eventMatchSchema,
 } from "./prompt";
 
-export async function suggestSameEvents(
+async function suggestSameEventsWithJev(
+  incoming: PendingEvent[],
+  saved: ExistingEvent[],
+) {
+  const pairs = incoming.flatMap((event, incomingIndex) =>
+    saved.map((candidate) => ({ incomingIndex, event, candidate })),
+  );
+  const probabilities = await judgeSameEventPairs(
+    pairs.map(({ event, candidate }) => [event, candidate]),
+  );
+  const best = new Map<number, { savedId: number; probability: number }>();
+
+  pairs.forEach(({ incomingIndex, candidate }, index) => {
+    const probability = probabilities[index];
+    const current = best.get(incomingIndex);
+
+    if (probability < SAME_EVENT_THRESHOLD) return;
+    if (current && current.probability >= probability) return;
+
+    best.set(incomingIndex, { savedId: candidate.id, probability });
+  });
+
+  return new Map(
+    [...best].map(([incomingIndex, { savedId }]) => [incomingIndex, savedId]),
+  );
+}
+
+export async function suggestSameEventsWithGemini(
   incoming: PendingEvent[],
   saved: ExistingEvent[],
 ) {
@@ -49,6 +77,32 @@ export async function suggestSameEvents(
     matches.map(({ incomingIndex, savedId }) => [incomingIndex, savedId]),
   );
 }
+
+async function withGeminiFallback<T>(
+  label: string,
+  jev: () => Promise<T>,
+  gemini: () => Promise<T>,
+) {
+  if (!process.env.JEV_API_KEY) return gemini();
+
+  try {
+    return await jev();
+  } catch (error) {
+    console.error(`${label} Jev 실패, Gemini로 대체`, error);
+
+    return gemini();
+  }
+}
+
+export const suggestSameEvents = (
+  incoming: PendingEvent[],
+  saved: ExistingEvent[],
+) =>
+  withGeminiFallback(
+    "이벤트 중복 판정",
+    () => suggestSameEventsWithJev(incoming, saved),
+    () => suggestSameEventsWithGemini(incoming, saved),
+  );
 
 export async function attachSuggestedDuplicates(pending: PendingEvent[]) {
   const saved = [
@@ -187,7 +241,35 @@ export async function attachAmbiguousBadgeFlags(
   });
 }
 
-export async function groupSameEvents(
+async function groupSameEventsWithJev(
+  events: ParsedEvent[],
+): Promise<number[][]> {
+  const pairs = events.flatMap((_, i) =>
+    events.slice(i + 1).map((__, offset) => [i, i + 1 + offset] as const),
+  );
+  const probabilities = await judgeSameEventPairs(
+    pairs.map(([i, j]) => [events[i], events[j]]),
+  );
+  const root = events.map((_, index) => index);
+  const find = (index: number): number =>
+    root[index] === index ? index : (root[index] = find(root[index]));
+
+  pairs.forEach(([i, j], index) => {
+    if (probabilities[index] >= SAME_EVENT_THRESHOLD) root[find(j)] = find(i);
+  });
+
+  const groups = new Map<number, number[]>();
+
+  events.forEach((_, index) => {
+    const key = find(index);
+
+    groups.set(key, [...(groups.get(key) ?? []), index]);
+  });
+
+  return [...groups.values()].filter((group) => group.length > 1);
+}
+
+export async function groupSameEventsWithGemini(
   events: ParsedEvent[],
 ): Promise<number[][]> {
   const client = new GoogleGenAI({});
@@ -217,6 +299,13 @@ export async function groupSameEvents(
 
   return groups;
 }
+
+export const groupSameEvents = (events: ParsedEvent[]) =>
+  withGeminiFallback(
+    "이벤트 자체 중복 판정",
+    () => groupSameEventsWithJev(events),
+    () => groupSameEventsWithGemini(events),
+  );
 
 // 같은 업로드에서 여러 이미지가 같은 이벤트를 중복으로 담고 있을 때(예: 겹치게 캡처한 캘린더, 캘린더+추가 공지) 하나로 합친다
 export async function dedupeEvents(
