@@ -11,6 +11,7 @@ import {
   isIsoDate,
   normalizeDate,
   parseMonth,
+  splitKopisPeriod,
   toInputDate,
   toIsoDate,
   toKopisDate,
@@ -188,5 +189,28 @@ describe("findNearestDate", () => {
 
   it("일정이 하나도 없으면 아무 날짜도 고르지 않는다", () => {
     expect(findNearestDate([], "2026-09-28")).toBeNull();
+  });
+});
+
+describe("splitKopisPeriod", () => {
+  it("KOPIS가 한 번에 조회해 주는 기간보다 긴 과거 기간은 31일씩 나눠서 빠짐없이 조회한다", () => {
+    expect(splitKopisPeriod("20260628", "20260928", 31)).toStrictEqual([
+      ["20260628", "20260728"],
+      ["20260729", "20260828"],
+      ["20260829", "20260928"],
+    ]);
+  });
+
+  it("마지막 구간은 조회 끝 날짜를 넘지 않는다", () => {
+    expect(splitKopisPeriod("20260901", "20261005", 31)).toStrictEqual([
+      ["20260901", "20261001"],
+      ["20261002", "20261005"],
+    ]);
+  });
+
+  it("하루짜리 기간도 한 구간으로 조회한다", () => {
+    expect(splitKopisPeriod("20260928", "20260928", 31)).toStrictEqual([
+      ["20260928", "20260928"],
+    ]);
   });
 });
