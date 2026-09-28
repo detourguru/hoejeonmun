@@ -1054,6 +1054,15 @@ describe("normalizeEvents", () => {
     expect(event.excludedSlots).toBeUndefined();
   });
 
+  it("기간 밖에 추가로 포함하거나 기간 안에서 빼는 회차를 지우지 않아 업로더가 고른 적용 회차가 그대로 저장된다", () => {
+    const includedSlots = [{ date: "2026-09-29", time: "14:00" }];
+    const excludedSlots = [{ date: "2026-09-28", time: "19:30" }];
+
+    const [event] = normalize([notice({ includedSlots, excludedSlots })]);
+
+    expect(event).toMatchObject({ includedSlots, excludedSlots });
+  });
+
   it("띄어쓰기, 문장부호만 다른 같은 이벤트가 여러 번 읽히면 처음 것 하나만 남긴다", () => {
     const first = notice({ title: "스페셜 커튼콜 위크" });
 
