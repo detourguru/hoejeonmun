@@ -6,7 +6,12 @@ import { ExitGuard } from "@/components/exit-guard";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { Toaster } from "@/components/toaster";
 import { UpdateToast } from "@/components/update-toast";
-import { GA_MEASUREMENT_ID, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import {
+  GA_MEASUREMENT_ID,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site";
 
 import type { Metadata, Viewport } from "next";
 

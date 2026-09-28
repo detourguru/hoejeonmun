@@ -39,7 +39,10 @@ export default async function Page() {
 
   const metadata = data?.claims?.user_metadata as KakaoUserMetadata | undefined;
   const displayName =
-    metadata?.name ?? metadata?.full_name ?? metadata?.preferred_username ?? null;
+    metadata?.name ??
+    metadata?.full_name ??
+    metadata?.preferred_username ??
+    null;
 
   return (
     <div className="flex flex-col gap-6 pb-4">
@@ -55,7 +58,7 @@ export default async function Page() {
         <MyUploadsSection userId={userId} />
       </Suspense>
 
-      <div className="border-border bg-surface divide-border overflow-hidden rounded-xl border divide-y">
+      <div className="border-border bg-surface divide-border divide-y overflow-hidden rounded-xl border">
         <DonateButton />
         <InstallGuideButton />
         <SignOutButton />

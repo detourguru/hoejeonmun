@@ -137,18 +137,14 @@ export const EventConfirmList = ({
             label="기간 막대 밖에서 추가로 포함되는 회차"
             items={event.includedSlots ?? []}
             disabled={!include}
-            onChange={(includedSlots) =>
-              updateEvent(index, { includedSlots })
-            }
+            onChange={(includedSlots) => updateEvent(index, { includedSlots })}
           />
 
           <SlotExceptionEditor
             label="기간 안에서 제외되는 회차"
             items={event.excludedSlots ?? []}
             disabled={!include}
-            onChange={(excludedSlots) =>
-              updateEvent(index, { excludedSlots })
-            }
+            onChange={(excludedSlots) => updateEvent(index, { excludedSlots })}
           />
 
           {event.overlapping.length > 0 && (

@@ -50,7 +50,9 @@ export async function resizeCastingImage(buffer: Buffer) {
     .toBuffer();
 }
 
-export function shouldCreateCastingBoardOverview(images: PreparedCastingImage[]) {
+export function shouldCreateCastingBoardOverview(
+  images: PreparedCastingImage[],
+) {
   if (images.length < 2) return false;
 
   const widths = images.map(({ width }) => width).filter((width) => width > 0);
@@ -291,17 +293,15 @@ async function logConsensusStats({
 
   try {
     const admin = createAdminClient();
-    const { error } = await admin
-      .from("casting_parse_consensus_logs")
-      .insert({
-        show_id: showId,
-        runs_requested: runsRequested,
-        runs_succeeded: runsSucceeded,
-        performances_count: performances.length,
-        performances_unsure_count: performancesUnsureCount,
-        roles_count: rolesCount,
-        roles_unsure_count: rolesUnsureCount,
-      });
+    const { error } = await admin.from("casting_parse_consensus_logs").insert({
+      show_id: showId,
+      runs_requested: runsRequested,
+      runs_succeeded: runsSucceeded,
+      performances_count: performances.length,
+      performances_unsure_count: performancesUnsureCount,
+      roles_count: rolesCount,
+      roles_unsure_count: rolesUnsureCount,
+    });
 
     if (error) throw error;
   } catch (error) {

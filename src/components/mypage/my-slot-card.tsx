@@ -23,7 +23,8 @@ export const MySlotCard = ({
         <p className="text-text text-xs font-bold">
           {showDate && (
             <span className="text-text-muted">
-              {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}){" "}
+              {slot.date.slice(5).replace("-", ".")}({getWeekday(slot.date)}
+              ){" "}
             </span>
           )}
           {slot.time}

@@ -236,7 +236,8 @@ export async function addSlotCasting({
   for (const row of existingRows ?? []) {
     const current = maxOrderBySlot.get(row.slot_id) ?? -1;
 
-    if (row.role_order > current) maxOrderBySlot.set(row.slot_id, row.role_order);
+    if (row.role_order > current)
+      maxOrderBySlot.set(row.slot_id, row.role_order);
   }
 
   const targetSlotIds = applyToAllSlots ? [...maxOrderBySlot.keys()] : [slotId];
@@ -268,8 +269,7 @@ export async function addSlotCasting({
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!count)
-    return { ok: false, message: "이미 같은 배역·배우가 있어요." };
+  if (!count) return { ok: false, message: "이미 같은 배역·배우가 있어요." };
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
