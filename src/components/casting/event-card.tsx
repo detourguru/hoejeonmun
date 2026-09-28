@@ -62,12 +62,15 @@ export const EventCard = ({
               initialPeriodEnd={event.periodEnd}
             />
 
-            {event.isMine ? (
+            {event.canDelete && (
               <DeleteMineButton
                 target={{ kind: "event", showId, eventId: event.id }}
                 label={event.title}
+                mine={event.isMine}
               />
-            ) : (
+            )}
+
+            {!event.isMine && (
               <ReportButton
                 target={{ kind: "event", showId, eventId: event.id }}
                 reported={event.reported}

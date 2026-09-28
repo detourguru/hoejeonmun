@@ -4,6 +4,7 @@ import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chunkArray, selectAllRows } from "@/lib/supabase/select-all";
 import { createClient } from "@/lib/supabase/server";
+import { getIsAdmin } from "@/service/admin";
 import { getPosterThumbnailUrls } from "@/service/poster-thumbnail";
 import { getShowSummaries } from "@/service/show";
 import { getVenueSeatScales } from "@/service/venue";
@@ -243,6 +244,7 @@ export type EventWithReportStatus = ShowEvent & {
   imageUrl: string | null;
   // 지금 요청 중인 사용자가 올린 업로드에서 나온 이벤트인지
   isMine: boolean;
+  canDelete: boolean;
 };
 
 export type CalendarEvent = EventWithReportStatus & {
@@ -454,6 +456,7 @@ export async function getEventsWithReportStatus(
     { data: reports },
     { data: bookmarks },
     myUploadIds,
+    isAdmin,
     { data: images, error: imagesError },
   ] = await Promise.all([
     supabase.from("event_reports").select("event_id").in("event_id", eventIds),
@@ -462,6 +465,7 @@ export async function getEventsWithReportStatus(
       .select("group_id")
       .in("group_id", groupIds),
     getMyUploadIds(supabase, uploadIds),
+    getIsAdmin(supabase),
     admin
       .from("upload_images")
       .select("id, storage_path")
@@ -493,6 +497,7 @@ export async function getEventsWithReportStatus(
     bookmarked: bookmarkedGroupIds.has(event.groupId),
     imageUrl: imageUrlById.get(event.uploadImageId) ?? null,
     isMine: myUploadIds.has(event.uploadId),
+    canDelete: isAdmin || myUploadIds.has(event.uploadId),
   }));
 }
 
@@ -708,6 +713,7 @@ export type CastingSlotWithStatus = CastingSlot & {
   images: string[];
   // 지금 요청 중인 사용자가 올린 업로드에서 나온 회차인지
   isMine: boolean;
+  canDelete: boolean;
 };
 
 export async function getSlotsWithStatus(
@@ -724,6 +730,7 @@ export async function getSlotsWithStatus(
     { data: reports },
     { data: bookmarks },
     myUploadIds,
+    isAdmin,
     { data: images, error: imagesError },
   ] = await Promise.all([
     supabase
@@ -732,6 +739,7 @@ export async function getSlotsWithStatus(
       .in("slot_id", slotIds),
     supabase.from("my_slots").select("slot_id").in("slot_id", slotIds),
     getMyUploadIds(supabase, uploadIds),
+    getIsAdmin(supabase),
     admin
       .from("upload_images")
       .select("upload_id, storage_path")
@@ -762,6 +770,7 @@ export async function getSlotsWithStatus(
     reported: reportedKeys.has(`${slot.uploadId}:${slot.id}`),
     bookmarked: bookmarkedSlotIds.has(slot.id),
     isMine: myUploadIds.has(slot.uploadId),
+    canDelete: isAdmin || myUploadIds.has(slot.uploadId),
     images: imagesByUpload.get(slot.uploadId) ?? [],
   }));
 }

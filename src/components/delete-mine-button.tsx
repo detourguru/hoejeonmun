@@ -25,10 +25,14 @@ const TARGET_LABEL: Record<DeleteTarget["kind"], string> = {
 export const DeleteMineButton = ({
   target,
   label,
+  mine = true,
 }: {
   target: DeleteTarget;
   label: string;
+  mine?: boolean;
 }) => {
+  const targetLabel = `${mine ? "내가 올린 " : ""}${TARGET_LABEL[target.kind]}`;
+
   const loginRedirect = useLoginRedirect(`/show/${target.showId}`);
 
   const [open, setOpen] = useState(false);
@@ -58,7 +62,7 @@ export const DeleteMineButton = ({
       }
 
       setOpen(false);
-      toast.success(`내가 올린 ${TARGET_LABEL[target.kind]}를 지웠어요.`);
+      toast.success(`${targetLabel}를 지웠어요.`);
     });
   };
 
@@ -76,8 +80,7 @@ export const DeleteMineButton = ({
       <BottomSheet open={open} onOpenChange={setOpen} title={`${label} 삭제`}>
         <div className="flex flex-col gap-4">
           <p className="text-text-muted text-center text-xs">
-            내가 올린 {TARGET_LABEL[target.kind]} 정보를 지워요. 되돌릴 수
-            없어요.
+            {targetLabel} 정보를 지워요. 되돌릴 수 없어요.
           </p>
 
           {error && <p className="text-destructive text-xs">{error}</p>}
