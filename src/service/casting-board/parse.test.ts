@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ParsedPerformance } from "@/type/casting";
 
-import { buildConsensusPerformances, pickMostCommonValue } from "./parse";
+import {
+  buildConsensusPerformances,
+  pickMostCommonValue,
+  shouldCreateCastingBoardOverview,
+} from "./parse";
 
 vi.mock("server-only", () => ({}));
 
@@ -154,5 +158,60 @@ describe("buildConsensusPerformances", () => {
       "2026-09-28 19:30",
       "2026-09-29 14:00",
     ]);
+  });
+});
+
+describe("shouldCreateCastingBoardOverview", () => {
+  const image = (width: number, height: number, index = 0) => ({
+    index,
+    buffer: Buffer.alloc(0),
+    width,
+    height,
+  });
+
+  // 휴대폰으로 긴 캐스팅표를 나눠 캡처한 경우 (세로로 긴 같은 너비의 이미지)
+  const capture = (index: number) => image(1000, 2000, index);
+
+  it("같은 표를 나눠 찍은 세로로 긴 캡처 여러 장은 이어 붙인 전체 이미지를 만든다", () => {
+    expect(shouldCreateCastingBoardOverview([capture(0), capture(1)])).toBe(
+      true,
+    );
+  });
+
+  it("이미지가 한 장이면 이어 붙일 게 없어 만들지 않는다", () => {
+    expect(shouldCreateCastingBoardOverview([capture(0)])).toBe(false);
+  });
+
+  it("너비가 가장 넓은 이미지의 85%까지는 같은 표를 나눠 찍은 것으로 본다", () => {
+    expect(
+      shouldCreateCastingBoardOverview([capture(0), image(850, 2000, 1)]),
+    ).toBe(true);
+  });
+
+  it("너비가 85%보다 좁은 이미지가 섞이면 서로 다른 이미지로 보고 만들지 않는다", () => {
+    expect(
+      shouldCreateCastingBoardOverview([capture(0), image(849, 2000, 1)]),
+    ).toBe(false);
+  });
+
+  it("세로로 긴(높이가 너비의 1.15배 이상) 이미지가 2장 이상이어야 만든다", () => {
+    expect(
+      shouldCreateCastingBoardOverview([
+        image(1000, 1150, 0),
+        image(1000, 1150, 1),
+      ]),
+    ).toBe(true);
+    expect(
+      shouldCreateCastingBoardOverview([
+        image(1000, 2000, 0),
+        image(1000, 1149, 1),
+      ]),
+    ).toBe(false);
+  });
+
+  it("크기를 읽지 못한 이미지가 있으면 만들지 않는다", () => {
+    expect(shouldCreateCastingBoardOverview([capture(0), image(0, 0, 1)])).toBe(
+      false,
+    );
   });
 });
