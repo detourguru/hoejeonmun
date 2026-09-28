@@ -1,5 +1,11 @@
 import { normalizeActorName, splitActorNames } from "@/lib/actor-name";
-import { addMonths, getToday, getWeekday, toInputDate, toIsoDate } from "@/lib/date";
+import {
+  addMonths,
+  getToday,
+  getWeekday,
+  toInputDate,
+  toIsoDate,
+} from "@/lib/date";
 import {
   EventConfirmReason,
   EventSlotException,
@@ -20,7 +26,8 @@ import { ShowDetail } from "@/type/show";
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-export const slotKey = (date: string, time: string) => `${date} ${time.slice(0, 5)}`;
+export const slotKey = (date: string, time: string) =>
+  `${date} ${time.slice(0, 5)}`;
 
 export function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
   const seen = new Set<string>();
@@ -35,7 +42,15 @@ export function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
   });
 }
 
-export const PLACEHOLDER_NAMES = new Set(["", "-", "–", "—", "미정", "n/a", "N/A"]);
+export const PLACEHOLDER_NAMES = new Set([
+  "",
+  "-",
+  "–",
+  "—",
+  "미정",
+  "n/a",
+  "N/A",
+]);
 
 export const isPlaceholderActorName = (name: string) =>
   PLACEHOLDER_NAMES.has(name.trim().toLowerCase());
@@ -593,7 +608,9 @@ export const sanitizeExactTimes = (
   return cleaned.length > 0 ? cleaned : undefined;
 };
 
-export const sanitizeCutoffTime = (time: string | undefined): string | undefined => {
+export const sanitizeCutoffTime = (
+  time: string | undefined,
+): string | undefined => {
   const trimmed = time?.trim() ?? "";
 
   return TIME_PATTERN.test(trimmed) ? trimmed : undefined;
@@ -762,4 +779,3 @@ export function normalizeCancelledEvents(
       `${toTitleKey(title)} ${periodStart} ${periodEnd}`,
   );
 }
-

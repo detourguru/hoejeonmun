@@ -77,7 +77,9 @@ async function createGithubIssue(title: string, body: string) {
   });
 
   if (!res.ok) {
-    throw new Error(`GitHub 이슈 생성 실패 (${res.status}): ${await res.text()}`);
+    throw new Error(
+      `GitHub 이슈 생성 실패 (${res.status}): ${await res.text()}`,
+    );
   }
 
   const issue = (await res.json()) as { number: number };

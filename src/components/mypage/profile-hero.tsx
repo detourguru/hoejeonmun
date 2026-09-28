@@ -22,7 +22,9 @@ export const ProfileHero = ({
           <p className="text-text text-sm font-bold">
             {displayName ? `${displayName}님` : "회원님"}
           </p>
-          <p className="text-text-muted text-[11px]">카카오 계정으로 로그인 중</p>
+          <p className="text-text-muted text-[11px]">
+            카카오 계정으로 로그인 중
+          </p>
         </div>
       </div>
 

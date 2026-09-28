@@ -24,7 +24,8 @@ export default async function Image() {
         alignItems: "center",
         padding: "0 110px",
         gap: 72,
-        background: "linear-gradient(135deg, #1a1c3c 0%, #23285e 55%, #3a4184 100%)",
+        background:
+          "linear-gradient(135deg, #1a1c3c 0%, #23285e 55%, #3a4184 100%)",
         color: "#ffffff",
         fontFamily: "MaruBuri",
       }}

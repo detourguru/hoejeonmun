@@ -147,7 +147,9 @@ export const CorrectCastingButton = ({
       }
 
       setOpen(false);
-      toast.success(isAdding ? "배역이 추가됐어요." : "정정 제안이 반영됐어요.");
+      toast.success(
+        isAdding ? "배역이 추가됐어요." : "정정 제안이 반영됐어요.",
+      );
     });
   };
 
@@ -277,7 +279,9 @@ export const CorrectCastingButton = ({
                 onClick={selectAdding}
                 className={cn(
                   "border-border rounded-lg border border-dashed px-3 py-2 text-left text-xs transition-colors",
-                  isAdding ? "border-primary bg-primary text-white" : "text-text",
+                  isAdding
+                    ? "border-primary bg-primary text-white"
+                    : "text-text",
                 )}
               >
                 + 새 배역 추가

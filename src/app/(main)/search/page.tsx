@@ -62,7 +62,8 @@ export default async function Page({ searchParams }: Props) {
           &lsquo;{keyword}&rsquo; 검색 결과가 없어요.
         </p>
         <p className="text-text-muted text-xs">
-          아직 회전문에 공연/배우 정보가 등록되지 않았거나 KOPIS에 등록되지 않은 공연이면 검색이 안 될 수 있어요.
+          아직 회전문에 공연/배우 정보가 등록되지 않았거나 KOPIS에 등록되지 않은
+          공연이면 검색이 안 될 수 있어요.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link
