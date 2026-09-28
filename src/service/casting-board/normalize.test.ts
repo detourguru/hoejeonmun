@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExistingEvent, ParsedDateTag } from "@/type/casting";
+import { ShowDetail } from "@/type/show";
 
 import {
   agreesWithPrintedWeekday,
@@ -12,6 +13,7 @@ import {
   mergeSameDateTags,
   mergeWholeDayRuns,
   normalizeName,
+  resolveRunWindow,
   sanitizeCutoffTime,
   sanitizeExactTimes,
   sanitizeSlotExceptions,
@@ -19,6 +21,20 @@ import {
   toKoreanWeekday,
   toTitleKey,
 } from "./normalize";
+
+const show = (overrides: Partial<ShowDetail> = {}): ShowDetail => ({
+  mt20id: "PF000001",
+  prfnm: "테스트 뮤지컬",
+  prfpdfrom: "2026.09.01",
+  prfpdto: "2026.11.30",
+  fcltynm: "테스트 극장",
+  poster: "",
+  area: "서울특별시",
+  genrenm: "뮤지컬",
+  openrun: "N",
+  prfstate: "공연중",
+  ...overrides,
+});
 
 const dateTag = (
   tag: string,
@@ -449,4 +465,43 @@ describe("sanitizeCutoffTime", () => {
       expect(sanitizeCutoffTime(time)).toBeUndefined();
     },
   );
+});
+
+describe("resolveRunWindow", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("오픈런이 아니면 KOPIS 공연 기간을 YYYY-MM-DD로 바꿔 쓴다", () => {
+    expect(
+      resolveRunWindow(
+        show({ prfpdfrom: "2026.09.01", prfpdto: "2026.11.30" }),
+      ),
+    ).toStrictEqual({ from: "2026-09-01", to: "2026-11-30" });
+  });
+
+  it("오픈런은 공연 기간 대신 오늘 기준 앞뒤 3개월을 쓴다", () => {
+    // 서비스 내 최대 호출 범위가 3개월이기 때문임
+    vi.setSystemTime(new Date("2026-09-28T03:00:00Z"));
+
+    expect(
+      resolveRunWindow(
+        show({ openrun: "Y", prfpdfrom: "2019.01.01", prfpdto: "2099.12.31" }),
+      ),
+    ).toStrictEqual({ from: "2026-06-28", to: "2026-12-28" });
+  });
+
+  it("오픈런의 '오늘'은 서울 날짜 기준이다", () => {
+    // UTC로는 9/27이지만 서울은 9/28 00:00
+    vi.setSystemTime(new Date("2026-09-27T15:00:00Z"));
+
+    expect(resolveRunWindow(show({ openrun: "Y" }))).toStrictEqual({
+      from: "2026-06-28",
+      to: "2026-12-28",
+    });
+  });
 });
