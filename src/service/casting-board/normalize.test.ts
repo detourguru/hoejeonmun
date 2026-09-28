@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ExistingEvent,
+  ParsedCancelledEvent,
+  ParsedCancelledSlot,
+  ParsedCastingChange,
   ParsedDateTag,
   ParsedEvent,
   ParsedPerformance,
@@ -20,6 +23,9 @@ import {
   mergePerSlotRuns,
   mergeSameDateTags,
   mergeWholeDayRuns,
+  normalizeCancelledEvents,
+  normalizeCancelledSlots,
+  normalizeCastingChanges,
   normalizeDateTags,
   normalizeEvents,
   normalizeName,
@@ -818,7 +824,7 @@ describe("unverifiedPoints", () => {
     ...overrides,
   });
 
-  it("날짜·요일이 확실하고 모든 회차에 적용되면 업로더에게 확인을 요청하지 않는다", () => {
+  it("날짜, 요일이 확실하고 모든 회차에 적용되면 업로더에게 확인을 요청하지 않는다", () => {
     expect(unverifiedPoints(event())).toStrictEqual([]);
   });
 
@@ -1064,5 +1070,146 @@ describe("normalizeEvents", () => {
         notice({ title: "스페셜 커튼콜 위크", periodEnd: "2026-09-29" }),
       ]),
     ).toHaveLength(2);
+  });
+});
+
+describe("normalizeCancelledSlots", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 1장
+  const normalize = (slots: ParsedCancelledSlot[]) =>
+    normalizeCancelledSlots(slots, show(), 1);
+
+  const cancelled = (
+    overrides: Partial<ParsedCancelledSlot> = {},
+  ): ParsedCancelledSlot => ({
+    date: "2026-09-28",
+    time: "19:30",
+    imageIndex: 0,
+    ...overrides,
+  });
+
+  it("취소 공지에서 읽은 회차의 날짜, 시각 앞뒤 공백을 지운다", () => {
+    expect(
+      normalize([cancelled({ date: " 2026-09-28 ", time: " 19:30 " })]),
+    ).toStrictEqual([cancelled()]);
+  });
+
+  it.each<[string, Partial<ParsedCancelledSlot>]>([
+    ["날짜를 읽지 못한", { date: "9/28" }],
+    ["시각을 읽지 못한", { time: "7시 30분" }],
+    ["공연 기간 밖의", { date: "2026-12-01" }],
+    ["없는 이미지에서 나온", { imageIndex: 1 }],
+  ])("%s 회차 취소는 반영하지 않는다", (_, overrides) => {
+    expect(normalize([cancelled(overrides)])).toStrictEqual([]);
+  });
+
+  it("같은 회차의 취소가 여러 번 읽히면 하나만 남긴다", () => {
+    expect(
+      normalize([cancelled(), cancelled({ date: " 2026-09-28 " })]),
+    ).toStrictEqual([cancelled()]);
+  });
+});
+
+describe("normalizeCastingChanges", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 1장
+  const normalize = (changes: ParsedCastingChange[]) =>
+    normalizeCastingChanges(changes, show(), 1);
+
+  const change = (
+    overrides: Partial<ParsedCastingChange> = {},
+  ): ParsedCastingChange => ({
+    date: "2026-09-28",
+    time: "19:30",
+    role: "주인공",
+    actor: "김철수",
+    imageIndex: 0,
+    ...overrides,
+  });
+
+  it("바뀐 배우 이름은 띄어쓰기를 없애 등록된 배우와 맞추고, 배역 이름은 공백만 정리한다", () => {
+    expect(
+      normalize([change({ role: " 남자 주인공 ", actor: " 김 철수 " })]),
+    ).toStrictEqual([change({ role: "남자 주인공", actor: "김철수" })]);
+  });
+
+  it.each<[string, Partial<ParsedCastingChange>]>([
+    ["날짜를 읽지 못한", { date: "9/28" }],
+    ["시각을 읽지 못한", { time: "7시 30분" }],
+    ["공연 기간 밖의", { date: "2026-12-01" }],
+    ["배역을 읽지 못한", { role: " " }],
+    ["배우를 읽지 못한", { actor: " " }],
+    ["배우가 '미정'인", { actor: "미정" }],
+    ["없는 이미지에서 나온", { imageIndex: 1 }],
+  ])("%s 캐스팅 변경은 반영하지 않는다", (_, overrides) => {
+    expect(normalize([change(overrides)])).toStrictEqual([]);
+  });
+
+  it("같은 회차·같은 배역의 변경이 여러 번 읽히면 처음 것만 남긴다", () => {
+    expect(
+      normalize([change({ actor: "김철수" }), change({ actor: "정휘" })]),
+    ).toStrictEqual([change({ actor: "김철수" })]);
+  });
+
+  it("같은 회차라도 배역이 다르면 각각의 변경으로 남긴다", () => {
+    expect(
+      normalize([change({ role: "주인공" }), change({ role: "친구" })]),
+    ).toHaveLength(2);
+  });
+});
+
+describe("normalizeCancelledEvents", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 1장
+  const normalize = (events: ParsedCancelledEvent[]) =>
+    normalizeCancelledEvents(events, show(), 1);
+
+  const cancelled = (
+    overrides: Partial<ParsedCancelledEvent> = {},
+  ): ParsedCancelledEvent => ({
+    title: "스페셜 커튼콜 위크",
+    periodStart: "2026-09-28",
+    periodEnd: "2026-10-04",
+    imageIndex: 0,
+    ...overrides,
+  });
+
+  it("취소 공지에서 읽은 이벤트의 제목, 기간 앞뒤 공백을 지운다", () => {
+    expect(
+      normalize([
+        cancelled({
+          title: " 스페셜 커튼콜 위크 ",
+          periodStart: " 2026-09-28 ",
+          periodEnd: " 2026-10-04 ",
+        }),
+      ]),
+    ).toStrictEqual([cancelled()]);
+  });
+
+  it.each<[string, Partial<ParsedCancelledEvent>]>([
+    ["제목이 비어 있는", { title: " " }],
+    ["날짜를 읽지 못한", { periodStart: "9/28" }],
+    [
+      "시작일이 종료일보다 늦은",
+      { periodStart: "2026-10-04", periodEnd: "2026-09-28" },
+    ],
+    [
+      "공연 기간과 전혀 겹치지 않는",
+      { periodStart: "2026-12-01", periodEnd: "2026-12-07" },
+    ],
+    ["없는 이미지에서 나온", { imageIndex: 1 }],
+  ])("%s 이벤트 취소는 반영하지 않는다", (_, overrides) => {
+    expect(normalize([cancelled(overrides)])).toStrictEqual([]);
+  });
+
+  it("공연 기간에 일부만 걸친 이벤트 취소는 반영한다", () => {
+    expect(
+      normalize([
+        cancelled({ periodStart: "2026-11-25", periodEnd: "2026-12-05" }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it("여러 이미지에서 같은 이벤트 취소를 띄어쓰기, 문장부호만 다르게 읽으면 처음 것 하나만 남긴다", () => {
+    expect(
+      normalize([cancelled(), cancelled({ title: "스페셜커튼콜위크!" })]),
+    ).toStrictEqual([cancelled()]);
   });
 });
