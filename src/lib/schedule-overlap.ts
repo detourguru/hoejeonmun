@@ -43,7 +43,7 @@ export function findOverlappingSlotIds(
 
     for (let i = 0; i < ranges.length; i++) {
       for (let j = i + 1; j < ranges.length; j++) {
-        if (ranges[j].start >= ranges[i].end) break;
+        if (ranges[j].start > ranges[i].end) break;
 
         overlapping.add(ranges[i].id);
         overlapping.add(ranges[j].id);
