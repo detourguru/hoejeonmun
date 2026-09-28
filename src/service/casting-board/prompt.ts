@@ -62,6 +62,11 @@ export const castingJsonSchema = {
               items: { type: "string" },
             },
           },
+          variant: {
+            type: "string",
+            description:
+              'Verbatim text of a column that labels which version of the show this performance is rather than who plays a role (e.g. an "EPISODE" column printing "ROOM SEOUL" / "ROOM ALEPPO", or a 버전/VERSION column). Return "" when the board has no such column.',
+          },
           imageIndex: {
             type: "integer",
             description:
@@ -388,6 +393,7 @@ Casting board rules:
 - If a time cell lists multiple times separated by a slash (e.g. "13:00/15:00"), output one performance per time, each with the same casting as that row.
 - Skip any row that indicates there is no performance that day (e.g. "공연 없음"); do not include it in "performances".
 - Use the role names in the header row as the keys of "casting".
+- Some boards print a column that is not a role but labels which version of the show each performance is -- e.g. an "EPISODE" column whose cells read "ROOM SEOUL" or "ROOM ALEPPO", or a 버전/VERSION column. Its cells are not actor names: never put that column into "casting". Copy the row's cell verbatim, keeping its spaces, into "variant" instead, and return "" for "variant" when the board has no such column.
 - Read a row's casting cells in strict left-to-right order, mapping the Nth cell to the Nth role column. These boards repeat the same few names down every column, so a cell whose name differs from the rows above and below it is almost always a real one-off cast substitution: keep that name in its own column and never let it overwrite or displace the neighbouring columns (a real observed bug: a row whose "래리 머피" cell held a substitute actor put that same actor into the neighbouring "신시아 머피" column too, inventing a casting that was never printed).
 - A role/cell sometimes lists more than one actor for the same performance -- most often an ensemble role (e.g. "목소리들") where several performers share the same role at once, as opposed to a lead role that simply rotates between actors on different dates. When that happens, list every one of those actors as separate entries in that role's array rather than joining them into one name or picking just one.
 - The header row can also print the exact same role text in two or more separate columns instead of listing several names in one cell (e.g. two side-by-side columns both labeled "한유진", each with its own single actor name per row, because two different performers share that name in the same performance). Treat this exactly like the ensemble case above -- merge those columns into that one role's array, in left-to-right column order, rather than inventing a distinct key for the second column or dropping one of them.

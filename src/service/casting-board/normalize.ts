@@ -42,6 +42,32 @@ export const isPlaceholderActorName = (name: string) =>
 
 export const normalizeName = (name: string) => name.trim().replace(/\s+/g, " ");
 
+const VARIANT_HEADER = /^(episode|에피소드|version|ver\.?|버전)$/i;
+
+// 프롬프트로 막아도 EPISODE 열을 배역으로 읽어오는 경우가 있어 한 번 더 옮긴다
+function splitVariant(
+  rawCasting: Record<string, unknown>,
+  rawVariant: unknown,
+): { casting: Record<string, unknown>; variant: string | undefined } {
+  const casting: Record<string, unknown> = {};
+  let variant = normalizeName(String(rawVariant ?? ""));
+
+  for (const [role, actors] of Object.entries(rawCasting)) {
+    if (!VARIANT_HEADER.test(normalizeName(role))) {
+      casting[role] = actors;
+      continue;
+    }
+
+    if (!variant) {
+      variant = normalizeName(
+        (Array.isArray(actors) ? actors : [actors]).map(String).join(" "),
+      );
+    }
+  }
+
+  return { casting, variant: variant || undefined };
+}
+
 export const ENGLISH_WEEKDAYS: Record<string, string> = {
   sun: "일",
   mon: "월",
@@ -174,8 +200,13 @@ export function normalizePerformances(
     const date = performance.date?.trim() ?? "";
     const time = performance.time?.trim() ?? "";
 
+    const { casting: rawCasting, variant } = splitVariant(
+      performance.casting ?? {},
+      performance.variant,
+    );
+
     const casting = Object.fromEntries(
-      Object.entries(performance.casting ?? {})
+      Object.entries(rawCasting)
         .map(([role, actors]) => {
           const names = [
             ...new Set(
@@ -219,6 +250,7 @@ export function normalizePerformances(
       time,
       weekday: performance.weekday,
       casting,
+      ...(variant && { variant }),
       imageIndex: performance.imageIndex,
       confidence: performance.confidence,
     });

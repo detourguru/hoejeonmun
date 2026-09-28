@@ -13,4 +13,5 @@ export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
 export const CURRENT_UPDATE_ID = "2026-09-28";
 export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/28)]
-- 이벤트 설명에서 줄바꿈한 내용이 한 줄로 붙어 보이던 문제 수정`;
+- 이벤트 설명에서 줄바꿈한 내용이 한 줄로 붙어 보이던 문제 수정
+- 캐스팅보드에 에피소드·버전(예: 더 헬멧의 ROOM SEOUL/ROOM ALEPPO)이 적힌 공연은 회차 옆에 함께 표시하고, 정정 제안에서 고칠 수 있도록 추가`;

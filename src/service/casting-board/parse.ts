@@ -228,6 +228,10 @@ export function buildConsensusPerformances(
         .filter((weekday) => weekday.length > 0),
       (value) => value,
     );
+    const variantVote = pickMostCommonValue(
+      performances.map(({ variant }) => variant ?? ""),
+      (value) => value,
+    );
     const imageIndexVote = pickMostCommonValue(
       performances.map(({ imageIndex }) => imageIndex),
       (value) => String(value),
@@ -246,6 +250,7 @@ export function buildConsensusPerformances(
       time: representative.time,
       weekday: weekdayVote?.value ?? representative.weekday,
       casting,
+      ...(variantVote?.value && { variant: variantVote.value }),
       imageIndex: imageIndexVote?.value ?? representative.imageIndex,
       confidence,
       castMismatch: castMismatch || undefined,

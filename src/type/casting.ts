@@ -34,6 +34,9 @@ export type ReportTypeTab = CodeOf<typeof REPORT_TYPE_TAB>;
 export const DEFAULT_REPORT_TYPE_TAB: ReportTypeTab = "casting";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+// slot_variants.label의 check 제약과 맞춰준다
+export const SLOT_VARIANT_MAX_LENGTH = 50;
+
 export const MAX_IMAGE_COUNT = 5;
 export const PARSE_TIMEOUT_SECONDS = 60;
 
@@ -85,6 +88,7 @@ export type ParsedPerformance = {
   time: string;
   // 배역명 -> 배우명 목록 (앙상블처럼 한 배역에 배우가 여럿이면 여러 개)
   casting: Record<string, string[]>;
+  variant?: string;
   imageIndex: number;
   confidence: number;
   castMismatch?: boolean;

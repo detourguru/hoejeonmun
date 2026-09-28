@@ -8,7 +8,11 @@ import { getIsAdmin } from "@/service/admin";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
-import { CASTING_BOARD_BUCKET, EventSlotException } from "@/type/casting";
+import {
+  CASTING_BOARD_BUCKET,
+  EventSlotException,
+  SLOT_VARIANT_MAX_LENGTH,
+} from "@/type/casting";
 
 export type SlotReportType =
   "wrong_date" | "wrong_cast" | "wrong_show" | "other";
@@ -424,9 +428,133 @@ export async function correctSlotDate(
 
   if (!count) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
 
+  const { error: variantMoveError } = await admin
+    .from("slot_variants")
+    .update({ slot_id: newSlot.id })
+    .eq("upload_id", castingData.upload_id)
+    .eq("slot_id", slotId);
+
+  if (variantMoveError) console.error(variantMoveError);
+
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
   updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, hidden: false };
+}
+
+async function getCurrentUploadId(
+  admin: ReturnType<typeof createAdminClient>,
+  slotId: number,
+) {
+  const { data, error } = await admin
+    .from("current_castings")
+    .select("upload_id")
+    .eq("slot_id", slotId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return (data?.upload_id as number | undefined) ?? null;
+}
+
+// 지금 보이는 캐스팅보드의 회차 구분(EPISODE 등)을 고치거나 새로 단다
+export async function correctSlotVariant(
+  showId: string,
+  slotId: number,
+  variant: string,
+): Promise<ReportResult> {
+  const label = variant.trim().replace(/\s+/g, " ");
+
+  if (!label) return { ok: false, message: "회차 구분을 입력해 주세요." };
+
+  if (label.length > SLOT_VARIANT_MAX_LENGTH) {
+    return {
+      ok: false,
+      message: `회차 구분은 ${SLOT_VARIANT_MAX_LENGTH}자까지 쓸 수 있어요.`,
+    };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  if (!data?.claims?.sub) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  try {
+    const uploadId = await getCurrentUploadId(admin, slotId);
+
+    if (!uploadId) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+    const { error } = await admin
+      .from("slot_variants")
+      .upsert(
+        { upload_id: uploadId, slot_id: slotId, label },
+        { onConflict: "upload_id,slot_id" },
+      );
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
+
+  return { ok: true, hidden: false };
+}
+
+export async function deleteSlotVariant(
+  showId: string,
+  slotId: number,
+): Promise<ReportResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  try {
+    const uploadId = await getCurrentUploadId(admin, slotId);
+
+    if (!uploadId) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+    const { data: upload, error: uploadError } = await admin
+      .from("uploads")
+      .select("user_id")
+      .eq("id", uploadId)
+      .single();
+
+    if (uploadError) throw uploadError;
+
+    if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
+      return {
+        ok: false,
+        message: "본인이 올린 회차의 구분만 지울 수 있어요.",
+      };
+    }
+
+    const { error } = await admin
+      .from("slot_variants")
+      .delete()
+      .eq("upload_id", uploadId)
+      .eq("slot_id", slotId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/show/${showId}`);
+  updateTag(showCastTag(showId));
 
   return { ok: true, hidden: false };
 }
@@ -478,6 +606,14 @@ export async function deleteMySlotCasting(
   }
 
   if (!count) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
+
+  const { error: variantError } = await admin
+    .from("slot_variants")
+    .delete()
+    .eq("upload_id", uploadId)
+    .eq("slot_id", slotId);
+
+  if (variantError) console.error(variantError);
 
   await deleteUploadIfEmpty(admin, uploadId);
 
