@@ -113,7 +113,9 @@ const PAST_CHUNK_DAYS = 31;
 
 async function fetchPastShows(from: string, to: string) {
   const chunks = await Promise.all(
-    splitKopisPeriod(from, to, PAST_CHUNK_DAYS).map(([stdate, eddate]) => fetchShowsForPeriod(stdate, eddate)),
+    splitKopisPeriod(from, to, PAST_CHUNK_DAYS).map(([stdate, eddate]) =>
+      fetchShowsForPeriod(stdate, eddate),
+    ),
   );
 
   return chunks.flat();

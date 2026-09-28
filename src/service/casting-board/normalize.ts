@@ -586,6 +586,27 @@ export const isExactSameEvent = (
   event.periodStart === candidate.periodStart &&
   event.periodEnd === candidate.periodEnd &&
   toTitleKey(event.title) === toTitleKey(candidate.title);
+
+type EventIdentity = Pick<PendingEvent, "title" | "periodStart" | "periodEnd">;
+
+export function createEventGroupResolver(createGroup: () => Promise<number>) {
+  const groupIdByKey = new Map<string, Promise<number>>();
+
+  return (event: EventIdentity, reusedGroupId?: number) => {
+    if (reusedGroupId !== undefined) return Promise.resolve(reusedGroupId);
+
+    const key = `${toTitleKey(event.title)}|${event.periodStart}|${event.periodEnd}`;
+    const pending = groupIdByKey.get(key);
+
+    if (pending) return pending;
+
+    const created = createGroup();
+
+    groupIdByKey.set(key, created);
+
+    return created;
+  };
+}
 export const sanitizeSlotExceptions = (
   slots: EventSlotException[] | undefined,
 ): EventSlotException[] | undefined => {

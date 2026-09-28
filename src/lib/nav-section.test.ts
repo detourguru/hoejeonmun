@@ -22,9 +22,7 @@ describe("findNavSection", () => {
   );
 
   it("내 공연 하위 화면은 경로가 겹치는 마이페이지가 아니라 내 공연 메뉴로 표시한다", () => {
-    expect(findNavSection("/mypage/shows/123", sections)).toBe(
-      "/mypage/shows",
-    );
+    expect(findNavSection("/mypage/shows/123", sections)).toBe("/mypage/shows");
   });
 
   it("이름 앞부분만 같은 다른 경로는 그 메뉴로 보지 않는다", () => {
