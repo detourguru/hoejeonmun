@@ -529,7 +529,9 @@ const EventReview = ({
 
       {event.description && (
         <div className="bg-muted-foreground/20 rounded-xl p-4">
-          <p className="text-text text-xs">{event.description}</p>
+          <p className="text-text text-xs whitespace-pre-line">
+            {event.description}
+          </p>
         </div>
       )}
     </div>

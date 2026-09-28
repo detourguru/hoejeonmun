@@ -42,7 +42,7 @@ export const RecentEventCard = ({
           {event.title}
         </div>
         {event.description && (
-          <p className="text-text-muted line-clamp-2 text-xs">
+          <p className="text-text-muted line-clamp-2 text-xs whitespace-pre-line">
             {event.description}
           </p>
         )}
