@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
+import { mergeKnownSlots } from "@/lib/known-slots";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -98,23 +99,11 @@ export const CastingUploadButton = ({
   const [existingSlots, setExistingSlots] = useState<
     { date: string; time: string }[]
   >([]);
-  const knownSlots = useMemo(() => {
-    const slotMap = new Map(
-      existingSlots.map(({ date, time }) => {
-        const shortTime = time.slice(0, 5);
-
-        return [`${date} ${shortTime}`, { date, time: shortTime }];
-      }),
-    );
-
-    for (const { date, time } of toConfirmedPerformances(castingDrafts)) {
-      const shortTime = time.slice(0, 5);
-
-      slotMap.set(`${date} ${shortTime}`, { date, time: shortTime });
-    }
-
-    return [...slotMap.values()];
-  }, [existingSlots, castingDrafts]);
+  const knownSlots = useMemo(
+    () =>
+      mergeKnownSlots(existingSlots, toConfirmedPerformances(castingDrafts)),
+    [existingSlots, castingDrafts],
+  );
   const knownDates = useMemo(
     () => new Set(knownSlots.map(({ date }) => date)),
     [knownSlots],
