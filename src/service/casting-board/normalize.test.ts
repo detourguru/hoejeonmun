@@ -21,6 +21,7 @@ import {
   mergeSameDateTags,
   mergeWholeDayRuns,
   normalizeDateTags,
+  normalizeEvents,
   normalizeName,
   normalizePerformances,
   resolveRunWindow,
@@ -60,6 +61,16 @@ const performance = (
   casting,
   imageIndex,
   confidence: 1,
+  ...overrides,
+});
+
+const notice = (overrides: Partial<ParsedEvent> = {}): ParsedEvent => ({
+  title: "폴라로이드 증정",
+  periodStart: "2026-09-28",
+  periodEnd: "2026-09-28",
+  printedStartWeekday: "월",
+  printedEndWeekday: "월",
+  imageIndex: 0,
   ...overrides,
 });
 
@@ -892,16 +903,6 @@ describe("unverifiedPoints", () => {
 });
 
 describe("toPendingEvents", () => {
-  const notice = (overrides: Partial<ParsedEvent> = {}): ParsedEvent => ({
-    title: "폴라로이드 증정",
-    periodStart: "2026-09-28",
-    periodEnd: "2026-09-28",
-    printedStartWeekday: "월",
-    printedEndWeekday: "월",
-    imageIndex: 0,
-    ...overrides,
-  });
-
   it("공지에서 읽은 이벤트를 확인 화면에 올릴 형태로 바꾸고, 확인이 필요한 이유를 붙인다", () => {
     const [pending] = toPendingEvents([], [notice({ exactTimes: ["19:30"] })]);
 
@@ -969,5 +970,99 @@ describe("toPendingEvents", () => {
       "notice",
       "badge",
     ]);
+  });
+});
+
+describe("normalizeEvents", () => {
+  // 공연 기간 2026-09-01 ~ 2026-11-30, 이미지 1장
+  const normalize = (events: ParsedEvent[]) =>
+    normalizeEvents(events, show(), 1);
+
+  it("AI가 읽은 제목, 기간, 요일의 앞뒤 공백을 지우고, 내용 없는 설명은 없는 것으로 둔다", () => {
+    const [event] = normalize([
+      notice({
+        title: " 폴라로이드 증정 ",
+        description: "  ",
+        periodStart: " 2026-09-28 ",
+        periodEnd: " 2026-09-28 ",
+        printedStartWeekday: " 월 ",
+        printedEndWeekday: " 월 ",
+      }),
+    ]);
+
+    expect(event).toMatchObject({
+      title: "폴라로이드 증정",
+      periodStart: "2026-09-28",
+      periodEnd: "2026-09-28",
+      printedStartWeekday: "월",
+      printedEndWeekday: "월",
+    });
+    expect(event.description).toBeUndefined();
+  });
+
+  it.each<[string, Partial<ParsedEvent>]>([
+    ["제목이 비어 있는", { title: " " }],
+    ["날짜를 읽지 못한", { periodStart: "9/28" }],
+    [
+      "시작일이 종료일보다 늦은",
+      { periodStart: "2026-09-29", periodEnd: "2026-09-28" },
+    ],
+    [
+      "공연 시작 전에 끝나서 다른 공연 것으로 보이는",
+      { periodStart: "2026-08-01", periodEnd: "2026-08-31" },
+    ],
+    [
+      "공연이 끝난 뒤에 시작해서 다른 공연 것으로 보이는",
+      { periodStart: "2026-12-01", periodEnd: "2026-12-31" },
+    ],
+    ["없는 이미지에서 나온", { imageIndex: 1 }],
+  ])("%s 이벤트는 저장하지 않는다", (_, overrides) => {
+    expect(normalize([notice(overrides)])).toStrictEqual([]);
+  });
+
+  it("공연 기간에 일부만 걸친 이벤트는 이 공연 것으로 보고 남긴다", () => {
+    expect(
+      normalize([
+        notice({ periodStart: "2026-08-25", periodEnd: "2026-09-05" }),
+      ]),
+    ).toHaveLength(1);
+  });
+
+  it("요일이 날짜와 맞지 않아도 오탈자일 수 있어 버리지 않는다 (확인 화면에서 확인을 요청한다)", () => {
+    expect(normalize([notice({ printedStartWeekday: "화" })])).toHaveLength(1);
+  });
+
+  it("적용 회차 정보 중 형식이 틀린 값만 걸러 내고 이벤트는 남긴다", () => {
+    const [event] = normalize([
+      notice({
+        exactTimes: ["19:30", "오후 3시"],
+        excludedSlots: [{ date: "9/28", time: "19:30" }],
+        periodEndCutoffTime: "18:00",
+      }),
+    ]);
+
+    expect(event).toMatchObject({
+      exactTimes: ["19:30"],
+      periodEndCutoffTime: "18:00",
+    });
+    expect(event.excludedSlots).toBeUndefined();
+  });
+
+  it("띄어쓰기, 문장부호만 다른 같은 이벤트가 여러 번 읽히면 처음 것 하나만 남긴다", () => {
+    const first = notice({ title: "스페셜 커튼콜 위크" });
+
+    const events = normalize([first, notice({ title: "스페셜커튼콜위크!" })]);
+
+    expect(events).toHaveLength(1);
+    expect(events[0].title).toBe("스페셜 커튼콜 위크");
+  });
+
+  it("제목이 같아도 기간이 다르면 다른 이벤트로 둔다", () => {
+    expect(
+      normalize([
+        notice({ title: "스페셜 커튼콜 위크", periodEnd: "2026-09-28" }),
+        notice({ title: "스페셜 커튼콜 위크", periodEnd: "2026-09-29" }),
+      ]),
+    ).toHaveLength(2);
   });
 });
