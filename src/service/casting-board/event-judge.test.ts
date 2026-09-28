@@ -44,4 +44,25 @@ describe("judgeSameEventPairs", () => {
     expect(askNouls).toHaveBeenCalled();
     expect(result).toStrictEqual([0.9]);
   });
+
+  it("AI에게 여러 질문을 할때 100개씩 잘라서 호출한다", async () => {
+    vi.mocked(askNouls).mockResolvedValue({});
+    const eventA = {
+      title: "스페셜 커튼콜 위크",
+      periodStart: "2026-09-01",
+      periodEnd: "2026-09-07",
+    };
+    const eventB = {
+      title: "스페셜 커튼콜 위크",
+      periodStart: "2026-09-01",
+      periodEnd: "2026-09-07",
+    };
+    const pairs = Array.from(
+      { length: 101 },
+      () => [eventA, eventB] as [typeof eventA, typeof eventB],
+    );
+    await judgeSameEventPairs(pairs);
+
+    expect(askNouls).toHaveBeenCalledTimes(2);
+  });
 });
