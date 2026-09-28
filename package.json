@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "preview": "next build && next start",
+    "test": "vitest",
     "lint": "eslint",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -39,7 +40,7 @@
   "devDependencies": {
     "@serwist/turbopack": "^9.5.12",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^22.20.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
@@ -51,6 +52,7 @@
     "serwist": "^9.5.12",
     "tailwindcss": "^4",
     "tsx": "^4.23.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.2"
   }
 }
