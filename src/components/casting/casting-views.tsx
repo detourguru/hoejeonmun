@@ -17,6 +17,7 @@ import {
 import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
+import { matchesActorFilter } from "@/lib/actor-filter";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
@@ -175,14 +176,8 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
-  // filterKeys가 없는 회차(예: 내 공연)는 배우 필터 대상이 아니라 항상 보여준다
   const visible = slots.filter((slot) => {
-    const matchesActors =
-      !slot.filterKeys || actors.length === 0
-        ? true
-        : actors.some((name) => slot.filterKeys?.includes(name));
-
-    if (!matchesActors) return false;
+    if (!matchesActorFilter(slot, actors)) return false;
 
     return (
       !onlyOverlapping || (overlapFilter?.overlappingIds.has(slot.id) ?? false)
