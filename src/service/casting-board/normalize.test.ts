@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { ParsedDateTag } from "@/type/casting";
 
-import { mergePerSlotRuns, mergeWholeDayRuns } from "./normalize";
+import {
+  mergePerSlotRuns,
+  mergeSameDateTags,
+  mergeWholeDayRuns,
+} from "./normalize";
 
 const dateTag = (
   tag: string,
@@ -175,5 +179,59 @@ describe("mergePerSlotRuns", () => {
         ],
       }),
     ]);
+  });
+});
+
+describe("mergeSameDateTags", () => {
+  it("종류가 다른 배지는 날짜가 이어져도 합치지 않는다", () => {
+    const result = mergeSameDateTags([
+      dateTag("프리뷰", "2026-09-01", "2026-09-01"),
+      dateTag("커튼콜데이", "2026-09-02", "2026-09-02"),
+    ]);
+
+    expect(result).toHaveLength(2);
+    expect(result).toStrictEqual(
+      expect.arrayContaining([
+        dateTag("프리뷰", "2026-09-01", "2026-09-01"),
+        dateTag("커튼콜데이", "2026-09-02", "2026-09-02"),
+      ]),
+    );
+  });
+
+  it("같은 종류라도 하루 전체 배지와 회차 배지는 서로 합치지 않는다", () => {
+    const result = mergeSameDateTags([
+      dateTag("프리뷰", "2026-09-01", "2026-09-01"),
+      dateTag("프리뷰", "2026-09-02", "2026-09-02", { time: "19:30" }),
+    ]);
+
+    expect(result).toHaveLength(2);
+    expect(result).toStrictEqual(
+      expect.arrayContaining([
+        dateTag("프리뷰", "2026-09-01", "2026-09-01"),
+        dateTag("프리뷰", "2026-09-02", "2026-09-02", { time: "19:30" }),
+      ]),
+    );
+  });
+
+  it("같은 종류의 배지는 하루 전체 배지끼리, 회차 배지끼리 각각 합친다", () => {
+    const result = mergeSameDateTags([
+      dateTag("프리뷰", "2026-09-01", "2026-09-01"),
+      dateTag("프리뷰", "2026-09-02", "2026-09-02"),
+      dateTag("프리뷰", "2026-09-10", "2026-09-10", { time: "14:00" }),
+      dateTag("프리뷰", "2026-09-10", "2026-09-10", { time: "19:30" }),
+    ]);
+
+    expect(result).toHaveLength(2);
+    expect(result).toStrictEqual(
+      expect.arrayContaining([
+        dateTag("프리뷰", "2026-09-01", "2026-09-02"),
+        dateTag("프리뷰", "2026-09-10", "2026-09-10", {
+          slots: [
+            { date: "2026-09-10", time: "14:00" },
+            { date: "2026-09-10", time: "19:30" },
+          ],
+        }),
+      ]),
+    );
   });
 });
