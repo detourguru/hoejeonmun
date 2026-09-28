@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import { ParsedDateTag } from "@/type/casting";
 
 import {
+  agreesWithPrintedWeekday,
+  isNextDay,
   mergePerSlotRuns,
   mergeSameDateTags,
   mergeWholeDayRuns,
+  toKoreanWeekday,
 } from "./normalize";
 
 const dateTag = (
@@ -233,5 +236,61 @@ describe("mergeSameDateTags", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("toKoreanWeekday", () => {
+  it.each([["MON"], ["Mon."], ["monday"], ["월요일"], ["월"], [" 월 "]])(
+    "영문/한글 표기와 상관없이 한 글자 한글 요일로 바꾼다: %j",
+    (printed) => {
+      expect(toKoreanWeekday(printed)).toBe("월");
+    },
+  );
+
+  it.each([[""], ["  "]])(
+    "요일이 적혀 있지 않으면 빈 문자열을 반환한다: %j",
+    (printed) => {
+      expect(toKoreanWeekday(printed)).toBe("");
+    },
+  );
+});
+
+describe("agreesWithPrintedWeekday", () => {
+  // 2026-09-28은 월요일
+  it.each([["월"], ["MON"], ["월요일"]])(
+    "캐스팅보드에 적힌 요일이 실제 요일과 같으면 true를 반환한다: %j",
+    (printed) => {
+      expect(agreesWithPrintedWeekday("2026-09-28", printed)).toBe(true);
+    },
+  );
+
+  it("캐스팅보드에 적힌 요일이 실제 요일과 다르면 false를 반환한다", () => {
+    expect(agreesWithPrintedWeekday("2026-09-28", "화")).toBe(false);
+  });
+
+  it("요일이 적혀 있지 않으면 대조할 수 없으니 true를 반환한다", () => {
+    expect(agreesWithPrintedWeekday("2026-09-28", "")).toBe(true);
+  });
+});
+
+describe("isNextDay", () => {
+  it.each([
+    ["2026-09-28", "2026-09-29"],
+    ["2026-09-30", "2026-10-01"],
+    ["2026-12-31", "2027-01-01"],
+    ["2028-02-28", "2028-02-29"],
+  ])(
+    "월/연도가 바뀌어도 바로 다음 날이면 true를 반환한다: %s → %s",
+    (date, next) => {
+      expect(isNextDay(date, next)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["2026-09-28", "2026-09-28"],
+    ["2026-09-28", "2026-09-30"],
+    ["2026-09-29", "2026-09-28"],
+  ])("같은 날, 이틀 뒤, 전날은 false를 반환한다: %s → %s", (date, next) => {
+    expect(isNextDay(date, next)).toBe(false);
   });
 });
