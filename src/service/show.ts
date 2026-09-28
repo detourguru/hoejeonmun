@@ -1,16 +1,17 @@
 import { unstable_cache } from "next/cache";
 
 import {
-  addDays,
   addMonths,
   getToday,
   normalizeDate,
+  splitKopisPeriod,
   toKopisDate,
 } from "@/lib/date";
 import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
 import { parseRuntimeMinutes } from "@/lib/runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { selectAllRows } from "@/lib/supabase/select-all";
+import { dedupeByKey } from "@/service/casting-board/normalize";
 import {
   getUserShow,
   isUserShowId,
@@ -110,34 +111,9 @@ async function fetchShowsForPeriod(stdate: string, eddate: string) {
 
 const PAST_CHUNK_DAYS = 31;
 
-const parseKopisDate = (value: string) =>
-  new Date(
-    Date.UTC(
-      Number(value.slice(0, 4)),
-      Number(value.slice(4, 6)) - 1,
-      Number(value.slice(6, 8)),
-    ),
-  );
-
 async function fetchPastShows(from: string, to: string) {
-  const end = parseKopisDate(to);
-  const periods: [string, string][] = [];
-
-  for (
-    let start = parseKopisDate(from);
-    start <= end;
-    start = addDays(start, PAST_CHUNK_DAYS)
-  ) {
-    const chunkEnd = addDays(start, PAST_CHUNK_DAYS - 1);
-
-    periods.push([
-      toKopisDate(start),
-      toKopisDate(chunkEnd < end ? chunkEnd : end),
-    ]);
-  }
-
   const chunks = await Promise.all(
-    periods.map(([stdate, eddate]) => fetchShowsForPeriod(stdate, eddate)),
+    splitKopisPeriod(from, to, PAST_CHUNK_DAYS).map(([stdate, eddate]) => fetchShowsForPeriod(stdate, eddate)),
   );
 
   return chunks.flat();
@@ -164,13 +140,7 @@ export async function getShows(pastRange?: {
   if (pastShows.length === 0) return defaultShows;
 
   // 여러 구간에 걸친 공연은 구간마다 중복해서 나오므로 id로 한 번만 담는다
-  const showsById = new Map(defaultShows.map((show) => [show.mt20id, show]));
-
-  for (const show of pastShows) {
-    if (!showsById.has(show.mt20id)) showsById.set(show.mt20id, show);
-  }
-
-  return [...showsById.values()];
+  return dedupeByKey([...defaultShows, ...pastShows], (show) => show.mt20id);
 }
 
 // 없는 mt20id를 넘기면 Kopis가 빈 dbs를 주므로 null로 구분

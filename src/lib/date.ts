@@ -64,6 +64,40 @@ export function toKopisDate(date: Date): string {
   return toParts(date).join("");
 }
 
+export const parseKopisDate = (value: string) =>
+  new Date(
+    Date.UTC(
+      Number(value.slice(0, 4)),
+      Number(value.slice(4, 6)) - 1,
+      Number(value.slice(6, 8)),
+    ),
+  );
+
+// YYYYMMDD 기간을 days일 단위 구간들로 나눈다. 마지막 구간은 to에서 끊는다
+export function splitKopisPeriod(
+  from: string,
+  to: string,
+  days: number,
+): [string, string][] {
+  const end = parseKopisDate(to);
+  const periods: [string, string][] = [];
+
+  for (
+    let start = parseKopisDate(from);
+    start <= end;
+    start = addDays(start, days)
+  ) {
+    const chunkEnd = addDays(start, days - 1);
+
+    periods.push([
+      toKopisDate(start),
+      toKopisDate(chunkEnd < end ? chunkEnd : end),
+    ]);
+  }
+
+  return periods;
+}
+
 // YYYY-MM-DD
 export function toInputDate(date: Date): string {
   return toParts(date).join("-");
