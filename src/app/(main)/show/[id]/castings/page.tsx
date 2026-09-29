@@ -183,6 +183,7 @@ export default async function Page({ params, searchParams }: Props) {
         filterOptions={filterData.actors.map((name) => ({
           value: name,
           label: name,
+          role: filterData.roles[name],
         }))}
         initialActors={initialActors}
         empty={

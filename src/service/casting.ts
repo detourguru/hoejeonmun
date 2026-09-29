@@ -129,15 +129,25 @@ export async function getShowFilterData(showId: string) {
 
       const { data, error } = await supabase
         .from("slot_castings")
-        .select("actor_name_raw")
+        .select("actor_name_raw, role_name_raw")
         .eq("show_id", id);
 
       if (error) throw error;
 
-      const rows = data as Pick<SlotCastingRow, "actor_name_raw">[];
+      const rows = data as Pick<
+        SlotCastingRow,
+        "actor_name_raw" | "role_name_raw"
+      >[];
+
+      const roles: Record<string, string> = {};
+
+      for (const { actor_name_raw, role_name_raw } of rows) {
+        roles[actor_name_raw] ??= role_name_raw;
+      }
 
       return {
         actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
+        roles,
       };
     },
     ["show-filter-data"],

@@ -8,7 +8,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type ActorFilterOption = { value: string; label: string };
+export type ActorFilterOption = {
+  value: string;
+  label: string;
+  role?: string;
+};
 
 export const ActorFilter = ({
   options,

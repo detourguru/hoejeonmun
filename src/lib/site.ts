@@ -11,8 +11,6 @@ export const SITE_DESCRIPTION =
 
 export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
-export const CURRENT_UPDATE_ID = "2026-09-28";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/28)]
-- 이벤트 설명에서 줄바꿈한 내용이 한 줄로 붙어 보이던 문제 수정
-- 캐스팅보드에 에피소드·버전(예: 더 헬멧의 ROOM SEOUL/ROOM ALEPPO)이 적힌 공연은 회차 옆에 함께 표시하고, 정정 제안에서 고칠 수 있도록 추가
-- 앞 공연이 끝나는 시각에 바로 시작하는 공연도 내 일정에서 시간이 겹친다고 표시되도록 수정`;
+export const CURRENT_UPDATE_ID = "2026-09-29";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (9/29)]
+- 캐스팅 캘린더 배우 필터에서 같은 배역 배우는 한 명만 나와도, 다른 배역 배우는 함께 나오는 회차만 보이도록 개선 (예: 햄릿 두 명 + 오필리아 한 명을 고르면 각 햄릿과 그 오필리아의 페어 회차)`;
