@@ -6,7 +6,7 @@ import { CastingViews } from "@/components/casting/casting-views";
 import { SlotCard } from "@/components/casting/slot-card";
 import { CastingUploadButton } from "@/components/show/casting-upload-button";
 import { ManualCastingButton } from "@/components/show/manual-casting-button";
-import { SLOT_COLOR } from "@/lib/actor-color";
+import { SLOT_COLOR } from "@/lib/color";
 import {
   getCalendarCells,
   getMonthRange,

@@ -5,7 +5,7 @@ import { FavoriteScheduleCalendar } from "@/components/mypage/favorite-schedule-
 import { MyScheduleCalendar } from "@/components/mypage/my-schedule-calendar";
 import { MyShowsTabs } from "@/components/mypage/my-shows-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
-import { SLOT_COLOR, getActorColorMap } from "@/lib/actor-color";
+import { SLOT_COLOR, getColorMap } from "@/lib/color";
 import {
   getCalendarCells,
   getMonthRange,
@@ -103,7 +103,7 @@ async function FavoriteSection({ monthDate, view }: SectionProps) {
     favoriteActors.map((actor) => [actor.id, displayActorName(actor)]),
   );
 
-  const actorColors = getActorColorMap(
+  const actorColors = getColorMap(
     [...favoriteActors].reverse().map(({ id }) => id),
   );
 
