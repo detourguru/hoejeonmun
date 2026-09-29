@@ -29,6 +29,82 @@ export const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const slotKey = (date: string, time: string) =>
   `${date} ${time.slice(0, 5)}`;
 
+export type EventSlotRules = {
+  periodStart: string;
+  periodEnd: string;
+  includedSlots?: EventSlotException[];
+  excludedSlots?: EventSlotException[];
+  exactTimes?: string[];
+  listedSlots?: EventSlotException[];
+  periodStartCutoffTime?: string;
+  periodEndCutoffTime?: string;
+};
+
+type SlotRow = { id: number; date: string; time: string };
+
+export function selectEventSlotIds(
+  periodSlots: SlotRow[],
+  includedCandidates: SlotRow[],
+  {
+    periodStart,
+    periodEnd,
+    includedSlots = [],
+    excludedSlots = [],
+    exactTimes,
+    listedSlots = [],
+    periodStartCutoffTime,
+    periodEndCutoffTime,
+  }: EventSlotRules,
+): number[] {
+  const excludedKeys = new Set(
+    excludedSlots.map(({ date, time }) => slotKey(date, time)),
+  );
+
+  const exactTimeSet = exactTimes?.length
+    ? new Set(exactTimes.map((time) => time.slice(0, 5)))
+    : null;
+
+  const listedKeys = listedSlots.length
+    ? new Set(listedSlots.map(({ date, time }) => slotKey(date, time)))
+    : null;
+
+  const matchedSlotIds = new Set(
+    periodSlots
+      .filter(
+        (slot) => !listedKeys || listedKeys.has(slotKey(slot.date, slot.time)),
+      )
+      .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
+      .filter(
+        (slot) => !exactTimeSet || exactTimeSet.has(slot.time.slice(0, 5)),
+      )
+      .filter(
+        (slot) =>
+          !periodStartCutoffTime ||
+          slot.date !== periodStart ||
+          slot.time.slice(0, 5) >= periodStartCutoffTime,
+      )
+      .filter(
+        (slot) =>
+          !periodEndCutoffTime ||
+          slot.date !== periodEnd ||
+          slot.time.slice(0, 5) <= periodEndCutoffTime,
+      )
+      .map(({ id }) => id),
+  );
+
+  const includedKeys = new Set(
+    includedSlots.map(({ date, time }) => slotKey(date, time)),
+  );
+
+  for (const slot of includedCandidates) {
+    if (includedKeys.has(slotKey(slot.date, slot.time))) {
+      matchedSlotIds.add(slot.id);
+    }
+  }
+
+  return [...matchedSlotIds];
+}
+
 export function dedupeByKey<T>(items: T[], keyOf: (item: T) => string): T[] {
   const seen = new Set<string>();
 
