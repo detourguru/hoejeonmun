@@ -89,6 +89,12 @@ describe("renameRole", () => {
 });
 
 describe("removeRole", () => {
+  it("배역이 없는 회차는 그대로 유지한다", () => {
+    const original = draft({ 햄릿: ["김배우"] });
+    expect(removeRole([original], "오필리아")[0].performance).toBe(
+      original.performance,
+    );
+  });
   it("AI가 잘못 읽은 배역을 지우면 모든 회차에서 그 배역과 배우가 함께 빠진다", () => {
     const drafts = [
       draft({ 햄릿: ["김배우"], "": ["박배우"] }),
@@ -103,6 +109,12 @@ describe("removeRole", () => {
 });
 
 describe("renameActor", () => {
+  it("배역이 없는 회차는 그대로 유지한다", () => {
+    const original = draft({ 햄릿: ["김배우"] });
+    expect(
+      renameActor([original], "오필리아", "김배우", "이배우")[0].performance,
+    ).toBe(original.performance);
+  });
   it("배우 이름을 고치면 같은 배역의 그 배우만 모든 회차에서 바뀐다", () => {
     const drafts = [
       draft({ 앙상블: ["김배우", "이배우"], 햄릿: ["김배우"] }),
@@ -127,6 +139,12 @@ describe("renameActor", () => {
 });
 
 describe("removeActorFromDrafts", () => {
+  it("배역이 없는 회차는 그대로 유지한다", () => {
+    const original = draft({ 햄릿: ["김배우"] });
+    expect(
+      removeActorFromDrafts([original], "오필리아", "김배우")[0].performance,
+    ).toBe(original.performance);
+  });
   it("여러 명이 맡은 배역에서 배우 한 명을 지우면 나머지 배우는 남는다", () => {
     const [result] = removeActorFromDrafts(
       [draft({ 앙상블: ["김배우", "이배우"] })],
