@@ -1,6 +1,5 @@
 {
   "regions": ["icn1"],
-  "buildCommand": "npx vitest run && next build && npx size-limit",
   "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" == dependabot/* ]]'",
   "crons": [
     {
