@@ -17,7 +17,7 @@ type VenueDetail = {
   mt13s?: { mt13?: VenueHall | VenueHall[] };
 };
 
-function parseSeatScale(raw?: string): number | null {
+export function parseSeatScale(raw?: string): number | null {
   if (!raw) return null;
 
   const digits = raw.replace(/[^0-9]/g, "");
