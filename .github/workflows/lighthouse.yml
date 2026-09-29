@@ -11,6 +11,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: treosh/lighthouse-ci-action@v12
         with:
+          configPath: ./lighthouserc.json
           urls: |
             https://hoejeonmun.vercel.app/
             https://hoejeonmun.vercel.app/show/all
