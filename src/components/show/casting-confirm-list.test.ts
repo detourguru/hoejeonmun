@@ -62,6 +62,30 @@ describe("renameRole", () => {
 
     expect(result.performance).toBe(untouched.performance);
   });
+
+  it("AI가 '햄릿'과 '햄 릿'으로 나눠 읽은 배역을 '햄릿'으로 고치면 두 배우 모두 햄릿 배우로 남는다", () => {
+    const drafts = [draft({ 햄릿: ["김배우"], "햄 릿": ["이배우"] })];
+
+    expect(castingOf(renameRole(drafts, "햄 릿", "햄릿"))).toStrictEqual([
+      { 햄릿: ["김배우", "이배우"] },
+    ]);
+  });
+
+  it("배역 순서가 반대여도 고친 쪽 배우가 사라지지 않는다", () => {
+    const drafts = [draft({ "햄 릿": ["이배우"], 햄릿: ["김배우"] })];
+
+    expect(castingOf(renameRole(drafts, "햄 릿", "햄릿"))).toStrictEqual([
+      { 햄릿: ["이배우", "김배우"] },
+    ]);
+  });
+
+  it("두 배역에 같은 배우가 들어 있으면 합칠 때 한 번만 남긴다", () => {
+    const drafts = [draft({ 햄릿: ["김배우"], "햄 릿": ["김배우", "이배우"] })];
+
+    expect(castingOf(renameRole(drafts, "햄 릿", "햄릿"))).toStrictEqual([
+      { 햄릿: ["김배우", "이배우"] },
+    ]);
+  });
 });
 
 describe("removeRole", () => {
@@ -91,6 +115,14 @@ describe("renameActor", () => {
       { 앙상블: ["김배우2", "이배우"], 햄릿: ["김배우"] },
       { 앙상블: ["김배우2"] },
     ]);
+  });
+
+  it("같은 배역에 이미 있는 배우 이름으로 고치면 그 배우가 두 번 저장되지 않게 하나만 남긴다", () => {
+    const drafts = [draft({ 앙상블: ["김배우", "김 배우", "이배우"] })];
+
+    expect(
+      castingOf(renameActor(drafts, "앙상블", "김 배우", "김배우")),
+    ).toStrictEqual([{ 앙상블: ["김배우", "이배우"] }]);
   });
 });
 
