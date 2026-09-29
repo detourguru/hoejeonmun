@@ -325,10 +325,6 @@ describe("getShowSummaries", () => {
 });
 
 describe("searchShows", () => {
-  it("공백 검색어는 외부 조회 없이 빈 결과를 반환한다", async () => {
-    expect(await searchShows("   ")).toEqual([]);
-    expect(fetchKopisAll).not.toHaveBeenCalled();
-  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-28T03:00:00Z"));
@@ -339,6 +335,11 @@ describe("searchShows", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.resetAllMocks();
+  });
+
+  it("공백 검색어는 외부 조회 없이 빈 결과를 반환한다", async () => {
+    expect(await searchShows("   ")).toEqual([]);
+    expect(fetchKopisAll).not.toHaveBeenCalled();
   });
 
   it("캐스팅이나 이벤트가 올라온 공연은 KOPIS 조회 기간이 지나도 검색에서 찾을 수 있다", async () => {
@@ -367,17 +368,6 @@ describe("searchShows", () => {
 });
 
 describe("filterShowsByVenue", () => {
-  it("빈 목록에는 공연 상세를 조회하지 않는다", async () => {
-    expect(
-      await filterShowsByVenue([], {
-        page: 1,
-        from: "20260901",
-        to: "20260930",
-        venueType: "largeVenue",
-      }),
-    ).toEqual([]);
-    expect(fetchKopis).not.toHaveBeenCalled();
-  });
   // KOPIS 공연 상세에 담긴 대학로 여부와 공연장(홀) id
   const detail = (
     mt20id: string,
@@ -424,6 +414,18 @@ describe("filterShowsByVenue", () => {
   ].map((mt20id) => show({ mt20id }));
 
   const idsOf = (result: Show[]) => result.map(({ mt20id }) => mt20id);
+
+  it("빈 목록에는 공연 상세를 조회하지 않는다", async () => {
+    expect(
+      await filterShowsByVenue([], {
+        page: 1,
+        from: "20260901",
+        to: "20260930",
+        venueType: "largeVenue",
+      }),
+    ).toEqual([]);
+    expect(fetchKopis).not.toHaveBeenCalled();
+  });
 
   it("공연장 종류를 고르지 않으면 KOPIS 상세를 조회하지 않고 그대로 보여 준다", async () => {
     expect(await filterShowsByVenue(shows, venueFilter())).toBe(shows);

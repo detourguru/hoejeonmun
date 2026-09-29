@@ -23,6 +23,18 @@ describe("toArray", () => {
 });
 
 describe("fetchKopis", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_KOPIS_API_URL", "https://kopis-test.com");
+    vi.stubEnv("KOPIS_API_KEY", "fake-kopis-key");
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
   it("요청 타임아웃 후 재시도하여 복구한다", async () => {
     const fetchMock = vi
       .fn()
@@ -72,17 +84,6 @@ describe("fetchKopis", () => {
     await vi.runAllTimersAsync();
     await rejected;
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-  beforeEach(() => {
-    vi.stubEnv("NEXT_KOPIS_API_URL", "https://kopis-test.com");
-    vi.stubEnv("KOPIS_API_KEY", "fake-kopis-key");
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
   });
 
   it("KOPIS가 간헐적으로 400을 주면 다시 요청해서 결과를 받는다", async () => {

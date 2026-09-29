@@ -1252,6 +1252,7 @@ describe("createEventGroupResolver", () => {
     expect(createGroup).toHaveBeenCalledTimes(1);
     expect(await Promise.all([first, second])).toEqual([7, 7]);
   });
+
   it("같은 업로드 안의 같은 이벤트는 그룹을 하나만 만들어 공유한다", async () => {
     const createGroup = vi.fn(() => Promise.resolve(1));
     const resolveGroupId = createEventGroupResolver(createGroup);
@@ -1298,19 +1299,6 @@ describe("createEventGroupResolver", () => {
 });
 
 describe("selectEventSlotIds", () => {
-  it("명시적 포함은 제외·시각·나열 조건보다 우선한다", () => {
-    const slot = { id: 1, date: "2026-09-28", time: "19:30:00" };
-    expect(
-      selectEventSlotIds([slot], [slot], {
-        periodStart: slot.date,
-        periodEnd: slot.date,
-        includedSlots: [{ date: slot.date, time: "19:30" }],
-        excludedSlots: [{ date: slot.date, time: "19:30" }],
-        exactTimes: ["14:00"],
-        listedSlots: [{ date: slot.date, time: "14:00" }],
-      }),
-    ).toEqual([1]);
-  });
   // 이벤트 기간 9/28(월) ~ 9/30(수) 안의 회차. DB 시각은 초까지 온다
   const periodSlots = [
     { id: 1, date: "2026-09-28", time: "14:00:00" },
@@ -1329,6 +1317,20 @@ describe("selectEventSlotIds", () => {
       periodEnd: "2026-09-30",
       ...rules,
     });
+
+  it("명시적 포함은 제외·시각·나열 조건보다 우선한다", () => {
+    const slot = { id: 1, date: "2026-09-28", time: "19:30:00" };
+    expect(
+      selectEventSlotIds([slot], [slot], {
+        periodStart: slot.date,
+        periodEnd: slot.date,
+        includedSlots: [{ date: slot.date, time: "19:30" }],
+        excludedSlots: [{ date: slot.date, time: "19:30" }],
+        exactTimes: ["14:00"],
+        listedSlots: [{ date: slot.date, time: "14:00" }],
+      }),
+    ).toEqual([1]);
+  });
 
   it("따로 정한 규칙이 없으면 기간 안의 모든 회차에 이벤트를 적용한다", () => {
     expect(select()).toStrictEqual([1, 2, 3, 4, 5]);
