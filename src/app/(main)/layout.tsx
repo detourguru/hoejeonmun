@@ -13,7 +13,10 @@ export default function MainLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="bg-sub mx-auto flex h-dvh flex-col overflow-hidden sm:max-w-md">
+    <div
+      className="bg-sub mx-auto flex flex-col overflow-hidden sm:max-w-md"
+      style={{ height: "var(--app-height, 100dvh)" }}
+    >
       <div
         id={APP_SCROLL_CONTAINER_ID}
         className="flex flex-1 flex-col overflow-y-auto"

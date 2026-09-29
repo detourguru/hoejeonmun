@@ -6,6 +6,7 @@ import { ExitGuard } from "@/components/exit-guard";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { Toaster } from "@/components/toaster";
 import { UpdateToast } from "@/components/update-toast";
+import { ViewportHeightSync } from "@/components/viewport-height-sync";
 import {
   GA_MEASUREMENT_ID,
   SITE_DESCRIPTION,
@@ -119,6 +120,7 @@ export default function RootLayout({
           <Toaster />
           <UpdateToast />
           <ExitGuard />
+          <ViewportHeightSync />
         </SerwistProvider>
       </body>
     </html>
