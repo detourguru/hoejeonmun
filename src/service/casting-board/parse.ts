@@ -346,8 +346,10 @@ export async function parseCastingBoardWithConsensus(
       1,
       Math.round(deadlineMs - (performance.now() - startedAt)),
     );
+    const attemptMs =
+      index === 0 && runs > 1 ? Math.min(remaining, deadlineMs / 2) : remaining; // 첫 요청에 지연이 있어도 후속 작업에 시간을 남겨둠
     const abortController = new AbortController();
-    const timeout = setTimeout(() => abortController.abort(), remaining);
+    const timeout = setTimeout(() => abortController.abort(), attemptMs);
 
     try {
       const result = await parseCastingBoard(images, show, {
@@ -487,6 +489,7 @@ export async function parseCastingBoard(
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    abortSignal?.throwIfAborted();
     const remaining = Math.round(
       GEMINI_BUDGET_MS - (performance.now() - resizeStart),
     );
