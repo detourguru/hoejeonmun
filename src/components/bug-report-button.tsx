@@ -10,7 +10,6 @@ import { BottomSheet } from "@/components/bottom-sheet";
 import { ImageZoom } from "@/components/image-zoom";
 import { Textarea } from "@/components/ui/textarea";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   BUG_REPORT_IMAGE_BUCKET,
@@ -120,6 +119,7 @@ export const BugReportButton = () => {
       const imagePaths: string[] = [];
 
       if (files.length > 0) {
+        const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
         const { data } = await supabase.auth.getClaims();
         const userId = data?.claims?.sub;
