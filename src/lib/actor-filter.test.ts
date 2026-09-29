@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createActorFilter, getRolesByActor } from "./actor-filter";
 
 describe("createActorFilter", () => {
+  // 한 회차에 나오는 배우들
+  const slot = { filterKeys: ["김배우", "이배우"] };
+
   it.each([undefined, []])(
     "배역이 없는 배우(%j)는 독립 조건으로 검사한다",
     (roles) => {
@@ -13,8 +16,6 @@ describe("createActorFilter", () => {
       expect(matches({ filterKeys: ["김배우", "이배우"] })).toBe(true);
     },
   );
-  // 한 회차에 나오는 배우들
-  const slot = { filterKeys: ["김배우", "이배우"] };
 
   it("배우를 하나도 고르지 않으면 모든 회차의 캐스팅을 보여준다", () => {
     expect(createActorFilter([])(slot)).toBe(true);
