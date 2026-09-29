@@ -38,7 +38,7 @@ export default async function LoginPage({
         <div className="relative flex items-center justify-center">
           <div className="animation-duration-[3s] bg-point/40 absolute h-44 w-44 animate-pulse rounded-full blur-2xl" />
           <Image
-            priority
+            preload
             width={80}
             height={80}
             src="/logo.webp"

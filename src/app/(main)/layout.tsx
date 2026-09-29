@@ -22,7 +22,7 @@ export default function MainLayout({
           <h1 className="text-lg font-bold">
             <Link className="flex items-center gap-2" href="/show">
               <Image
-                priority
+                preload
                 width={28}
                 height={28}
                 src="/logo.webp"

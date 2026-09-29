@@ -45,7 +45,7 @@ export const ShowList = async ({ filters }: { filters: ShowFilters }) => {
             key={show.mt20id}
             show={show}
             lastUpdatedAt={latestUploads.get(show.mt20id) ?? null}
-            priority={index === 0}
+            preload={index === 0}
           />
         ))}
       </div>

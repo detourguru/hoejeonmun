@@ -142,7 +142,7 @@ export const ShowDetail = async ({ id }: { id: string }) => {
         {show.poster && (
           <Image
             fill
-            priority
+            preload
             sizes="100vw"
             className="object-cover"
             src={show.poster}

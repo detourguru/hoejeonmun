@@ -174,7 +174,7 @@ async function FavoriteActorFeed() {
           show={show}
           actorNames={actorNames}
           nearestDate={nearestDate}
-          priority={index === 0}
+          preload={index === 0}
         />
       ))}
     </div>
@@ -229,14 +229,14 @@ async function RecentFeed() {
             key={`casting-${item.show.mt20id}`}
             show={item.show}
             uploadedAt={item.uploadedAt}
-            priority={index === 0}
+            preload={index === 0}
           />
         ) : (
           <RecentEventCard
             key={`event-${item.event.id}`}
             show={item.show}
             event={item.event}
-            priority={index === 0}
+            preload={index === 0}
           />
         ),
       )}

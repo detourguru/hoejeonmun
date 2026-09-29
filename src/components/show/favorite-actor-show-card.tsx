@@ -12,12 +12,12 @@ export const FavoriteActorShowCard = ({
   show,
   actorNames,
   nearestDate,
-  priority = false,
+  preload = false,
 }: {
   show: ShowDetail;
   actorNames: string[];
   nearestDate: string;
-  priority?: boolean;
+  preload?: boolean;
 }) => {
   const [firstActor, ...rest] = actorNames;
   const month = nearestDate.slice(0, 7);
@@ -33,7 +33,7 @@ export const FavoriteActorShowCard = ({
             width="100"
             height="150"
             sizes="96px"
-            priority={priority}
+            preload={preload}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             src={show.poster}
             alt={show.prfnm}

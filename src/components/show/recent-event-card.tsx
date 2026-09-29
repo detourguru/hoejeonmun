@@ -8,11 +8,11 @@ import { ShowDetail } from "@/type/show";
 export const RecentEventCard = ({
   show,
   event,
-  priority = false,
+  preload = false,
 }: {
   show: ShowDetail;
   event: RecentEvent;
-  priority?: boolean;
+  preload?: boolean;
 }) => {
   const month = event.periodStart.slice(0, 7);
 
@@ -27,7 +27,7 @@ export const RecentEventCard = ({
             width="100"
             height="150"
             sizes="96px"
-            priority={priority}
+            preload={preload}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             src={show.poster}
             alt={show.prfnm}

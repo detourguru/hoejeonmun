@@ -11,11 +11,11 @@ import { StateBadge } from "./state-badge";
 export const RecentCastingCard = ({
   show,
   uploadedAt,
-  priority = false,
+  preload = false,
 }: {
   show: ShowDetail;
   uploadedAt: string;
-  priority?: boolean;
+  preload?: boolean;
 }) => {
   return (
     <Link
@@ -28,7 +28,7 @@ export const RecentCastingCard = ({
             width="100"
             height="150"
             sizes="96px"
-            priority={priority}
+            preload={preload}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             src={show.poster}
             alt={show.prfnm}

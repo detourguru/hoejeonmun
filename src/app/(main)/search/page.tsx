@@ -106,7 +106,7 @@ export default async function Page({ searchParams }: Props) {
         <Section title="공연" count={shows.length}>
           <div>
             {shows.map((show, index) => (
-              <ShowCard key={show.mt20id} show={show} priority={index === 0} />
+              <ShowCard key={show.mt20id} show={show} preload={index === 0} />
             ))}
           </div>
         </Section>
