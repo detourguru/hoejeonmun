@@ -58,7 +58,7 @@
     "@vitest/coverage-v8": "^5.0.2",
     "@vitest/ui": "^5.0.2",
     "esbuild": "^0.28.2",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.2.12",
     "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
