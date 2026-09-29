@@ -2,13 +2,15 @@ name: Lighthouse
 
 on:
   deployment_status:
+  workflow_dispatch:
 
 jobs:
   lighthouse:
-    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: ./lighthouserc.json
