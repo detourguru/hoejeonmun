@@ -11,7 +11,7 @@ import {
 export type ActorFilterOption = {
   value: string;
   label: string;
-  role?: string;
+  roles?: string[];
 };
 
 export const ActorFilter = ({
