@@ -4,6 +4,7 @@ import {
   getPairKey,
   groupByDate,
   groupBySlot,
+  groupSignedUrlsByUploadId,
   SlotCastingRow,
 } from "./casting";
 
@@ -122,5 +123,51 @@ describe("groupBySlot", () => {
       variant: "ROOM SEOUL",
       casting: [{ actorId: null, verified: true }],
     });
+  });
+});
+
+describe("groupSignedUrlsByUploadId", () => {
+  // 원본 이미지 경로 → 잠깐만 열리는 서명 주소
+  const signedByPath = new Map([
+    ["uploads/10/0.jpg", "https://signed/10-0"],
+    ["uploads/10/1.jpg", "https://signed/10-1"],
+    ["uploads/20/0.jpg", "https://signed/20-0"],
+  ]);
+
+  it("업로드마다 원본 이미지 주소를 이미지 순서대로 묶어서 원본 보기에서 올린 순서대로 보이게 한다", () => {
+    const grouped = groupSignedUrlsByUploadId(
+      [
+        { upload_id: 10, storage_path: "uploads/10/0.jpg" },
+        { upload_id: 20, storage_path: "uploads/20/0.jpg" },
+        { upload_id: 10, storage_path: "uploads/10/1.jpg" },
+      ],
+      signedByPath,
+    );
+
+    expect([...grouped.entries()]).toStrictEqual([
+      [10, ["https://signed/10-0", "https://signed/10-1"]],
+      [20, ["https://signed/20-0"]],
+    ]);
+  });
+
+  it("서명 주소를 못 받은 이미지(파일이 지워졌거나 서명 실패)는 깨진 이미지로 보이지 않게 빼고 나머지만 보여 준다", () => {
+    const grouped = groupSignedUrlsByUploadId(
+      [
+        { upload_id: 10, storage_path: "uploads/10/0.jpg" },
+        { upload_id: 10, storage_path: "uploads/10/missing.jpg" },
+      ],
+      signedByPath,
+    );
+
+    expect(grouped.get(10)).toStrictEqual(["https://signed/10-0"]);
+  });
+
+  it("이미지를 하나도 못 받은 업로드는 목록에 넣지 않는다", () => {
+    const grouped = groupSignedUrlsByUploadId(
+      [{ upload_id: 30, storage_path: "uploads/30/missing.jpg" }],
+      signedByPath,
+    );
+
+    expect(grouped.has(30)).toBe(false);
   });
 });
