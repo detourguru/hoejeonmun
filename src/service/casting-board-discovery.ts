@@ -36,7 +36,7 @@ async function fetchLastStoryImage(show: ShowDetail) {
   return response.blob();
 }
 
-function hasCurrentOrFutureDate(performances: { date: string }[]) {
+export function hasCurrentOrFutureDate(performances: { date: string }[]) {
   const today = toIsoDate(toKopisDate(getToday()));
 
   return performances.some(({ date }) => date >= today);
