@@ -325,6 +325,10 @@ describe("getShowSummaries", () => {
 });
 
 describe("searchShows", () => {
+  it("공백 검색어는 외부 조회 없이 빈 결과를 반환한다", async () => {
+    expect(await searchShows("   ")).toEqual([]);
+    expect(fetchKopisAll).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-28T03:00:00Z"));
@@ -363,6 +367,17 @@ describe("searchShows", () => {
 });
 
 describe("filterShowsByVenue", () => {
+  it("빈 목록에는 공연 상세를 조회하지 않는다", async () => {
+    expect(
+      await filterShowsByVenue([], {
+        page: 1,
+        from: "20260901",
+        to: "20260930",
+        venueType: "largeVenue",
+      }),
+    ).toEqual([]);
+    expect(fetchKopis).not.toHaveBeenCalled();
+  });
   // KOPIS 공연 상세에 담긴 대학로 여부와 공연장(홀) id
   const detail = (
     mt20id: string,
