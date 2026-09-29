@@ -17,7 +17,7 @@ import {
 import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
-import { createActorFilter, getRolesByActor } from "@/lib/actor-filter";
+import { createActorFilter } from "@/lib/actor-filter";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
@@ -176,10 +176,13 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
-  const rolesByActor = getRolesByActor(
-    filterOptions.flatMap(({ value, roles }) =>
-      (roles ?? []).map((role) => ({ actor: value, role })),
-    ),
+  const rolesByActor = new Map(
+    filterOptions
+      .filter(
+        (option): option is Required<ActorFilterOption> =>
+          !!option.roles?.length,
+      )
+      .map(({ value, roles }) => [value, roles]),
   );
 
   // 배역 정보가 없는 즐겨찾기 배우 필터는 OR로 동작
