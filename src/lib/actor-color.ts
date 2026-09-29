@@ -15,8 +15,10 @@ const ACTOR_COLORS = [
   "bg-tone-12 text-tone-12-fg",
 ] as const;
 
-export function getActorColorMap(actorIds: number[]): Map<number, string> {
-  const unique = [...new Set(actorIds)];
+export function getActorColorMap<T extends string | number>(
+  ids: T[],
+): Map<T, string> {
+  const unique = [...new Set(ids)];
 
   return new Map(
     unique.map((id, index) => [id, ACTOR_COLORS[index % ACTOR_COLORS.length]]),
