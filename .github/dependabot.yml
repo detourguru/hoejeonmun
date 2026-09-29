@@ -12,6 +12,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: eslint # eslint-plugin-import가 아직 eslint 10을 지원하지 않음
         update-types: ["version-update:semver-major"]
+      - dependency-name: typescript # typescript-eslint가 아직 TypeScript 7을 지원하지 않음
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
