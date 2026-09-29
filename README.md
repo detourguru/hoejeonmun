@@ -2,6 +2,8 @@
 
 > 배포: [hoejeonmun.vercel.app](https://hoejeonmun.vercel.app)
 
+[![CI](https://github.com/detourguru/hoejeonmun/actions/workflows/ci.yml/badge.svg)](https://github.com/detourguru/hoejeonmun/actions/workflows/ci.yml)
+
 ## 프로젝트 소개
 
 **회전문**은 뮤지컬/연극 팬들이 흩어져 있는 **캐스팅 및 이벤트 정보를 한 곳에서 확인**할 수 있도록 만든 서비스입니다.
