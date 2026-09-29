@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { createActorFilter, getRolesByActor } from "./actor-filter";
 
 describe("createActorFilter", () => {
+  it.each([undefined, []])(
+    "배역이 없는 배우(%j)는 독립 조건으로 검사한다",
+    (roles) => {
+      const byActor = new Map<string, string[]>([["김배우", ["햄릿"]]]);
+      if (roles) byActor.set("이배우", roles);
+      const matches = createActorFilter(["김배우", "이배우"], byActor);
+      expect(matches({ filterKeys: ["김배우"] })).toBe(false);
+      expect(matches({ filterKeys: ["김배우", "이배우"] })).toBe(true);
+    },
+  );
   // 한 회차에 나오는 배우들
   const slot = { filterKeys: ["김배우", "이배우"] };
 
