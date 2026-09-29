@@ -1,0 +1,7 @@
+[
+  {
+    "name": "클라이언트 JS 전체",
+    "path": ".next/static/chunks/**/*.js",
+    "limit": "400 kB"
+  }
+]

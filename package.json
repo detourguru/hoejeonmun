@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "thumbnails": "tsx --conditions=react-server scripts/generate-poster-thumbnails.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "size": "size-limit"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
@@ -51,6 +52,7 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@serwist/turbopack": "^9.5.12",
+    "@size-limit/file": "^14.1.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -69,6 +71,7 @@
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "serwist": "^9.5.12",
+    "size-limit": "^14.1.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
