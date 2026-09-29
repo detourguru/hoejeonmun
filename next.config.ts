@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: { dynamic: 30 },
   },
+  // PWA start_url이 "/"라 앱을 열 때마다 리다이렉트 왕복(약 860ms)이 생기므로, 서버 안에서 /show 를 그대로 보여 준다
+  async rewrites() {
+    return [{ source: "/", destination: "/show" }];
+  },
   images: {
     unoptimized: true,
     // KOPIS 가 www 없이 주거나 https 로 주는 경우가 있음
