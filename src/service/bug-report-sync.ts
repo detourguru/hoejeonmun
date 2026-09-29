@@ -1,12 +1,13 @@
 import "server-only";
 
+import { graphemeLength, truncateGraphemes } from "@/lib/grapheme";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BUG_REPORT_IMAGE_BUCKET } from "@/type/bug-report";
 
 const ISSUE_IMAGE_TTL_SECONDS = 60 * 60 * 24 * 7;
 const TITLE_MAX_LENGTH = 60;
 
-type BugReportRow = {
+export type BugReportRow = {
   id: number;
   user_id: string;
   message: string;
@@ -17,15 +18,15 @@ type BugReportRow = {
   image_paths: string[];
 };
 
-function buildTitle(message: string) {
+export function buildTitle(message: string) {
   const firstLine = message.trim().split("\n")[0];
 
-  return firstLine.length > TITLE_MAX_LENGTH
-    ? `${firstLine.slice(0, TITLE_MAX_LENGTH)}…`
+  return graphemeLength(firstLine) > TITLE_MAX_LENGTH
+    ? `${truncateGraphemes(firstLine, TITLE_MAX_LENGTH)}…`
     : firstLine;
 }
 
-function buildBody(report: BugReportRow, imageUrls: string[]) {
+export function buildBody(report: BugReportRow, imageUrls: string[]) {
   const lines = [
     report.message,
     "",
