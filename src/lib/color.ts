@@ -1,6 +1,6 @@
 export const SLOT_COLOR = "border border-border bg-sub text-text";
 
-const ACTOR_COLORS = [
+const COLORS = [
   "bg-tone-1 text-tone-1-fg",
   "bg-tone-2 text-tone-2-fg",
   "bg-tone-3 text-tone-3-fg",
@@ -15,12 +15,12 @@ const ACTOR_COLORS = [
   "bg-tone-12 text-tone-12-fg",
 ] as const;
 
-export function getActorColorMap<T extends string | number>(
+export function getColorMap<T extends string | number>(
   ids: T[],
 ): Map<T, string> {
   const unique = [...new Set(ids)];
 
   return new Map(
-    unique.map((id, index) => [id, ACTOR_COLORS[index % ACTOR_COLORS.length]]),
+    unique.map((id, index) => [id, COLORS[index % COLORS.length]]),
   );
 }
