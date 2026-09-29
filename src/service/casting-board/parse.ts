@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -85,7 +85,7 @@ export async function createCastingBoardOverview(
   const canvasHeight =
     images.reduce((sum, { height }) => sum + height, 0) +
     CASTING_OVERVIEW_SEPARATOR * (images.length - 1);
-  const composites: sharp.OverlayOptions[] = [];
+  const composites: OverlayOptions[] = [];
   let top = 0;
 
   for (const image of images) {

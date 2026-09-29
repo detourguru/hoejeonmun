@@ -1,9 +1,11 @@
+import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
 import { ParsedPerformance } from "@/type/casting";
 
 import {
   buildConsensusPerformances,
+  createCastingBoardOverview,
   needsConsensus,
   pickMostCommonValue,
   shouldCreateCastingBoardOverview,
@@ -238,6 +240,74 @@ describe("shouldCreateCastingBoardOverview", () => {
   it("크기를 읽지 못한 이미지가 있으면 만들지 않는다", () => {
     expect(shouldCreateCastingBoardOverview([capture(0), image(0, 0, 1)])).toBe(
       false,
+    );
+  });
+});
+
+describe("createCastingBoardOverview", () => {
+  const solidImage = async (
+    index: number,
+    color: { r: number; g: number; b: number },
+  ) => ({
+    index,
+    width: 100,
+    height: 200,
+    buffer: await sharp({
+      create: { width: 100, height: 200, channels: 3, background: color },
+    })
+      .png()
+      .toBuffer(),
+  });
+
+  const RED = { r: 255, g: 0, b: 0 };
+  const BLUE = { r: 0, g: 0, b: 255 };
+
+  const colorAt = async (image: Buffer, x: number, y: number) => {
+    const pixels = await sharp(image)
+      .extract({ left: x, top: y, width: 10, height: 10 })
+      .removeAlpha()
+      .raw()
+      .toBuffer();
+    const sum = [0, 0, 0];
+
+    for (let index = 0; index < pixels.length; index += 3) {
+      sum[0] += pixels[index];
+      sum[1] += pixels[index + 1];
+      sum[2] += pixels[index + 2];
+    }
+
+    return sum.map((value) => Math.round(value / (pixels.length / 3)));
+  };
+
+  it("나눠 찍은 캡처를 올린 순서대로 위에서 아래로 이어 붙이고, 사이에 구분선을 넣는다", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const overview = await createCastingBoardOverview([
+      await solidImage(0, RED),
+      await solidImage(1, BLUE),
+    ]);
+
+    expect(overview?.mime_type).toBe("image/jpeg");
+
+    const stitched = Buffer.from(overview!.data, "base64");
+    const { width, height } = await sharp(stitched).metadata();
+
+    expect({ width, height }).toStrictEqual({ width: 100, height: 416 });
+
+    const [top, bottom] = await Promise.all([
+      colorAt(stitched, 45, 95),
+      colorAt(stitched, 45, 404),
+    ]);
+
+    expect(top[0]).toBeGreaterThan(200);
+    expect(top[2]).toBeLessThan(50);
+    expect(bottom[2]).toBeGreaterThan(200);
+    expect(bottom[0]).toBeLessThan(50);
+  });
+
+  it("이어 붙일 조건이 아니면(예: 한 장) 만들지 않는다", async () => {
+    expect(await createCastingBoardOverview([await solidImage(0, RED)])).toBe(
+      null,
     );
   });
 });
