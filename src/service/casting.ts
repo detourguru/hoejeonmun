@@ -518,7 +518,7 @@ export async function getEventsWithReportStatus(
 
 const UPLOAD_ID_CHUNK_SIZE = 100;
 
-function groupSignedUrlsByUploadId(
+export function groupSignedUrlsByUploadId(
   rows: Pick<UploadImageRow, "upload_id" | "storage_path">[],
   signedByPath: Map<string, string>,
 ): Map<number, string[]> {
