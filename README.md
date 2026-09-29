@@ -1,8 +1,8 @@
 # 회전문
 
-> 🔗 배포: [hoejeonmun.vercel.app](https://hoejeonmun.vercel.app)
+> 배포: [hoejeonmun.vercel.app](https://hoejeonmun.vercel.app)
 
-## 📝 프로젝트 소개
+## 프로젝트 소개
 
 **회전문**은 뮤지컬/연극 팬들이 흩어져 있는 **캐스팅 및 이벤트 정보를 한 곳에서 확인**할 수 있도록 만든 서비스입니다.
 
@@ -24,11 +24,11 @@
 - 이메일 알림(Resend) — 오류 리포트, 버그 제보 등
 - PWA 지원 (오프라인 지원)
 
-## 📱 화면 구성
+## 화면 구성
 
 <img src="public/screens.gif" width="320" alt="회전문 화면 흐름: 공연 목록 → 공연 상세 → 캐스팅보드 캘린더 → 배우 검색 → 배우 상세 → 로그인 → 마이페이지" />
 
-## 🛠️ 기술 스택
+## 기술 스택
 
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-19-149ECA?style=for-the-badge&logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
@@ -46,24 +46,24 @@
 | 배포       | Vercel, Vercel Cron                               |
 | 분석       | Vercel Analytics                                  |
 
-## 🏗️ 아키텍처
+## 아키텍처
 
 ```mermaid
 flowchart TD
-    User["👤 사용자 / 브라우저"]
-    FE["🖼️ Next.js 프론트엔드 (App Router)"]
+    User["사용자 / 브라우저"]
+    FE["Next.js 프론트엔드 (App Router)"]
     User --> FE
 
-    FE -->|서버 액션 / API Route| API["⚙️ API / Server Actions"]
+    FE -->|서버 액션 / API Route| API["API / Server Actions"]
 
-    API -->|Auth/DB/Storage| Supabase["🔥 Supabase"]
-    API -->|공연 데이터 수집| KOPIS["🎫 KOPIS API"]
-    API -->|캐스팅보드 이미지 파싱| Parser["🖼️ Casting Board Parser"]
-    API -->|알림 메일 발송| Resend["📩 Resend"]
+    API -->|Auth/DB/Storage| Supabase["Supabase"]
+    API -->|공연 데이터 수집| KOPIS["KOPIS API"]
+    API -->|캐스팅보드 이미지 파싱| Parser["Casting Board Parser"]
+    API -->|알림 메일 발송| Resend["Resend"]
 
-    Cron["⏰ Vercel Cron"] -->|주기 실행| API
+    Cron["Vercel Cron"] -->|주기 실행| API
 
-    FE -.PWA / 오프라인.-> SW["📱 Serwist Service Worker"]
+    FE -.PWA / 오프라인.-> SW["Serwist Service Worker"]
 ```
 
 **데이터 흐름 요약**
@@ -74,7 +74,7 @@ flowchart TD
 4. 프론트엔드는 Supabase에서 공연/캐스팅/즐겨찾기 데이터를 조회해 캘린더/리스트 뷰로 렌더링
 5. 카카오 로그인은 Supabase Auth를 통해 처리되며, 오류/버그 리포트는 Resend로 이메일 발송
 
-## ⚡ 빠른 시작
+## 빠른 시작
 
 ```bash
 # 1. 저장소 클론
@@ -97,3 +97,16 @@ npm run dev
 ```
 
 브라우저에서 <http://localhost:3000> 접속 후 확인합니다.
+
+## 테스트 및 코드 품질
+
+```bash
+npm run test          # vitest 전체 실행
+npm run test:ui        # vitest UI + 커버리지
+npm run lint            # eslint
+npm run format:check   # prettier 검사
+npx tsc --noEmit        # 타입 체크
+```
+
+- 커밋 시 `husky` + `lint-staged`가 변경된 파일에 대해 eslint/prettier와 관련 vitest 테스트를 자동 실행합니다.
+- GitHub Actions CI(`.github/workflows/ci.yml`)가 `develop` 브랜치 push/PR마다 lint, format 검사, 타입 체크, 전체 테스트를 실행합니다.
