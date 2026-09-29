@@ -10,6 +10,8 @@ import { LARGE_VENUE_SEAT_THRESHOLD } from "@/type/show";
 
 const SCROLL_STORAGE_KEY = "todayShowListScrollY";
 
+const ABOVE_THE_FOLD_POSTERS = 4;
+
 function isDaehakro(slot: TodayShowSlot) {
   return slot.daehakro === "Y";
 }
@@ -91,6 +93,12 @@ export function TodayShowList({
         (showLargeVenue && isLargeVenue(slot)),
     );
   const groupedByTime = groupByTime(visibleSlots);
+  const preloadSlotIds = new Set(
+    [...groupedByTime.values()]
+      .flat()
+      .slice(0, ABOVE_THE_FOLD_POSTERS)
+      .map(({ id }) => id),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,6 +159,7 @@ export function TodayShowList({
                           width={56}
                           height={80}
                           sizes="56px"
+                          preload={preloadSlotIds.has(slot.id)}
                           className="h-full w-full object-cover"
                         />
                       )}
