@@ -17,7 +17,7 @@ import {
 import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
-import { matchesActorFilter } from "@/lib/actor-filter";
+import { getRolesByActor, matchesActorFilter } from "@/lib/actor-filter";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
@@ -176,19 +176,19 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
-  const roleByActor = new Map(
-    filterOptions
-      .filter((option): option is Required<ActorFilterOption> => !!option.role)
-      .map(({ value, role }) => [value, role]),
+  const rolesByActor = getRolesByActor(
+    filterOptions.flatMap(({ value, roles }) =>
+      (roles ?? []).map((role) => ({ actor: value, role })),
+    ),
   );
 
-  // role이 없는 케이스는 즐겨찾기 배우이므로 or 필터로 동작
+  // 배역 정보가 없는 즐겨찾기 배우 필터는 OR로 동작
   const visible = slots.filter((slot) => {
     if (
       !matchesActorFilter(
         slot,
         actors,
-        roleByActor.size > 0 ? roleByActor : undefined,
+        rolesByActor.size > 0 ? rolesByActor : undefined,
       )
     )
       return false;

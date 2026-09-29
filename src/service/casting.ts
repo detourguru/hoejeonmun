@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { getRolesByActor } from "@/lib/actor-filter";
 import { getToday, toInputDate } from "@/lib/date";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chunkArray, selectAllRows } from "@/lib/supabase/select-all";
@@ -139,15 +140,16 @@ export async function getShowFilterData(showId: string) {
         "actor_name_raw" | "role_name_raw"
       >[];
 
-      const roles: Record<string, string> = {};
-
-      for (const { actor_name_raw, role_name_raw } of rows) {
-        roles[actor_name_raw] ??= role_name_raw;
-      }
+      const rolesByActor = getRolesByActor(
+        rows.map(({ actor_name_raw, role_name_raw }) => ({
+          actor: actor_name_raw,
+          role: role_name_raw,
+        })),
+      );
 
       return {
-        actors: [...new Set(rows.map(({ actor_name_raw }) => actor_name_raw))],
-        roles,
+        actors: [...rolesByActor.keys()],
+        roles: Object.fromEntries(rolesByActor),
       };
     },
     ["show-filter-data"],

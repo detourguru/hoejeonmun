@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { matchesActorFilter } from "./actor-filter";
+import { getRolesByActor, matchesActorFilter } from "./actor-filter";
 
 describe("matchesActorFilter", () => {
   // 한 회차에 나오는 배우들
@@ -22,18 +22,18 @@ describe("matchesActorFilter", () => {
     expect(matchesActorFilter({}, ["박배우"])).toBe(true);
   });
 
-  describe("배역 정보(roleByActor)가 있으면", () => {
+  describe("배역 정보(rolesByActor)가 있으면", () => {
     // 햄릿 역: 김배우/이배우(교대), 오필리아 역: 박배우
-    const roleByActor = new Map([
-      ["김배우", "햄릿"],
-      ["이배우", "햄릿"],
-      ["박배우", "오필리아"],
+    const rolesByActor = getRolesByActor([
+      { actor: "김배우", role: "햄릿" },
+      { actor: "이배우", role: "햄릿" },
+      { actor: "박배우", role: "오필리아" },
     ]);
 
     it("같은 배역 두 명을 고르면 한 명만 나와도 보여준다 (OR)", () => {
       const slot = { filterKeys: ["김배우", "박배우"] };
 
-      expect(matchesActorFilter(slot, ["김배우", "이배우"], roleByActor)).toBe(
+      expect(matchesActorFilter(slot, ["김배우", "이배우"], rolesByActor)).toBe(
         true,
       );
     });
@@ -43,15 +43,15 @@ describe("matchesActorFilter", () => {
       const onlyOne = { filterKeys: ["이배우", "박배우"] };
       const neither = { filterKeys: ["김배우"] };
 
-      expect(matchesActorFilter(together, ["이배우", "박배우"], roleByActor)).toBe(
-        false,
-      );
-      expect(matchesActorFilter(onlyOne, ["이배우", "박배우"], roleByActor)).toBe(
-        true,
-      );
-      expect(matchesActorFilter(neither, ["이배우", "박배우"], roleByActor)).toBe(
-        false,
-      );
+      expect(
+        matchesActorFilter(together, ["이배우", "박배우"], rolesByActor),
+      ).toBe(false);
+      expect(
+        matchesActorFilter(onlyOne, ["이배우", "박배우"], rolesByActor),
+      ).toBe(true);
+      expect(
+        matchesActorFilter(neither, ["이배우", "박배우"], rolesByActor),
+      ).toBe(false);
     });
 
     it("같은 배역 두 명 + 다른 배역 한 명을 고르면 그 한 명과 짝지어진 회차를 모두 보여준다", () => {
@@ -61,9 +61,59 @@ describe("matchesActorFilter", () => {
 
       const actors = ["김배우", "이배우", "박배우"];
 
-      expect(matchesActorFilter(withKim, actors, roleByActor)).toBe(true);
-      expect(matchesActorFilter(withLee, actors, roleByActor)).toBe(true);
-      expect(matchesActorFilter(withoutPark, actors, roleByActor)).toBe(false);
+      expect(matchesActorFilter(withKim, actors, rolesByActor)).toBe(true);
+      expect(matchesActorFilter(withLee, actors, rolesByActor)).toBe(true);
+      expect(matchesActorFilter(withoutPark, actors, rolesByActor)).toBe(false);
     });
+  });
+
+  it("복수 배역 배우의 두 번째 배역도 필터 조건에 반영한다", () => {
+    const rolesByActor = getRolesByActor([
+      { actor: "김배우", role: "햄릿" },
+      { actor: "이배우", role: "햄릿" },
+      { actor: "김배우", role: "오필리아" },
+    ]);
+
+    expect(
+      matchesActorFilter(
+        { filterKeys: ["이배우"] },
+        ["김배우", "이배우"],
+        rolesByActor,
+      ),
+    ).toBe(false);
+    expect(
+      matchesActorFilter(
+        { filterKeys: ["김배우", "이배우"] },
+        ["김배우", "이배우"],
+        rolesByActor,
+      ),
+    ).toBe(true);
+    expect(
+      matchesActorFilter({ filterKeys: ["김배우"] }, ["김배우"], rolesByActor),
+    ).toBe(true);
+  });
+});
+
+describe("getRolesByActor", () => {
+  it("한 배우가 여러 배역을 맡았을 때 모두 보존한다", () => {
+    const rows = [
+      { actor: "김배우", role: "햄릿" },
+      { actor: "이배우", role: "햄릿" },
+      { actor: "김배우", role: "오필리아" },
+    ];
+
+    const rolesByActor = getRolesByActor(rows);
+
+    expect(rolesByActor.get("김배우")).toEqual(["햄릿", "오필리아"]);
+    expect(rolesByActor.get("이배우")).toEqual(["햄릿"]);
+  });
+
+  it("같은 배우의 같은 배역은 중복 저장하지 않는다", () => {
+    const rolesByActor = getRolesByActor([
+      { actor: "김배우", role: "햄릿" },
+      { actor: "김배우", role: "햄릿" },
+    ]);
+
+    expect(rolesByActor.get("김배우")).toEqual(["햄릿"]);
   });
 });
