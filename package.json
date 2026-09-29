@@ -13,7 +13,15 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "thumbnails": "tsx --conditions=react-server scripts/generate-poster-thumbnails.ts"
+    "thumbnails": "tsx --conditions=react-server scripts/generate-poster-thumbnails.ts",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": "prettier --write"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -50,6 +58,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "serwist": "^9.5.12",
