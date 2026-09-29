@@ -36,7 +36,7 @@ export type CastingSlot = {
   variant: string | null;
 };
 
-type SlotCastingRow = {
+export type SlotCastingRow = {
   slot_id: number;
   upload_id: number;
   date: string;
@@ -68,7 +68,7 @@ export const getPairKey = (actors: string[]) =>
 export const getSlotPairKey = (slot: CastingSlot) =>
   getPairKey(slot.casting.map(({ actor }) => actor));
 
-function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
+export function groupBySlot(rows: SlotCastingRow[]): CastingSlot[] {
   const slots = new Map<number, CastingSlot>();
 
   for (const row of rows) {
