@@ -5,6 +5,7 @@ import { FavoriteScheduleCalendar } from "@/components/mypage/favorite-schedule-
 import { MyScheduleCalendar } from "@/components/mypage/my-schedule-calendar";
 import { MyShowsTabs } from "@/components/mypage/my-shows-tabs";
 import { MySlotCard } from "@/components/mypage/my-slot-card";
+import { ShareCalendarButton } from "@/components/mypage/share-calendar-button";
 import { SLOT_COLOR, getColorMap } from "@/lib/color";
 import {
   getCalendarCells,
@@ -177,7 +178,11 @@ export default async function Page({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-text text-xl font-bold">내 공연</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-text text-xl font-bold">내 공연</h1>
+
+        {tab !== "favorite" && <ShareCalendarButton />}
+      </div>
 
       <MyShowsTabs current={tab} />
 

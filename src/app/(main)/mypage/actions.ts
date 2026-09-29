@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateCalendarShareToken } from "@/service/share";
 
 export type ToggleSlotResult =
   { ok: true; bookmarked: boolean } | { ok: false; message: string };
@@ -37,6 +38,28 @@ export async function toggleMySlot(
   revalidatePath("/mypage/shows");
 
   return { ok: true, bookmarked: !bookmarked };
+}
+
+export type CreateCalendarShareLinkResult =
+  { ok: true; token: string } | { ok: false; message: string };
+
+export async function createCalendarShareLink(): Promise<CreateCalendarShareLinkResult> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+
+  const userId = data?.claims?.sub;
+
+  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  try {
+    const token = await getOrCreateCalendarShareToken(userId);
+
+    return { ok: true, token };
+  } catch (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
 }
 
 export type ToggleEventGroupResult =

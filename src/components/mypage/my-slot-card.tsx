@@ -7,9 +7,11 @@ import type { MySlot } from "@/service/mypage";
 export const MySlotCard = ({
   slot,
   showDate = false,
+  readOnly = false,
 }: {
   slot: MySlot;
   showDate?: boolean;
+  readOnly?: boolean;
 }) => (
   <li className="border-border bg-surface relative flex flex-col gap-2 rounded-lg border p-3">
     <Link
@@ -33,9 +35,11 @@ export const MySlotCard = ({
         <p className="text-text text-sm">{slot.showName}</p>
       </div>
 
-      <div className="relative z-10">
-        <MySlotButton slotId={slot.id} bookmarked />
-      </div>
+      {!readOnly && (
+        <div className="relative z-10">
+          <MySlotButton slotId={slot.id} bookmarked />
+        </div>
+      )}
     </div>
 
     <dl className="flex flex-col gap-0.5">

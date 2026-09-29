@@ -1,3 +1,4 @@
+import type { AdminClient } from "@/lib/supabase/admin";
 import { selectAllRows } from "@/lib/supabase/select-all";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -130,8 +131,9 @@ export async function getMySlots(
   userId: string,
   start: string,
   end: string,
+  client?: Awaited<ReturnType<typeof createClient>> | AdminClient,
 ): Promise<MySlot[]> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
 
   const { data: bookmarks, error: bookmarksError } = await supabase
     .from("my_slots")
@@ -204,8 +206,9 @@ export async function getMyEvents(
   userId: string,
   start: string,
   end: string,
+  client?: Awaited<ReturnType<typeof createClient>> | AdminClient,
 ): Promise<CalendarEvent[]> {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
 
   const { data: bookmarks, error: bookmarksError } = await supabase
     .from("my_event_groups")
