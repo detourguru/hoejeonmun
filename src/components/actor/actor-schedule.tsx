@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { ActorSlotCard } from "@/components/actor/actor-slot-card";
 import { CastingViews } from "@/components/casting/casting-views";
-import { SLOT_COLOR } from "@/lib/actor-color";
+import { SLOT_COLOR, getActorColorMap } from "@/lib/actor-color";
 import { cn } from "@/lib/utils";
 import { ActorSlot } from "@/service/actor";
 import { CastingView } from "@/type/casting";
@@ -31,6 +31,8 @@ export const ActorSchedule = ({
   const visibleSlots = selectedShowId
     ? slots.filter((slot) => slot.showId === selectedShowId)
     : slots;
+
+  const showColors = getActorColorMap(shows.map(({ showId }) => showId));
 
   return (
     <>
@@ -64,7 +66,7 @@ export const ActorSchedule = ({
           date: slot.date,
           time: slot.time,
           label: slot.showName,
-          colorClass: SLOT_COLOR,
+          colorClass: showColors.get(slot.showId) ?? SLOT_COLOR,
         }))}
         panels={Object.fromEntries(
           visibleSlots.map((slot) => [

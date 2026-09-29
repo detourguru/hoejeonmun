@@ -17,4 +17,11 @@ describe("getActorColorMap", () => {
     expect(colorById.size).toBe(2);
     expect(colorById.get(1)).not.toBe(colorById.get(2));
   });
+
+  it("공연 id처럼 문자열 id를 넘겨도 각 공연마다 다른 색을 받는다", () => {
+    const colorByShowId = getActorColorMap(["PF001", "PF002", "PF001"]);
+
+    expect(colorByShowId.size).toBe(2);
+    expect(colorByShowId.get("PF001")).not.toBe(colorByShowId.get("PF002"));
+  });
 });
