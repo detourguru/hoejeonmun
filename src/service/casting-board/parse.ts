@@ -411,7 +411,9 @@ export async function parseCastingBoardWithConsensus(
         ? restError.reason
         : undefined;
 
-    throw cause instanceof Error ? cause : new Error("Consensus parsing failed");
+    throw cause instanceof Error
+      ? cause
+      : new Error("Consensus parsing failed");
   }
 
   const base = successful[0].value;
