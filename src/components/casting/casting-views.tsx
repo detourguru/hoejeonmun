@@ -176,8 +176,22 @@ export const CastingViews = ({
     replaceParams({ [ACTORS_PARAM]: next.join(ACTORS_SEPARATOR) });
   };
 
+  const roleByActor = new Map(
+    filterOptions
+      .filter((option): option is Required<ActorFilterOption> => !!option.role)
+      .map(({ value, role }) => [value, role]),
+  );
+
+  // role이 없는 케이스는 즐겨찾기 배우이므로 or 필터로 동작
   const visible = slots.filter((slot) => {
-    if (!matchesActorFilter(slot, actors)) return false;
+    if (
+      !matchesActorFilter(
+        slot,
+        actors,
+        roleByActor.size > 0 ? roleByActor : undefined,
+      )
+    )
+      return false;
 
     return (
       !onlyOverlapping || (overlapFilter?.overlappingIds.has(slot.id) ?? false)
