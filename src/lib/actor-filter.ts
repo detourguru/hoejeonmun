@@ -33,21 +33,21 @@ export function getRolesByActor(
   return rolesByActor;
 }
 
-// filterKeys가 없는 회차(예: 내 공연)는 배우 필터 대상이 아니라 항상 보여준다
-export const matchesActorFilter = (
-  slot: Pick<CalendarSlot, "filterKeys">,
+// 배역 그룹은 한 번 만들고, 반환한 함수로 각 회차를 검사한다.
+export const createActorFilter = (
   actors: string[],
   rolesByActor?: Map<string, string[]>,
 ) => {
-  if (!slot.filterKeys || actors.length === 0) return true;
+  const groups = rolesByActor ? groupByRole(actors, rolesByActor) : [actors];
 
-  const filterKeys = slot.filterKeys;
+  return (slot: Pick<CalendarSlot, "filterKeys">) => {
+    // filterKeys가 없는 회차(예: 내 공연)는 항상 보여준다.
+    if (!slot.filterKeys || actors.length === 0) return true;
 
-  if (!rolesByActor) {
-    return actors.some((name) => filterKeys.includes(name));
-  }
+    const filterKeys = slot.filterKeys;
 
-  return groupByRole(actors, rolesByActor).every((group) =>
-    group.some((name) => filterKeys.includes(name)),
-  );
+    return groups.every((group) =>
+      group.some((name) => filterKeys.includes(name)),
+    );
+  };
 };

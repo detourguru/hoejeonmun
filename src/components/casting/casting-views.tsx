@@ -17,7 +17,7 @@ import {
 import { Calendar } from "@/components/casting/calendar";
 import { EventCard } from "@/components/casting/event-card";
 import { useUpdateSearchParams } from "@/hook/useUpdateSearchParams";
-import { getRolesByActor, matchesActorFilter } from "@/lib/actor-filter";
+import { createActorFilter, getRolesByActor } from "@/lib/actor-filter";
 import { addMonths, parseMonth, toMonth } from "@/lib/date";
 import { eventAppliesToDate, matchEventsToDate } from "@/lib/event-slots";
 import { cn } from "@/lib/utils";
@@ -183,15 +183,13 @@ export const CastingViews = ({
   );
 
   // 배역 정보가 없는 즐겨찾기 배우 필터는 OR로 동작
+  const matchesActorFilter = createActorFilter(
+    actors,
+    rolesByActor.size > 0 ? rolesByActor : undefined,
+  );
+
   const visible = slots.filter((slot) => {
-    if (
-      !matchesActorFilter(
-        slot,
-        actors,
-        rolesByActor.size > 0 ? rolesByActor : undefined,
-      )
-    )
-      return false;
+    if (!matchesActorFilter(slot)) return false;
 
     return (
       !onlyOverlapping || (overlapFilter?.overlappingIds.has(slot.id) ?? false)
