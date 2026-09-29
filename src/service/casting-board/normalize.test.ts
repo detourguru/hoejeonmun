@@ -16,6 +16,7 @@ import {
   agreesWithPrintedWeekday,
   createEventGroupResolver,
   dedupeByKey,
+  EventSlotRules,
   findCastMismatchImageIndexes,
   hasKnownCastOverlap,
   isExactSameEvent,
@@ -35,6 +36,7 @@ import {
   sanitizeCutoffTime,
   sanitizeExactTimes,
   sanitizeSlotExceptions,
+  selectEventSlotIds,
   slotKey,
   toKoreanWeekday,
   toPendingEvents,
@@ -1268,4 +1270,79 @@ describe("createEventGroupResolver", () => {
       expect(createGroup).toHaveBeenCalledTimes(2);
     },
   );
+});
+
+describe("selectEventSlotIds", () => {
+  // 이벤트 기간 9/28(월) ~ 9/30(수) 안의 회차. DB 시각은 초까지 온다
+  const periodSlots = [
+    { id: 1, date: "2026-09-28", time: "14:00:00" },
+    { id: 2, date: "2026-09-28", time: "19:30:00" },
+    { id: 3, date: "2026-09-29", time: "19:30:00" },
+    { id: 4, date: "2026-09-30", time: "14:00:00" },
+    { id: 5, date: "2026-09-30", time: "19:30:00" },
+  ];
+
+  const select = (
+    rules: Partial<EventSlotRules> = {},
+    includedCandidates: typeof periodSlots = [],
+  ) =>
+    selectEventSlotIds(periodSlots, includedCandidates, {
+      periodStart: "2026-09-28",
+      periodEnd: "2026-09-30",
+      ...rules,
+    });
+
+  it("따로 정한 규칙이 없으면 기간 안의 모든 회차에 이벤트를 적용한다", () => {
+    expect(select()).toStrictEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("업로더가 뺀 회차는 기간 안이어도 이벤트를 적용하지 않는다", () => {
+    expect(
+      select({ excludedSlots: [{ date: "2026-09-28", time: "19:30" }] }),
+    ).toStrictEqual([1, 3, 4, 5]);
+  });
+
+  it("이벤트 기간이 9/30까지여도 업로더가 10/1 19:30 회차를 포함시키면 그 회차에도 적용한다 (같은 날 14:00 회차는 제외)", () => {
+    expect(
+      select({ includedSlots: [{ date: "2026-10-01", time: "19:30" }] }, [
+        { id: 6, date: "2026-10-01", time: "14:00:00" },
+        { id: 7, date: "2026-10-01", time: "19:30:00" },
+      ]),
+    ).toStrictEqual([1, 2, 3, 4, 5, 7]);
+  });
+
+  it("특정 시각 공연에만 하는 이벤트(예: 저녁 공연만)는 그 시각 회차에만 적용한다", () => {
+    expect(select({ exactTimes: ["19:30"] })).toStrictEqual([2, 3, 5]);
+  });
+
+  it("공지에 회차가 나열돼 있으면 기간 안이어도 나열된 회차에만 적용한다", () => {
+    expect(
+      select({
+        listedSlots: [
+          { date: "2026-09-28", time: "14:00" },
+          { date: "2026-09-30", time: "19:30" },
+        ],
+      }),
+    ).toStrictEqual([1, 5]);
+  });
+
+  it("첫날 몇 시 공연부터라는 조건이 있으면 첫날 그 전 회차는 빼고, 다른 날은 그대로 둔다", () => {
+    expect(select({ periodStartCutoffTime: "19:30" })).toStrictEqual([
+      2, 3, 4, 5,
+    ]);
+  });
+
+  it("마지막 날 몇 시 공연까지라는 조건이 있으면 마지막 날 그 뒤 회차는 빼고, 다른 날은 그대로 둔다", () => {
+    expect(select({ periodEndCutoffTime: "14:00" })).toStrictEqual([
+      1, 2, 3, 4,
+    ]);
+  });
+
+  it("업로더가 이미 기간 안에 있는 9/29 19:30 회차를 포함 회차로 또 골라도 그 회차에 중복으로 적용하지 않는다", () => {
+    expect(
+      select({ includedSlots: [{ date: "2026-09-29", time: "19:30" }] }, [
+        { id: 3, date: "2026-09-29", time: "19:30:00" },
+      ]),
+    ).toStrictEqual([1, 2, 3, 4, 5]);
+  });
 });
