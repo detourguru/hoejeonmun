@@ -62,7 +62,7 @@
     "eslint-config-next": "16.2.12",
     "eslint-plugin-import": "^2.32.0",
     "husky": "^9.1.7",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.1.1",
     "lint-staged": "^17.5.1",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
