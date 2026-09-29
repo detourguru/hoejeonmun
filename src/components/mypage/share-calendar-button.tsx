@@ -7,8 +7,7 @@ import { toast } from "sonner";
 
 import { createCalendarShareLink } from "@/app/(main)/mypage/actions";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
-
-const KEPT_PARAMS = ["month", "view"];
+import { buildShareCalendarUrl } from "@/lib/share-url";
 
 export const ShareCalendarButton = () => {
   const searchParams = useSearchParams();
@@ -24,16 +23,11 @@ export const ShareCalendarButton = () => {
         return;
       }
 
-      const params = new URLSearchParams();
-
-      for (const key of KEPT_PARAMS) {
-        const value = searchParams.get(key);
-
-        if (value) params.set(key, value);
-      }
-
-      const query = params.toString();
-      const url = `${location.origin}/share/${result.token}${query ? `?${query}` : ""}`;
+      const url = buildShareCalendarUrl(
+        location.origin,
+        result.token,
+        searchParams,
+      );
 
       await navigator.clipboard.writeText(url);
       toast.success("공유 링크를 복사했어요.");
