@@ -904,7 +904,13 @@ export async function correctEventText(
     .delete()
     .eq("event_id", eventId);
 
-  if (deleteSlotsError) console.error(deleteSlotsError);
+  if (deleteSlotsError) {
+    console.error(deleteSlotsError);
+    return {
+      ok: false,
+      message: "적용 회차를 갱신하지 못했어요. 다시 시도해 주세요.",
+    };
+  }
 
   if (matchedSlotIds.length > 0) {
     const { error: insertSlotsError } = await admin.from("event_slots").upsert(
@@ -915,7 +921,13 @@ export async function correctEventText(
       { onConflict: "event_id,slot_id", ignoreDuplicates: true },
     );
 
-    if (insertSlotsError) console.error(insertSlotsError);
+    if (insertSlotsError) {
+      console.error(insertSlotsError);
+      return {
+        ok: false,
+        message: "적용 회차를 갱신하지 못했어요. 다시 시도해 주세요.",
+      };
+    }
   }
 
   revalidatePath(`/show/${showId}`);
