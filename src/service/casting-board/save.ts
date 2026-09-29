@@ -4,7 +4,6 @@ import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
   ConfirmedEvent,
-  EventSlotException,
   EventSource,
   ParsedCancelledEvent,
   ParsedCancelledSlot,
@@ -17,8 +16,10 @@ import {
 import { hashImages } from "./duplicate";
 import {
   createEventGroupResolver,
+  EventSlotRules,
   isExactSameEvent,
   isPlaceholderActorName,
+  selectEventSlotIds,
   slotKey,
   toTitleKey,
 } from "./normalize";
@@ -102,26 +103,10 @@ export async function insertEvent(
 export async function computeEventSlotIds(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
-  {
-    periodStart,
-    periodEnd,
-    includedSlots = [],
-    excludedSlots = [],
-    exactTimes,
-    listedSlots = [],
-    periodStartCutoffTime,
-    periodEndCutoffTime,
-  }: {
-    periodStart: string;
-    periodEnd: string;
-    includedSlots?: EventSlotException[];
-    excludedSlots?: EventSlotException[];
-    exactTimes?: string[];
-    listedSlots?: EventSlotException[];
-    periodStartCutoffTime?: string;
-    periodEndCutoffTime?: string;
-  },
+  rules: EventSlotRules,
 ): Promise<number[]> {
+  const { periodStart, periodEnd, includedSlots = [] } = rules;
+
   const { data: periodSlots, error: periodSlotsErr } = await admin
     .from("slots")
     .select("id, date, time")
@@ -132,64 +117,20 @@ export async function computeEventSlotIds(
 
   if (periodSlotsErr) throw periodSlotsErr;
 
-  const excludedKeys = new Set(
-    excludedSlots.map(({ date, time }) => slotKey(date, time)),
-  );
-
-  const exactTimeSet = exactTimes?.length
-    ? new Set(exactTimes.map((time) => time.slice(0, 5)))
-    : null;
-
-  const listedKeys = listedSlots.length
-    ? new Set(listedSlots.map(({ date, time }) => slotKey(date, time)))
-    : null;
-
-  const matchedSlotIds = new Set(
-    periodSlots
-      .filter(
-        (slot) => !listedKeys || listedKeys.has(slotKey(slot.date, slot.time)),
-      )
-      .filter((slot) => !excludedKeys.has(slotKey(slot.date, slot.time)))
-      .filter(
-        (slot) => !exactTimeSet || exactTimeSet.has(slot.time.slice(0, 5)),
-      )
-      .filter(
-        (slot) =>
-          !periodStartCutoffTime ||
-          slot.date !== periodStart ||
-          slot.time.slice(0, 5) >= periodStartCutoffTime,
-      )
-      .filter(
-        (slot) =>
-          !periodEndCutoffTime ||
-          slot.date !== periodEnd ||
-          slot.time.slice(0, 5) <= periodEndCutoffTime,
-      )
-      .map(({ id }) => id),
-  );
-
-  if (includedSlots.length > 0) {
-    const { data: extraSlots, error: extraSlotsErr } = await admin
-      .from("slots")
-      .select("id, date, time")
-      .eq("show_id", showId)
-      .in("date", [...new Set(includedSlots.map(({ date }) => date))])
-      .is("cancelled_at", null);
-
-    if (extraSlotsErr) throw extraSlotsErr;
-
-    const includedKeys = new Set(
-      includedSlots.map(({ date, time }) => slotKey(date, time)),
-    );
-
-    for (const slot of extraSlots) {
-      if (includedKeys.has(slotKey(slot.date, slot.time))) {
-        matchedSlotIds.add(slot.id);
-      }
-    }
+  if (includedSlots.length === 0) {
+    return selectEventSlotIds(periodSlots, [], rules);
   }
 
-  return [...matchedSlotIds];
+  const { data: extraSlots, error: extraSlotsErr } = await admin
+    .from("slots")
+    .select("id, date, time")
+    .eq("show_id", showId)
+    .in("date", [...new Set(includedSlots.map(({ date }) => date))])
+    .is("cancelled_at", null);
+
+  if (extraSlotsErr) throw extraSlotsErr;
+
+  return selectEventSlotIds(periodSlots, extraSlots, rules);
 }
 
 // 이미 등록된 회차를 취소 처리한다 (삭제하지 않고 cancelled_at만 채워 이력을 남긴다)
