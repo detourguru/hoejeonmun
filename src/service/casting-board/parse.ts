@@ -164,6 +164,19 @@ export async function buildCastingImageBlocks(
 const CONSENSUS_RUNS = 3;
 const CONSENSUS_THRESHOLD = 2;
 const CONSENSUS_DEADLINE_MS = 48_000;
+// 이 값보다 낮은 확신도가 하나라도 있으면 첫 시도만으로 끝내지 않고 합의를 돌린다
+const CONSENSUS_CONFIDENCE_THRESHOLD = 0.7;
+
+// Gemini Free Tier 분당 요청 한도 때문에 확신도가 충분히 높으면 1회 호출로 끝낸다
+export function needsConsensus(
+  performances: ParsedPerformance[],
+  confidenceThreshold: number,
+): boolean {
+  return (
+    performances.length === 0 ||
+    performances.some(({ confidence }) => confidence <= confidenceThreshold)
+  );
+}
 
 const serializeCastingValue = (actors: string[]) =>
   [...actors].sort().join("\u0000");
@@ -317,16 +330,18 @@ export async function parseCastingBoardWithConsensus(
     runs = CONSENSUS_RUNS,
     threshold = CONSENSUS_THRESHOLD,
     deadlineMs = CONSENSUS_DEADLINE_MS,
+    confidenceThreshold = CONSENSUS_CONFIDENCE_THRESHOLD,
     budgetMs,
   }: ParseCastingBoardOptions & {
     runs?: number;
     threshold?: number;
     deadlineMs?: number;
+    confidenceThreshold?: number;
   } = {},
 ): Promise<ParsedCastingBoardResult> {
   const startedAt = performance.now();
 
-  const attempts = Array.from({ length: runs }, async (_, index) => {
+  const runAttempt = async (index: number) => {
     const remaining = Math.max(
       1,
       Math.round(deadlineMs - (performance.now() - startedAt)),
@@ -351,19 +366,52 @@ export async function parseCastingBoardWithConsensus(
     } finally {
       clearTimeout(timeout);
     }
-  });
+  };
 
-  const settled = await Promise.allSettled(attempts);
-  const successful = settled.flatMap((result, index) =>
-    result.status === "fulfilled" ? [{ index, value: result.value }] : [],
+  const firstResult = await runAttempt(0)
+    .then((value) => ({ ok: true as const, value }))
+    .catch((error) => ({ ok: false as const, error }));
+
+  if (
+    firstResult.ok &&
+    !needsConsensus(firstResult.value.performances, confidenceThreshold)
+  ) {
+    console.log(
+      `[gemini-consensus] 확신도 충분, 1회만 호출하고 합의 생략 (${Math.round(performance.now() - startedAt)}ms)`,
+    );
+
+    await logConsensusStats({
+      showId: show.mt20id,
+      runsRequested: 1,
+      runsSucceeded: 1,
+      performances: firstResult.value.performances,
+    });
+
+    return firstResult.value;
+  }
+
+  const rest = await Promise.allSettled(
+    Array.from({ length: runs - 1 }, (_, index) => runAttempt(index + 1)),
   );
 
-  if (successful.length === 0) {
-    const firstError = settled.find((result) => result.status === "rejected");
+  const successful = [
+    ...(firstResult.ok ? [{ index: 0, value: firstResult.value }] : []),
+    ...rest.flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? [{ index: index + 1, value: result.value }]
+        : [],
+    ),
+  ];
 
-    throw firstError?.status === "rejected"
-      ? firstError.reason
-      : new Error("Consensus parsing failed");
+  if (successful.length === 0) {
+    const restError = rest.find((result) => result.status === "rejected");
+    const cause = !firstResult.ok
+      ? firstResult.error
+      : restError?.status === "rejected"
+        ? restError.reason
+        : undefined;
+
+    throw cause instanceof Error ? cause : new Error("Consensus parsing failed");
   }
 
   const base = successful[0].value;

@@ -4,6 +4,7 @@ import { ParsedPerformance } from "@/type/casting";
 
 import {
   buildConsensusPerformances,
+  needsConsensus,
   pickMostCommonValue,
   shouldCreateCastingBoardOverview,
 } from "./parse";
@@ -51,8 +52,33 @@ describe("pickMostCommonValue", () => {
   });
 });
 
+describe("needsConsensus", () => {
+  const THRESHOLD = 0.7;
+
+  it("모든 회차의 확신도가 기준보다 높으면 합의가 필요 없다", () => {
+    const performances = [
+      performance({ 햄릿: ["김배우"] }, { confidence: 0.9 }),
+      performance({ 햄릿: ["이배우"] }, { confidence: 0.71 }),
+    ];
+
+    expect(needsConsensus(performances, THRESHOLD)).toBe(false);
+  });
+
+  it("확신도가 기준 이하인 회차가 하나라도 있으면 합의가 필요하다", () => {
+    const performances = [
+      performance({ 햄릿: ["김배우"] }, { confidence: 0.9 }),
+      performance({ 햄릿: ["이배우"] }, { confidence: 0.7 }),
+    ];
+
+    expect(needsConsensus(performances, THRESHOLD)).toBe(true);
+  });
+
+  it("회차를 하나도 못 읽었으면 확신도와 무관하게 합의가 필요하다", () => {
+    expect(needsConsensus([], THRESHOLD)).toBe(true);
+  });
+});
+
 describe("buildConsensusPerformances", () => {
-  // 같은 캐스팅보드를 AI가 3번 읽고, 2번 이상 일치해야 확정한다
   const THRESHOLD = 2;
 
   it("AI가 2번 이상 같은 배우로 읽은 배역은 그 배우로 확정한다", () => {
