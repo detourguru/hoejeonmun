@@ -23,6 +23,56 @@ describe("toArray", () => {
 });
 
 describe("fetchKopis", () => {
+  it("요청 타임아웃 후 재시도하여 복구한다", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException("timeout", "TimeoutError"))
+      .mockResolvedValue(new Response("<dbs></dbs>"));
+    vi.stubGlobal("fetch", fetchMock);
+    const request = fetchKopis("/pblprfr", new URLSearchParams());
+    await vi.runAllTimersAsync();
+    expect(await request).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("대기 중 전체 시간 예산을 소진한 요청은 전송하지 않고 큐에서 제거한다", async () => {
+    const finish: (() => void)[] = [];
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish.push(() => resolve(new Response("<dbs></dbs>")));
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const busy = Array.from({ length: 8 }, (_, i) =>
+      fetchKopis(`/busy/${i}`, new URLSearchParams()),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    const waiting = fetchKopis("/waiting", new URLSearchParams());
+    const rejected = expect(waiting).rejects.toThrow("시간 초과");
+    await vi.advanceTimersByTimeAsync(10_000);
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(8);
+    finish.forEach((resolve) => resolve());
+    await Promise.all(busy);
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response("<dbs></dbs>")),
+    );
+    expect(await fetchKopis("/after", new URLSearchParams())).toEqual([]);
+  });
+
+  it("재시도 횟수가 남아도 전체 10초를 소진하면 중단한다", async () => {
+    const fetchMock = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      throw new DOMException("timeout", "TimeoutError");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const request = fetchKopis("/slow", new URLSearchParams());
+    const rejected = expect(request).rejects.toThrow("timeout");
+    await vi.runAllTimersAsync();
+    await rejected;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
   beforeEach(() => {
     vi.stubEnv("NEXT_KOPIS_API_URL", "https://kopis-test.com");
     vi.stubEnv("KOPIS_API_KEY", "fake-kopis-key");
