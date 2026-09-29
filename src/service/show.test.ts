@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchKopis, fetchKopisAll } from "@/lib/kopis";
 import { selectAllRows } from "@/lib/supabase/select-all";
+import { getVenueSeatScales } from "@/service/venue";
 import { Show, ShowDetail } from "@/type/show";
 
 import {
   filterShows,
+  filterShowsByVenue,
   getShowSummaries,
   paginateShows,
   parseShowFilters,
@@ -29,6 +31,7 @@ vi.mock("@/service/user-show", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/service/user-show")>()),
   searchUserShows: vi.fn(() => Promise.resolve([])),
 }));
+vi.mock("@/service/venue", () => ({ getVenueSeatScales: vi.fn() }));
 
 const show = (overrides: Partial<Show> = {}): Show => ({
   mt20id: "PF000001",
@@ -356,5 +359,71 @@ describe("searchShows", () => {
     });
 
     expect(await searchShows("헬멧")).toStrictEqual([]);
+  });
+});
+
+describe("filterShowsByVenue", () => {
+  // KOPIS 공연 상세에 담긴 대학로 여부와 공연장(홀) id
+  const detail = (
+    mt20id: string,
+    venue: Pick<ShowDetail, "daehakro" | "mt13id">,
+  ) => ({ ...show({ mt20id }), ...venue }) as ShowDetail;
+
+  const venueFilter = (venueType?: ShowFilters["venueType"]): ShowFilters => ({
+    page: 1,
+    from: "20261001",
+    to: "20261001",
+    venueType,
+  });
+
+  beforeEach(() => {
+    stubShowDetails({
+      PF_DAEHAKRO: detail("PF_DAEHAKRO", { daehakro: "Y", mt13id: "FC1-01" }),
+      PF_LARGE: detail("PF_LARGE", { daehakro: "N", mt13id: "FC2-01" }),
+      PF_SMALL: detail("PF_SMALL", { daehakro: "N", mt13id: "FC3-01" }),
+      PF_UNKNOWN_SEATS: detail("PF_UNKNOWN_SEATS", {
+        daehakro: "N",
+        mt13id: "FC4-01",
+      }),
+      PF_FAILED: new Error("KOPIS 응답 없음"),
+    });
+    vi.mocked(getVenueSeatScales).mockResolvedValue(
+      new Map([
+        ["FC1-01", 300],
+        ["FC2-01", 1000],
+        ["FC3-01", 999],
+      ]),
+    );
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const shows = [
+    "PF_DAEHAKRO",
+    "PF_LARGE",
+    "PF_SMALL",
+    "PF_UNKNOWN_SEATS",
+    "PF_FAILED",
+  ].map((mt20id) => show({ mt20id }));
+
+  const idsOf = (result: Show[]) => result.map(({ mt20id }) => mt20id);
+
+  it("공연장 종류를 고르지 않으면 KOPIS 상세를 조회하지 않고 그대로 보여 준다", async () => {
+    expect(await filterShowsByVenue(shows, venueFilter())).toBe(shows);
+    expect(fetchKopis).not.toHaveBeenCalled();
+  });
+
+  it("대학로를 고르면 KOPIS가 대학로 공연이라고 표시한 공연만 남긴다", async () => {
+    expect(
+      idsOf(await filterShowsByVenue(shows, venueFilter("daehakro"))),
+    ).toStrictEqual(["PF_DAEHAKRO"]);
+  });
+
+  it("대극장을 고르면 1,000석 이상 공연장의 공연만 남기고, 좌석 수를 모르거나 상세 조회에 실패한 공연은 뺀다", async () => {
+    expect(
+      idsOf(await filterShowsByVenue(shows, venueFilter("largeVenue"))),
+    ).toStrictEqual(["PF_LARGE"]);
   });
 });
