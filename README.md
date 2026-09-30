@@ -47,46 +47,73 @@
 
 ```mermaid
 flowchart TD
-    User["사용자 / 브라우저"]
-    FE["Next.js 프론트엔드 (App Router)"]
-    User --> FE
+    User["사용자 / 브라우저 (PWA)"]
+    SW["Serwist Service Worker<br/>정적 자원 캐시, 오프라인 페이지"]
+    User -.-> SW
 
-    FE -->|서버 액션 / API Route| API["API / Server Actions"]
-
-    API -->|Auth/DB/Storage| Supabase["Supabase"]
-    API -->|공연 데이터 조회| KOPIS["KOPIS API"]
-    API -->|캐스팅보드 이미지| Parser
-
-    subgraph Parser["캐스팅보드 파싱"]
-        Sharp["sharp<br/>리사이즈, 캡처 이어 붙이기"] --> Gemini["Gemini<br/>여러 번 읽고 다수결"]
-        Gemini --> Normalize["정규화/검증<br/>(날짜/요일/공연 기간 대조)"]
-        Normalize --> Dedupe["이벤트 중복 판정<br/>Jev -> 실패 시 Gemini"]
+    subgraph Vercel["Next.js App Router (Vercel, icn1)"]
+        Proxy["proxy.ts<br/>세션 갱신, /mypage 로그인 확인"]
+        RSC["Server Components<br/>페이지 렌더링, 데이터 캐시"]
+        Actions["Server Actions<br/>즐겨찾기/내 일정, 캐스팅 정정/제보,<br/>공연 등록, 공유 링크, 버그 제보"]
+        ParseAPI["POST /api/casting-boards/parse<br/>판독만 하고 저장하지 않음"]
+        SaveAPI["POST /api/casting-boards<br/>검수한 결과 저장"]
+        Cron["/api/cron/*<br/>Vercel Cron, 매일 5개"]
     end
 
-    API -->|버그 제보 메일| Resend["Resend"]
-    API -->|버그 제보 이슈| GitHub["GitHub Issues"]
+    subgraph Parser["캐스팅보드 파싱"]
+        Sharp["sharp<br/>리사이즈, 연속 캡처 이어 붙이기"] --> Gemini["Gemini<br/>1회 판독, 확신도 낮으면<br/>2회 더 읽고 다수결"]
+        Gemini --> Normalize["정규화/검증<br/>날짜/요일/공연 기간 대조"]
+        Normalize --> Dedupe["이벤트 중복 판정<br/>Jev, 실패 시 Gemini"]
+    end
 
-    Cron["Vercel Cron"] -->|주기 실행| API
+    subgraph Supabase["Supabase"]
+        Auth["Auth<br/>카카오 OAuth"]
+        DB["Postgres (RLS)"]
+        Storage["Storage"]
+    end
 
-    FE -.PWA / 오프라인.-> SW["Serwist Service Worker"]
+    User --> Proxy --> RSC
+    User --> Actions
+    User -->|이미지 경로| ParseAPI
+    User -->|검수 결과| SaveAPI
+    User -->|이미지 직접 업로드| Storage
+    User -->|카카오 로그인| Auth
+
+    RSC -->|공연 목록/상세| KOPIS["KOPIS API"]
+    RSC --> DB
+    Actions --> DB
+    Actions -->|버그 제보 메일| Resend["Resend"]
+
+    ParseAPI -->|공연 기간/출연진| KOPIS
+    ParseAPI --> Parser
+    ParseAPI -->|이미지 다운로드, 중복 확인| Storage
+    SaveAPI --> DB
+
+    Cron -->|공연, 캐스팅보드, 공연장| KOPIS
+    Cron -->|자동 판독 1회| Parser
+    Cron --> DB
+    Cron --> Storage
+    Cron -->|버그 제보 이슈| GitHub["GitHub Issues"]
 ```
 
 **데이터 흐름 요약**
 
-1. 사용자가 캐스팅보드 이미지를 업로드하면 `/api/casting-boards/parse`가 이미지를 sharp로 줄인 뒤 Gemini에 여러 번 읽혀, 결과가 일치한 배역만 확정합니다. 결과가 갈린 배역은 확인이 필요한 것으로 표시합니다.
-2. 읽은 날짜/요일/공연 기간을 코드로 다시 대조하고, 이벤트는 Jev(실패 시 Gemini)로 이미 등록된 것과 중복인지 판정합니다.
-3. 파싱 결과는 사용자가 확인 화면에서 직접 검수한 뒤 Supabase에 저장합니다.
-4. 프론트엔드는 Supabase에서 공연/캐스팅/즐겨찾기 데이터를 조회해 캘린더/리스트 뷰로 렌더링합니다.
-5. 카카오 로그인은 Supabase Auth를 통해 처리합니다.
-6. `Vercel Cron`이 매일 아래 작업을 실행합니다.
+1. 브라우저가 캐스팅보드 이미지를 Supabase Storage에 직접 올리고, `/api/casting-boards/parse`가 이를 판독합니다.
+2. Gemini가 한 번 읽고, 확신도가 낮으면 두 번 더 읽어 다수결로 배역을 확정합니다. 결과가 갈린 배역은 확인이 필요한 것으로 표시합니다.
+3. 읽은 날짜/요일을 KOPIS 공연 기간과 대조하고, 이벤트는 Jev(실패 시 Gemini)로 중복을 판정합니다.
+4. 사용자가 확인 화면에서 검수한 결과만 `/api/casting-boards`로 저장합니다.
+5. 공연 정보는 KOPIS, 캐스팅/일정은 Supabase에서 가져와 캐시하고, 데이터가 바뀌면 캐시를 바로 비웁니다.
+6. 카카오 로그인은 Supabase Auth로 처리하고, 캘린더 공유 링크는 로그인 없이 읽기 전용으로 열립니다.
+7. 버그 제보는 저장과 함께 Resend로 메일을 보내고, GitHub 이슈는 Cron이 나중에 등록합니다.
+8. `Vercel Cron`이 매일 아래 작업을 실행합니다.
 
-| 경로                                   | 하는 일                                                 |
-| -------------------------------------- | ------------------------------------------------------- |
-| `/api/cron/discover-castings`          | KOPIS 공연 상세의 이미지 중 캐스팅보드를 찾아 자동 등록 |
-| `/api/cron/generate-poster-thumbnails` | 공연 포스터 썸네일 생성 (포스터가 바뀐 경우만)          |
-| `/api/cron/merge-user-shows`           | 사용자가 직접 등록한 공연이 KOPIS에 올라오면 병합       |
-| `/api/cron/purge-parse-failures`       | 오래된 파싱 실패 기록 정리                              |
-| `/api/cron/sync-bug-reports`           | 버그 제보를 GitHub 이슈로 등록                          |
+| 경로                                   | 하는 일                                                    |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `/api/cron/discover-castings`          | 오늘 개막하는 공연의 캐스팅보드를 KOPIS에서 찾아 자동 등록 |
+| `/api/cron/generate-poster-thumbnails` | 포스터가 바뀐 공연만 썸네일 생성                           |
+| `/api/cron/purge-parse-failures`       | 오래된 파싱 실패 이미지 삭제                               |
+| `/api/cron/sync-bug-reports`           | 버그 제보를 GitHub 이슈로 등록                             |
+| `/api/cron/merge-user-shows`           | 사용자가 등록한 공연이 KOPIS에 올라오면 병합               |
 
 ## CI/CD
 
