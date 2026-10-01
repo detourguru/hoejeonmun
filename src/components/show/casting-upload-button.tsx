@@ -1,11 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { discardUploadImages } from "@/app/(main)/show/[id]/actions";
-import { ImageZoom } from "@/components/image-zoom";
 import {
   CastingDraft,
   toCastingDrafts,
@@ -16,33 +15,25 @@ import {
   toConfirmedEvents,
   toEventDrafts,
 } from "@/components/show/event-confirm-list";
+import { SelectedImagePanel } from "@/components/show/selected-image-panel";
 import { UploadConfirmSheet } from "@/components/show/upload-confirm-sheet";
 import { UploadProgress } from "@/components/show/upload-progress";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { UploadResultSummary } from "@/components/show/upload-result-summary";
+import { UploadTutorialDialog } from "@/components/show/upload-tutorial-dialog";
+import { useImageSelection } from "@/hook/useImageSelection";
 import { useLoginRedirect } from "@/hook/useLoginRedirect";
 import { mergeKnownSlots } from "@/lib/known-slots";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
   ConfirmedEvent,
   DEFAULT_REPORT_TYPE_TAB,
-  MAX_IMAGE_BYTES,
-  MAX_IMAGE_COUNT,
   ParsedCancelledEvent,
   ParsedCancelledSlot,
   ParsedCastingChange,
   ParsedPerformance,
   PendingEvent,
-  PERFORMANCE_SKIP_MESSAGE,
   ReportTypeTab,
   SkippedPerformance,
   UploadStatus,
@@ -62,8 +53,6 @@ const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
-
-const TUTORIAL_SEEN_KEY = "uploadTutorialSeen";
 
 const STATUS_LABEL: Record<UploadStatus, string> = {
   idle: "캐스팅보드/이벤트 제보하기",
@@ -85,10 +74,15 @@ export const CastingUploadButton = ({
   const router = useRouter();
   const loginRedirect = useLoginRedirect(`/show/${showId}`);
   const inputRef = useRef<HTMLInputElement>(null);
-  const previewUrlsRef = useRef<string[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
-  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [duplicateIndexes, setDuplicateIndexes] = useState<number[]>([]);
+  const {
+    files,
+    previewUrls,
+    duplicateIndexes,
+    setDuplicateIndexes,
+    addFiles,
+    removeFile,
+    clearFiles,
+  } = useImageSelection();
   const [uploadedCount, setUploadedCount] = useState(0);
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -108,77 +102,12 @@ export const CastingUploadButton = ({
     () => new Set(knownSlots.map(({ date }) => date)),
     [knownSlots],
   );
-  const [showSkipped, setShowSkipped] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReportTypeTab>(
     DEFAULT_REPORT_TYPE_TAB,
   );
 
-  useEffect(() => {
-    previewUrlsRef.current = previewUrls;
-  }, [previewUrls]);
-
-  useEffect(
-    () => () => previewUrlsRef.current.forEach(URL.revokeObjectURL),
-    [],
-  );
-
-  useEffect(() => {
-    if (isLoggedIn && !localStorage.getItem(TUTORIAL_SEEN_KEY)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowTutorial(true);
-    }
-  }, [isLoggedIn]);
-
-  const addFiles = (newFiles: File[]) => {
-    const valid: File[] = [];
-    const tooLarge: string[] = [];
-
-    for (const file of newFiles) {
-      if (file.size > MAX_IMAGE_BYTES) tooLarge.push(file.name);
-      else valid.push(file);
-    }
-
-    const room = Math.max(0, MAX_IMAGE_COUNT - files.length);
-    const accepted = valid.slice(0, room);
-    const overflowCount = valid.length - accepted.length;
-    const messages: string[] = [];
-
-    if (tooLarge.length > 0) {
-      messages.push(`${tooLarge.join(", ")} 파일이 10MB를 초과해 제외됐어요.`);
-    }
-
-    if (overflowCount > 0) {
-      messages.push(
-        `이미지는 최대 ${MAX_IMAGE_COUNT}장까지 올릴 수 있어요. ${overflowCount}장은 제외됐어요.`,
-      );
-    }
-
-    setError(messages.length > 0 ? messages.join(" ") : null);
-    setDuplicateIndexes([]);
-
-    if (accepted.length === 0) return;
-
-    setFiles((current) => [...current, ...accepted]);
-    setPreviewUrls((current) => [
-      ...current,
-      ...accepted.map(URL.createObjectURL),
-    ]);
-    setStatus("selecting");
-  };
-
-  const removeFile = (index: number) => {
-    URL.revokeObjectURL(previewUrls[index]);
-    setFiles((current) => current.filter((_, at) => at !== index));
-    setPreviewUrls((current) => current.filter((_, at) => at !== index));
-    setDuplicateIndexes([]);
-  };
-
   const reset = () => {
-    previewUrls.forEach(URL.revokeObjectURL);
-    setFiles([]);
-    setPreviewUrls([]);
-    setDuplicateIndexes([]);
+    clearFiles();
     setUploadedCount(0);
     setResult(null);
     setError(null);
@@ -186,7 +115,6 @@ export const CastingUploadButton = ({
     setDrafts([]);
     setCastingDrafts([]);
     setExistingSlots([]);
-    setShowSkipped(false);
     setStatus("idle");
   };
 
@@ -200,16 +128,16 @@ export const CastingUploadButton = ({
     inputRef.current?.click();
   };
 
-  const handleTutorialConfirm = () => {
-    localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
-    setShowTutorial(false);
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
     event.target.value = "";
 
-    if (picked.length > 0) addFiles(picked);
+    if (picked.length === 0) return;
+
+    const { message, addedCount } = addFiles(picked);
+
+    setError(message);
+    if (addedCount > 0) setStatus("selecting");
   };
 
   const handleUpload = async () => {
@@ -410,102 +338,18 @@ export const CastingUploadButton = ({
       />
 
       {status === "selecting" && (
-        <div className="bg-point/10 flex flex-col gap-3 rounded-4xl p-3">
-          <p className="text-text text-xs">
-            빼고 싶은 이미지가 있으면 지워주세요. 최대 {MAX_IMAGE_COUNT}장까지
-            올릴 수 있어요.
-          </p>
-
-          <ul className="flex flex-wrap gap-2">
-            {previewUrls.map((url, index) => (
-              <li
-                key={url}
-                className={cn(
-                  "flex w-24 flex-col gap-1 rounded-lg border p-1",
-                  duplicateIndexes.includes(index)
-                    ? "border-destructive"
-                    : "border-transparent",
-                )}
-              >
-                <ImageZoom
-                  src={url}
-                  alt={`${index + 1}번째로 고른 이미지`}
-                  className="h-24 w-full rounded-lg object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="text-text-muted text-xs underline underline-offset-2"
-                >
-                  빼기
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          {error && <p className="text-destructive text-xs">{error}</p>}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={handleUpload}
-              disabled={files.length === 0}
-              className="font-bold"
-            >
-              {files.length}장 올리기
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => inputRef.current?.click()}
-              disabled={files.length >= MAX_IMAGE_COUNT}
-            >
-              더 고르기
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={reset}
-              className="text-text-muted underline underline-offset-2"
-            >
-              취소
-            </Button>
-          </div>
-        </div>
+        <SelectedImagePanel
+          previewUrls={previewUrls}
+          duplicateIndexes={duplicateIndexes}
+          error={error}
+          onRemove={removeFile}
+          onUpload={handleUpload}
+          onPickMore={() => inputRef.current?.click()}
+          onCancel={reset}
+        />
       )}
 
-      <Dialog
-        open={showTutorial}
-        onOpenChange={(open) => {
-          if (!open) handleTutorialConfirm();
-        }}
-      >
-        <DialogContent showCloseButton={false} className="bg-surface">
-          <DialogHeader>
-            <DialogTitle>캐스팅/이벤트 제보하는 방법</DialogTitle>
-          </DialogHeader>
-
-          <ol className="text-text list-decimal space-y-1 pl-4 text-left text-sm">
-            <li>페이지 하단의 캐스팅보드/이벤트 제보하기 버튼을 누릅니다</li>
-            <li>캐스팅보드나 이벤트 이미지를 첨부하면</li>
-            <li>AI가 사진을 읽어서 자동으로 정리하고</li>
-            <li>회원님이 내용을 확인/수정한 뒤</li>
-            <li>저장하면 바로 반영돼요</li>
-            <li>잘못된 정보는 정정하거나 신고할 수 있어요</li>
-          </ol>
-
-          <p className="text-text-muted text-xs">
-            AI가 사진을 읽다 보니 정확도가 아직 완벽하진 않아요. 계속 개선하고
-            있으니 양해 부탁드려요.
-          </p>
-
-          <DialogFooter>
-            <Button
-              onClick={handleTutorialConfirm}
-              className="w-full font-bold"
-            >
-              확인했어요
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UploadTutorialDialog isLoggedIn={isLoggedIn} />
 
       {(status === "confirming" || (status === "saving" && !!parsed)) && (
         <UploadConfirmSheet
@@ -533,41 +377,7 @@ export const CastingUploadButton = ({
         </ul>
       )}
 
-      {status === "done" && result && (
-        <div className="flex flex-col gap-1">
-          <p className="text-text text-xs">
-            회차 {result.slotCount}개, 배우 {result.actorCount}명, 이벤트{" "}
-            {result.eventCount}건을 저장했어요.
-          </p>
-
-          {result.skippedCount > 0 && (
-            <div className="text-text-muted flex flex-col gap-1 text-xs">
-              <p>
-                {result.skippedCount}개 행은 확인하지 못해 제외했어요.{" "}
-                <button
-                  type="button"
-                  onClick={() => setShowSkipped((prev) => !prev)}
-                  className="underline underline-offset-2"
-                >
-                  {showSkipped ? "접기" : "보기"}
-                </button>
-              </p>
-
-              {showSkipped && (
-                <ul className="flex flex-col gap-1 text-[11px]">
-                  {result.skipped.map((row, index) => (
-                    <li key={index}>
-                      {row.imageIndex + 1}번째 이미지 — {row.raw.date || "날짜"}{" "}
-                      {row.raw.time || ""}·{" "}
-                      {PERFORMANCE_SKIP_MESSAGE[row.reason]}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {status === "done" && result && <UploadResultSummary result={result} />}
     </div>
   );
 };

@@ -190,3 +190,7 @@ export function findNearestDate(
     null
   );
 }
+
+// YYYY-MM-DD -> M/DD
+export const toShortDate = (iso: string) =>
+  `${Number(iso.slice(5, 7))}/${Number(iso.slice(8))}`;
