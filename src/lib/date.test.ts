@@ -16,6 +16,7 @@ import {
   toIsoDate,
   toKopisDate,
   toMonth,
+  toShortDate,
   getToday,
 } from "./date";
 
@@ -138,6 +139,13 @@ describe("formatShortDate", () => {
   it("서울 기준 날짜로 표시한다", () => {
     // UTC로는 8/29 16:00이지만 서울은 8/30 01:00
     expect(formatShortDate("2026-08-29T16:00:00Z")).toBe("8월 30일");
+  });
+});
+
+describe("toShortDate", () => {
+  it("2026-09-05처럼 0이 붙은 월, 일도 9/5로 짧게 표시한다", () => {
+    expect(toShortDate("2026-09-05")).toBe("9/5");
+    expect(toShortDate("2026-12-25")).toBe("12/25");
   });
 });
 
