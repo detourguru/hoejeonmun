@@ -48,52 +48,28 @@
 ```mermaid
 flowchart TD
     User["사용자 / 브라우저 (PWA)"]
-    SW["Serwist Service Worker<br/>정적 자원 캐시, 오프라인 페이지"]
-    User -.-> SW
-
-    subgraph Vercel["Next.js App Router (Vercel, icn1)"]
-        Proxy["proxy.ts<br/>세션 갱신, /mypage 로그인 확인"]
-        RSC["Server Components<br/>페이지 렌더링, 데이터 캐시"]
-        Actions["Server Actions<br/>즐겨찾기/내 일정, 캐스팅 정정/제보,<br/>공연 등록, 공유 링크, 버그 제보"]
-        ParseAPI["POST /api/casting-boards/parse<br/>판독만 하고 저장하지 않음"]
-        SaveAPI["POST /api/casting-boards<br/>검수한 결과 저장"]
-        Cron["/api/cron/*<br/>Vercel Cron, 매일 5개"]
-    end
+    App["Next.js App Router<br/>페이지 · Server Actions · API"]
+    Cron["Vercel Cron<br/>매일 5개 작업"]
 
     subgraph Parser["캐스팅보드 파싱"]
-        Sharp["sharp<br/>리사이즈, 연속 캡처 이어 붙이기"] --> Gemini["Gemini<br/>1회 판독, 확신도 낮으면<br/>2회 더 읽고 다수결"]
-        Gemini --> Normalize["정규화/검증<br/>날짜/요일/공연 기간 대조"]
-        Normalize --> Dedupe["이벤트 중복 판정<br/>Jev, 실패 시 Gemini"]
+        direction LR
+        Sharp["sharp<br/>리사이즈"] --> Gemini["Gemini<br/>확신도 낮으면 다수결"] --> Check["검증<br/>공연 기간 대조, 이벤트 중복 판정"]
     end
 
-    subgraph Supabase["Supabase"]
-        Auth["Auth<br/>카카오 OAuth"]
-        DB["Postgres (RLS)"]
-        Storage["Storage"]
-    end
+    Supabase["Supabase<br/>Auth · DB · Storage"]
+    KOPIS["KOPIS API"]
+    Notify["Resend 메일 / GitHub 이슈<br/>버그 제보"]
 
-    User --> Proxy --> RSC
-    User --> Actions
-    User -->|이미지 경로| ParseAPI
-    User -->|검수 결과| SaveAPI
-    User -->|이미지 직접 업로드| Storage
-    User -->|카카오 로그인| Auth
-
-    RSC -->|공연 목록/상세| KOPIS["KOPIS API"]
-    RSC --> DB
-    Actions --> DB
-    Actions -->|버그 제보 메일| Resend["Resend"]
-
-    ParseAPI -->|공연 기간/출연진| KOPIS
-    ParseAPI --> Parser
-    ParseAPI -->|이미지 다운로드, 중복 확인| Storage
-    SaveAPI --> DB
-
-    Cron -->|공연, 캐스팅보드, 공연장| KOPIS
-    Cron -->|자동 판독 1회| Parser
-    Cron --> DB
-    Cron --> Storage
-    Cron -->|버그 제보 이슈| GitHub["GitHub Issues"]
+    User --> App
+    User -->|캐스팅보드 이미지 업로드| Supabase
+    App --> Parser
+    Cron --> Parser
+    App --> Supabase
+    App --> KOPIS
+    Cron --> Supabase
+    Cron --> KOPIS
+    App --> Notify
+    Cron --> Notify
 ```
 
 **데이터 흐름 요약**
