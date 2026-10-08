@@ -275,6 +275,36 @@ export type RecentUploadedShow = {
 
 const RECENT_UPLOADS_FETCH_LIMIT = 100;
 
+type RecentUploadRow = {
+  show_id: string;
+  created_at: string;
+  assignments: { count: number }[];
+  events: { count: number }[];
+};
+
+// 이벤트만 올린 업로드는 이벤트 카드로 따로 보이므로 캐스팅 소식에서 뺀다
+export function pickRecentCastingUploads(
+  rows: RecentUploadRow[],
+  limit: number,
+): RecentUploadedShow[] {
+  const seen = new Set<string>();
+  const recent: RecentUploadedShow[] = [];
+
+  for (const row of rows) {
+    const eventOnly =
+      (row.assignments[0]?.count ?? 0) === 0 && (row.events[0]?.count ?? 0) > 0;
+
+    if (eventOnly || seen.has(row.show_id)) continue;
+
+    seen.add(row.show_id);
+    recent.push({ showId: row.show_id, uploadedAt: row.created_at });
+
+    if (recent.length >= limit) break;
+  }
+
+  return recent;
+}
+
 // 최근 캐스팅보드가 올라온 공연
 export async function getRecentUploadedShows(
   limit: number,
@@ -285,31 +315,20 @@ export async function getRecentUploadedShows(
 
       const { data, error } = await supabase
         .from("uploads")
-        .select("show_id, created_at")
+        .select("show_id, created_at, assignments(count), events(count)")
         .order("created_at", { ascending: false })
         .limit(RECENT_UPLOADS_FETCH_LIMIT);
 
       if (error) throw error;
 
-      return data as { show_id: string; created_at: string }[];
+      return data as RecentUploadRow[];
     },
-    ["recent-uploaded-shows"],
+    // 캐시된 행 모양이 바뀌어 키를 새로 쓴다
+    ["recent-uploaded-shows-with-counts"],
     { tags: [CASTING_FEED_CACHE_TAG], revalidate: REVALIDATE },
   )();
 
-  const seen = new Set<string>();
-  const recent: RecentUploadedShow[] = [];
-
-  for (const row of data) {
-    if (seen.has(row.show_id)) continue;
-
-    seen.add(row.show_id);
-    recent.push({ showId: row.show_id, uploadedAt: row.created_at });
-
-    if (recent.length >= limit) break;
-  }
-
-  return recent;
+  return pickRecentCastingUploads(data, limit);
 }
 
 export async function getLatestUploadsByShowIds(

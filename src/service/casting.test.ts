@@ -5,6 +5,7 @@ import {
   groupByDate,
   groupBySlot,
   groupSignedUrlsByUploadId,
+  pickRecentCastingUploads,
   SlotCastingRow,
 } from "./casting";
 
@@ -169,5 +170,68 @@ describe("groupSignedUrlsByUploadId", () => {
     );
 
     expect(grouped.has(30)).toBe(false);
+  });
+});
+
+describe("pickRecentCastingUploads", () => {
+  const upload = (
+    showId: string,
+    createdAt: string,
+    assignmentCount: number,
+    eventCount: number,
+  ) => ({
+    show_id: showId,
+    created_at: createdAt,
+    assignments: [{ count: assignmentCount }],
+    events: [{ count: eventCount }],
+  });
+
+  it("이벤트만 올린 업로드는 최근 소식에 캐스팅보드 업로드로 따로 띄우지 않는다", () => {
+    expect(
+      pickRecentCastingUploads([upload("PF1", "2026-10-01", 0, 2)], 10),
+    ).toStrictEqual([]);
+  });
+
+  it("캐스팅과 이벤트를 함께 올린 업로드는 캐스팅보드 업로드로도 보여 준다", () => {
+    expect(
+      pickRecentCastingUploads([upload("PF1", "2026-10-01", 102, 3)], 10),
+    ).toStrictEqual([{ showId: "PF1", uploadedAt: "2026-10-01" }]);
+  });
+
+  it("이벤트만 올린 최신 업로드에 가려지지 않고 그 공연의 마지막 캐스팅보드 업로드 시각을 보여 준다", () => {
+    expect(
+      pickRecentCastingUploads(
+        [upload("PF1", "2026-10-01", 0, 1), upload("PF1", "2026-09-30", 80, 0)],
+        10,
+      ),
+    ).toStrictEqual([{ showId: "PF1", uploadedAt: "2026-09-30" }]);
+  });
+
+  it("같은 공연에 캐스팅보드가 여러 번 올라와도 가장 최근 것 하나만 보여 준다", () => {
+    expect(
+      pickRecentCastingUploads(
+        [
+          upload("PF1", "2026-10-01", 50, 0),
+          upload("PF2", "2026-09-30", 50, 0),
+          upload("PF1", "2026-09-29", 50, 0),
+        ],
+        10,
+      ),
+    ).toStrictEqual([
+      { showId: "PF1", uploadedAt: "2026-10-01" },
+      { showId: "PF2", uploadedAt: "2026-09-30" },
+    ]);
+  });
+
+  it("보여 줄 공연 수를 넘으면 거기서 자른다", () => {
+    expect(
+      pickRecentCastingUploads(
+        [
+          upload("PF1", "2026-10-01", 50, 0),
+          upload("PF2", "2026-09-30", 50, 0),
+        ],
+        1,
+      ),
+    ).toStrictEqual([{ showId: "PF1", uploadedAt: "2026-10-01" }]);
   });
 });
