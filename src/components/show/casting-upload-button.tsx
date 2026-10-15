@@ -40,6 +40,7 @@ import {
 } from "@/type/casting";
 
 type ParsedUpload = {
+  parseId: string;
   storagePaths: string[];
   performances: ParsedPerformance[];
   skipped: SkippedPerformance[];
@@ -198,6 +199,7 @@ export const CastingUploadButton = ({
     }
 
     const {
+      parseId,
       performances,
       events,
       skipped,
@@ -205,6 +207,7 @@ export const CastingUploadButton = ({
       castingChanges,
       cancelledEvents,
     } = (await parseResponse.json()) as {
+      parseId: string;
       performances: ParsedPerformance[];
       events: PendingEvent[];
       skipped: SkippedPerformance[];
@@ -213,6 +216,7 @@ export const CastingUploadButton = ({
       cancelledEvents: ParsedCancelledEvent[];
     };
     const upload = {
+      parseId,
       storagePaths,
       performances,
       skipped,
@@ -247,7 +251,12 @@ export const CastingUploadButton = ({
     const saveResponse = await fetch("/api/casting-boards", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ showId, ...upload, events }),
+      body: JSON.stringify({
+        showId,
+        parseId: upload.parseId,
+        performances: upload.performances,
+        events,
+      }),
     });
 
     if (!saveResponse.ok) {

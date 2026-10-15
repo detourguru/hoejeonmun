@@ -3,5 +3,6 @@ export * from "./events";
 export * from "./normalize";
 export * from "./parse";
 export * from "./parse-failure";
+export * from "./parse-result";
 export * from "./prompt";
 export * from "./save";

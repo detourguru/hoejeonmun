@@ -10,6 +10,7 @@ import {
   attachSuggestedDuplicates,
   findDuplicateReasons,
   hashImages,
+  insertParseResult,
   logParseFailure,
   parseCastingBoardWithConsensus,
   toPendingEvents,
@@ -169,14 +170,24 @@ export async function POST(request: Request) {
 
     lap("이벤트 중복 판정");
 
-    return Response.json({
+    const result = {
       performances,
       events: pendingEvents,
       cancelledSlots,
       castingChanges,
       cancelledEvents,
       skipped,
+    };
+    const parseId = await insertParseResult(admin, {
+      userId,
+      showId,
+      storagePaths,
+      result,
     });
+
+    lap("분석 결과 보관");
+
+    return Response.json({ parseId, ...result });
   } catch (error) {
     lap("예외로 중단");
     console.error(error);

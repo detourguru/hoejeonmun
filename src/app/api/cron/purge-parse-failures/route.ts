@@ -1,10 +1,12 @@
 import { isCronAuthorized } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { purgeExpiredParseFailureImages } from "@/service/casting-board";
+import {
+  purgeExpiredParseFailureImages,
+  purgeExpiredParseResults,
+} from "@/service/casting-board";
 
 export const maxDuration = 60;
 
-// 보존 기간이 지난 파싱 실패 원본 이미지를 정리한다
 export async function GET(request: Request) {
   if (!isCronAuthorized(request)) {
     return new Response("Unauthorized", { status: 401 });
@@ -12,6 +14,7 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const result = await purgeExpiredParseFailureImages(admin);
+  const expiredParseResults = await purgeExpiredParseResults(admin);
 
-  return Response.json(result);
+  return Response.json({ ...result, expiredParseResults });
 }

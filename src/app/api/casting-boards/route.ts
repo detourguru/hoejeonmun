@@ -2,16 +2,19 @@ import { revalidateTag } from "next/cache";
 import * as z from "zod";
 
 import { fail } from "@/lib/api";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ACTORS_CACHE_TAG } from "@/service/actor";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import {
   attachAmbiguousBadgeFlags,
   attachOverlappingEvents,
+  checkParseResultAccess,
+  getParseResult,
+  linkParseResultToUpload,
   saveCastingBoard,
   unverifiedPoints,
 } from "@/service/casting-board";
-import { MAX_IMAGE_COUNT } from "@/type/casting";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -23,41 +26,6 @@ const performanceSchema = z.object({
   variant: z.string().optional(),
   imageIndex: z.number(),
   confidence: z.number(),
-});
-
-const cancelledSlotSchema = z.object({
-  date: z.string().regex(ISO_DATE),
-  time: z.string(),
-  imageIndex: z.number(),
-});
-
-const castingChangeSchema = z.object({
-  date: z.string().regex(ISO_DATE),
-  time: z.string(),
-  role: z.string().min(1),
-  actor: z.string().min(1),
-  imageIndex: z.number(),
-});
-
-const cancelledEventSchema = z.object({
-  title: z.string().min(1),
-  periodStart: z.string().regex(ISO_DATE),
-  periodEnd: z.string().regex(ISO_DATE),
-  imageIndex: z.number(),
-});
-
-const skippedPerformanceSchema = z.object({
-  imageIndex: z.number(),
-  raw: performanceSchema,
-  reason: z.enum([
-    "invalid_date",
-    "invalid_time",
-    "out_of_range",
-    "weekday_mismatch",
-    "empty_casting",
-    "duplicate",
-    "invalid_image_index",
-  ]),
 });
 
 const eventSourceSchema = z.enum(["badge", "notice"]);
@@ -104,32 +72,12 @@ const eventSchema = z
     message: "이벤트 시작일이 종료일보다 늦어요.",
   });
 
-const bodySchema = z
-  .object({
-    showId: z.string().min(1),
-    storagePaths: z.array(z.string().min(1)).min(1).max(MAX_IMAGE_COUNT),
-    performances: z.array(performanceSchema),
-    events: z.array(eventSchema),
-    skipped: z.array(skippedPerformanceSchema),
-    cancelledSlots: z.array(cancelledSlotSchema).default([]),
-    castingChanges: z.array(castingChangeSchema).default([]),
-    cancelledEvents: z.array(cancelledEventSchema).default([]),
-  })
-  .refine(
-    ({
-      performances,
-      events,
-      cancelledSlots,
-      castingChanges,
-      cancelledEvents,
-    }) =>
-      performances.length > 0 ||
-      events.length > 0 ||
-      cancelledSlots.length > 0 ||
-      castingChanges.length > 0 ||
-      cancelledEvents.length > 0,
-    { message: "저장할 캐스팅이나 이벤트가 없어요." },
-  );
+const bodySchema = z.object({
+  showId: z.string().min(1),
+  parseId: z.uuid(),
+  performances: z.array(performanceSchema),
+  events: z.array(eventSchema),
+});
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -143,22 +91,30 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const {
-    showId,
-    storagePaths,
-    performances,
-    events,
-    skipped,
-    cancelledSlots,
-    castingChanges,
-    cancelledEvents,
-  } = body.data;
-
-  if (!storagePaths.every((path) => path.startsWith(`${userId}/`))) {
-    return fail(403, "잘못된 요청이에요.");
-  }
+  const { showId, parseId, performances, events } = body.data;
+  const admin = createAdminClient();
 
   try {
+    const access = checkParseResultAccess(
+      await getParseResult(admin, parseId),
+      { userId, showId, now: Date.now() },
+    );
+
+    if (!access.ok) return fail(access.status, access.message);
+
+    const { storage_paths: storagePaths, result: stored } = access.row;
+    const { skipped, cancelledSlots, castingChanges, cancelledEvents } = stored;
+
+    if (
+      performances.length === 0 &&
+      events.length === 0 &&
+      cancelledSlots.length === 0 &&
+      castingChanges.length === 0 &&
+      cancelledEvents.length === 0
+    ) {
+      return fail(400, "저장할 캐스팅이나 이벤트가 없어요.");
+    }
+
     const overlapChecked = await attachOverlappingEvents(
       showId,
       events.map((event) => ({
@@ -180,6 +136,8 @@ export async function POST(request: Request) {
       castingChanges,
       cancelledEvents,
     });
+
+    await linkParseResultToUpload(admin, parseId, result.uploadId);
 
     revalidateTag(CASTING_FEED_CACHE_TAG, { expire: 0 });
     revalidateTag(showCastTag(showId), { expire: 0 });
