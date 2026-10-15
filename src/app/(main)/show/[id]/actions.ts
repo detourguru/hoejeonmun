@@ -70,6 +70,55 @@ async function deleteUploadIfEmpty(
   if (error) console.error("빈 업로드 정리 실패", error);
 }
 
+type CorrectionStatus =
+  "ok" | "slot_not_found" | "role_not_found" | "duplicate" | "event_not_found";
+
+type CorrectionResult = {
+  status: CorrectionStatus;
+  count?: number;
+  upload_id?: number;
+};
+
+const CORRECTION_FAILURE_MESSAGE: Record<
+  Exclude<CorrectionStatus, "ok">,
+  string
+> = {
+  slot_not_found: "회차 정보를 찾을 수 없어요.",
+  role_not_found: "해당 배역을 찾을 수 없어요.",
+  duplicate: "이미 같은 배역·배우가 있어요.",
+  event_not_found: "이벤트를 찾을 수 없어요.",
+};
+
+const isDuplicateKey = (error: unknown) =>
+  (error as { code?: string } | null)?.code === DUPLICATE_KEY;
+
+async function runCorrection(
+  admin: ReturnType<typeof createAdminClient>,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<CorrectionResult> {
+  const { data, error } = await admin.rpc(name, args);
+
+  if (error) throw error;
+
+  return data as CorrectionResult;
+}
+
+async function upsertActorId(
+  admin: ReturnType<typeof createAdminClient>,
+  name: string,
+): Promise<number> {
+  const { data, error } = await admin
+    .from("actors")
+    .upsert([{ name }], { onConflict: "name", ignoreDuplicates: false })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  return data.id as number;
+}
+
 export async function correctSlotCasting({
   showId,
   slotId,
@@ -93,68 +142,29 @@ export async function correctSlotCasting({
   if (!trimmedRole) return { ok: false, message: "배역명을 입력해 주세요." };
   if (!trimmedActor) return { ok: false, message: "배우명을 입력해 주세요." };
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
-  const { error: castingError, data: castingData } = await admin
-    .from("current_castings")
-    .select("upload_id")
-    .eq("slot_id", slotId)
-    .maybeSingle();
+  try {
+    result = await runCorrection(admin, "correct_casting", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_slot_id: slotId,
+      p_all_slots: applyToAllSlots,
+      p_role: role,
+      p_actor: oldActor,
+      p_new_role: trimmedRole,
+      p_new_actor: trimmedActor,
+      p_new_actor_id: await upsertActorId(admin, trimmedActor),
+    });
+  } catch (error) {
+    console.error(error);
 
-  if (castingError) {
-    console.error(castingError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (!castingData)
-    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  const { data: actor, error: actorError } = await admin
-    .from("actors")
-    .upsert([{ name: trimmedActor }], {
-      onConflict: "name",
-      ignoreDuplicates: false,
-    })
-    .select("id")
-    .single();
-
-  if (actorError) {
-    console.error(actorError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  let updateQuery = admin
-    .from("assignments")
-    .update(
-      {
-        role_name_raw: trimmedRole,
-        actor_name_raw: trimmedActor,
-        actor_id: actor.id,
-        verified: false,
-      },
-      { count: "exact" },
-    )
-    .eq("upload_id", castingData.upload_id)
-    .eq("role_name_raw", role)
-    .eq("actor_name_raw", oldActor);
-
-  if (!applyToAllSlots) updateQuery = updateQuery.eq("slot_id", slotId);
-
-  const { error: updateError, count } = await updateQuery;
-
-  if (updateError) {
-    console.error(updateError);
-
-    if (updateError.code === "23505") {
+    if (isDuplicateKey(error)) {
       return {
         ok: false,
         message:
@@ -165,13 +175,15 @@ export async function correctSlotCasting({
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!count) return { ok: false, message: "해당 배역을 찾을 수 없어요." };
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
+  }
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
   updateTag(CASTING_FEED_CACHE_TAG);
 
-  return { ok: true, count };
+  return { ok: true, count: result.count ?? 0 };
 }
 
 export async function addSlotCasting({
@@ -193,105 +205,38 @@ export async function addSlotCasting({
   if (!trimmedRole) return { ok: false, message: "배역명을 입력해 주세요." };
   if (!trimmedActor) return { ok: false, message: "배우명을 입력해 주세요." };
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
-  const { data: castingData, error: castingError } = await admin
-    .from("current_castings")
-    .select("upload_id")
-    .eq("slot_id", slotId)
-    .maybeSingle();
-
-  if (castingError) {
-    console.error(castingError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (!castingData)
-    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  const { data: actorRow, error: actorError } = await admin
-    .from("actors")
-    .upsert([{ name: trimmedActor }], {
-      onConflict: "name",
-      ignoreDuplicates: false,
-    })
-    .select("id")
-    .single();
-
-  if (actorError) {
-    console.error(actorError);
+  try {
+    result = await runCorrection(admin, "add_casting", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_slot_id: slotId,
+      p_all_slots: applyToAllSlots,
+      p_role: trimmedRole,
+      p_actor: trimmedActor,
+      p_actor_id: await upsertActorId(admin, trimmedActor),
+    });
+  } catch (error) {
+    console.error(error);
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  const targetSlotsQuery = admin
-    .from("assignments")
-    .select("slot_id, role_order")
-    .eq("upload_id", castingData.upload_id);
-
-  const { data: existingRows, error: existingError } = await (applyToAllSlots
-    ? targetSlotsQuery
-    : targetSlotsQuery.eq("slot_id", slotId));
-
-  if (existingError) {
-    console.error(existingError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
   }
-
-  const maxOrderBySlot = new Map<number, number>();
-
-  for (const row of existingRows ?? []) {
-    const current = maxOrderBySlot.get(row.slot_id) ?? -1;
-
-    if (row.role_order > current)
-      maxOrderBySlot.set(row.slot_id, row.role_order);
-  }
-
-  const targetSlotIds = applyToAllSlots ? [...maxOrderBySlot.keys()] : [slotId];
-
-  if (targetSlotIds.length === 0)
-    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  const { error: insertError, count } = await admin.from("assignments").upsert(
-    targetSlotIds.map((id) => ({
-      upload_id: castingData.upload_id,
-      slot_id: id,
-      role_name_raw: trimmedRole,
-      actor_name_raw: trimmedActor,
-      actor_id: actorRow.id,
-      upload_image_id: null,
-      verified: false,
-      role_order: (maxOrderBySlot.get(id) ?? -1) + 1,
-    })),
-    {
-      onConflict: "upload_id,slot_id,role_name_raw,actor_name_raw",
-      ignoreDuplicates: true,
-      count: "exact",
-    },
-  );
-
-  if (insertError) {
-    console.error(insertError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (!count) return { ok: false, message: "이미 같은 배역·배우가 있어요." };
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
   updateTag(CASTING_FEED_CACHE_TAG);
 
-  return { ok: true, count };
+  return { ok: true, count: result.count ?? 0 };
 }
 
 export async function deleteSlotCasting({
@@ -312,48 +257,36 @@ export async function deleteSlotCasting({
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
-  const { data: castingData, error: castingError } = await admin
-    .from("current_castings")
-    .select("upload_id")
-    .eq("slot_id", slotId)
-    .maybeSingle();
-
-  if (castingError) {
-    console.error(castingError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (!castingData)
-    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  let deleteQuery = admin
-    .from("assignments")
-    .delete({ count: "exact" })
-    .eq("upload_id", castingData.upload_id)
-    .eq("role_name_raw", role)
-    .eq("actor_name_raw", actor);
-
-  if (!applyToAllSlots) deleteQuery = deleteQuery.eq("slot_id", slotId);
-
-  const { error: deleteError, count } = await deleteQuery;
-
-  if (deleteError) {
-    console.error(deleteError);
+  try {
+    result = await runCorrection(admin, "delete_casting", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_slot_id: slotId,
+      p_all_slots: applyToAllSlots,
+      p_role: role,
+      p_actor: actor,
+    });
+  } catch (error) {
+    console.error(error);
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!count) return { ok: false, message: "해당 배역을 찾을 수 없어요." };
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
+  }
 
-  await deleteUploadIfEmpty(admin, castingData.upload_id, requester);
+  if (result.upload_id !== undefined) {
+    await deleteUploadIfEmpty(admin, result.upload_id, requester);
+  }
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
   updateTag(CASTING_FEED_CACHE_TAG);
 
-  return { ok: true, count };
+  return { ok: true, count: result.count ?? 0 };
 }
 
 // 날짜/시간이 잘못 읽힌 회차를 이 캐스팅보드 안에서만 다른 회차로 옮긴다
@@ -367,87 +300,34 @@ export async function correctSlotDate(
     return { ok: false, message: "날짜와 시간을 확인해 주세요." };
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
-  const { data: castingData, error: castingError } = await admin
-    .from("current_castings")
-    .select("upload_id")
-    .eq("slot_id", slotId)
-    .maybeSingle();
+  try {
+    result = await runCorrection(admin, "move_slot_casting", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_slot_id: slotId,
+      p_date: newDate,
+      p_time: newTime,
+    });
+  } catch (error) {
+    console.error(error);
 
-  if (castingError) {
-    console.error(castingError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (!castingData)
-    return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  const { error: upsertError } = await admin
-    .from("slots")
-    .upsert(
-      { show_id: showId, date: newDate, time: newTime },
-      { onConflict: "show_id,date,time", ignoreDuplicates: true },
-    );
-
-  if (upsertError) {
-    console.error(upsertError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  const { data: newSlot, error: newSlotError } = await admin
-    .from("slots")
-    .select("id")
-    .eq("show_id", showId)
-    .eq("date", newDate)
-    .eq("time", newTime)
-    .single();
-
-  if (newSlotError) {
-    console.error(newSlotError);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
-
-  if (newSlot.id === slotId) return { ok: true, hidden: false };
-
-  const { error: moveError, count } = await admin
-    .from("assignments")
-    .update({ slot_id: newSlot.id }, { count: "exact" })
-    .eq("upload_id", castingData.upload_id)
-    .eq("slot_id", slotId);
-
-  if (moveError) {
-    console.error(moveError);
-
-    if (moveError.code === DUPLICATE_KEY) {
-      return {
-        ok: false,
-        message: "이미 그 날짜/시간에 같은 배역이 있어요.",
-      };
+    if (isDuplicateKey(error)) {
+      return { ok: false, message: "이미 그 날짜/시간에 같은 배역이 있어요." };
     }
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!count) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-  const { error: variantMoveError } = await admin
-    .from("slot_variants")
-    .update({ slot_id: newSlot.id })
-    .eq("upload_id", castingData.upload_id)
-    .eq("slot_id", slotId);
-
-  if (variantMoveError) console.error(variantMoveError);
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
+  }
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
@@ -488,30 +368,28 @@ export async function correctSlotVariant(
     };
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  if (!data?.claims?.sub) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
   try {
-    const uploadId = await getCurrentUploadId(admin, slotId);
-
-    if (!uploadId) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
-
-    const { error } = await admin
-      .from("slot_variants")
-      .upsert(
-        { upload_id: uploadId, slot_id: slotId, label },
-        { onConflict: "upload_id,slot_id" },
-      );
-
-    if (error) throw error;
+    result = await runCorrection(admin, "set_slot_variant", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_slot_id: slotId,
+      p_label: label,
+    });
   } catch (error) {
     console.error(error);
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
   }
 
   revalidatePath(`/show/${showId}`);
@@ -855,12 +733,9 @@ export async function correctEventText(
   includedSlots: EventSlotException[],
   excludedSlots: EventSlotException[],
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const trimmedTitle = title.trim();
 
@@ -875,66 +750,35 @@ export async function correctEventText(
   }
 
   const admin = createAdminClient();
+  let result: CorrectionResult;
 
-  const { error: updateError, count } = await admin
-    .from("events")
-    .update(
-      {
-        title: trimmedTitle,
-        description: description.trim() || null,
-        period_start: periodStart,
-        period_end: periodEnd,
-        edited_by: userId,
-      },
-      { count: "exact" },
-    )
-    .eq("id", eventId);
+  try {
+    // 기간 + 막대 밖 포함/제외 회차를 반영해 적용되는 회차를 다시 계산한다
+    const matchedSlotIds = await computeEventSlotIds(admin, showId, {
+      periodStart,
+      periodEnd,
+      includedSlots: sanitizeSlotExceptions(includedSlots),
+      excludedSlots: sanitizeSlotExceptions(excludedSlots),
+    });
 
-  if (updateError) {
-    console.error(updateError);
+    result = await runCorrection(admin, "update_event_text", {
+      p_user_id: requester.userId,
+      p_show_id: showId,
+      p_event_id: eventId,
+      p_title: trimmedTitle,
+      p_description: description.trim() || null,
+      p_period_start: periodStart,
+      p_period_end: periodEnd,
+      p_slot_ids: matchedSlotIds,
+    });
+  } catch (error) {
+    console.error(error);
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!count) return { ok: false, message: "이벤트를 찾을 수 없어요." };
-
-  // 기간 + 막대 밖 포함/제외 회차를 반영해 적용되는 회차를 다시 계산한다
-  const matchedSlotIds = await computeEventSlotIds(admin, showId, {
-    periodStart,
-    periodEnd,
-    includedSlots: sanitizeSlotExceptions(includedSlots),
-    excludedSlots: sanitizeSlotExceptions(excludedSlots),
-  });
-
-  const { error: deleteSlotsError } = await admin
-    .from("event_slots")
-    .delete()
-    .eq("event_id", eventId);
-
-  if (deleteSlotsError) {
-    console.error(deleteSlotsError);
-    return {
-      ok: false,
-      message: "적용 회차를 갱신하지 못했어요. 다시 시도해 주세요.",
-    };
-  }
-
-  if (matchedSlotIds.length > 0) {
-    const { error: insertSlotsError } = await admin.from("event_slots").upsert(
-      matchedSlotIds.map((slotId) => ({
-        event_id: eventId,
-        slot_id: slotId,
-      })),
-      { onConflict: "event_id,slot_id", ignoreDuplicates: true },
-    );
-
-    if (insertSlotsError) {
-      console.error(insertSlotsError);
-      return {
-        ok: false,
-        message: "적용 회차를 갱신하지 못했어요. 다시 시도해 주세요.",
-      };
-    }
+  if (result.status !== "ok") {
+    return { ok: false, message: CORRECTION_FAILURE_MESSAGE[result.status] };
   }
 
   revalidatePath(`/show/${showId}`);
