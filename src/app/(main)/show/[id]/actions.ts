@@ -4,10 +4,10 @@ import { revalidatePath, updateTag } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getIsAdmin } from "@/service/admin";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
+import { canManageUpload, getRequester, Requester } from "@/service/permission";
 import {
   CASTING_BOARD_BUCKET,
   EventSlotException,
@@ -33,8 +33,9 @@ const DUPLICATE_KEY = "23505";
 async function deleteUploadIfEmpty(
   admin: ReturnType<typeof createAdminClient>,
   uploadId: number,
+  requester: Requester,
 ) {
-  const [assignments, events] = await Promise.all([
+  const [assignments, events, upload] = await Promise.all([
     admin
       .from("assignments")
       .select("id", { count: "exact", head: true })
@@ -43,15 +44,26 @@ async function deleteUploadIfEmpty(
       .from("events")
       .select("id", { count: "exact", head: true })
       .eq("upload_id", uploadId),
+    admin.from("uploads").select("user_id").eq("id", uploadId).maybeSingle(),
   ]);
 
   // 조회 에러 시 빈 업로드로 판단하면 cascade로 전부 삭제되므로 지우지 않고 에러로만 표기한다
-  if (assignments.error || events.error) {
-    console.error("빈 업로드 확인 실패", assignments.error ?? events.error);
+  if (assignments.error || events.error || upload.error) {
+    console.error(
+      "빈 업로드 확인 실패",
+      assignments.error ?? events.error ?? upload.error,
+    );
     return;
   }
 
-  if (assignments.count !== 0 || events.count !== 0) return;
+  if (assignments.count !== 0 || events.count !== 0 || !upload.data) return;
+
+  try {
+    if (!(await canManageUpload(requester, upload.data.user_id))) return;
+  } catch (error) {
+    console.error("빈 업로드 권한 확인 실패", error);
+    return;
+  }
 
   const { error } = await admin.from("uploads").delete().eq("id", uploadId);
 
@@ -295,12 +307,9 @@ export async function deleteSlotCasting({
   actor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
 
@@ -338,7 +347,7 @@ export async function deleteSlotCasting({
 
   if (!count) return { ok: false, message: "해당 배역을 찾을 수 없어요." };
 
-  await deleteUploadIfEmpty(admin, castingData.upload_id);
+  await deleteUploadIfEmpty(admin, castingData.upload_id, requester);
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
@@ -515,12 +524,9 @@ export async function deleteSlotVariant(
   showId: string,
   slotId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
 
@@ -537,7 +543,7 @@ export async function deleteSlotVariant(
 
     if (uploadError) throw uploadError;
 
-    if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
+    if (!(await canManageUpload(requester, upload.user_id))) {
       return {
         ok: false,
         message: "본인이 올린 회차의 구분만 지울 수 있어요.",
@@ -570,12 +576,9 @@ export async function deleteMySlotCasting(
   uploadId: number,
   slotId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
 
@@ -593,7 +596,7 @@ export async function deleteMySlotCasting(
 
   if (!upload) return { ok: false, message: "회차 정보를 찾을 수 없어요." };
 
-  if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
+  if (!(await canManageUpload(requester, upload.user_id))) {
     return { ok: false, message: "본인이 올린 회차만 지울 수 있어요." };
   }
 
@@ -619,7 +622,7 @@ export async function deleteMySlotCasting(
 
   if (variantError) console.error(variantError);
 
-  await deleteUploadIfEmpty(admin, uploadId);
+  await deleteUploadIfEmpty(admin, uploadId, requester);
 
   revalidatePath(`/show/${showId}`);
   updateTag(showCastTag(showId));
@@ -945,12 +948,9 @@ export async function deleteMyEvent(
   showId: string,
   eventId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
 
@@ -982,7 +982,7 @@ export async function deleteMyEvent(
 
   if (!upload) return { ok: false, message: "이벤트를 찾을 수 없어요." };
 
-  if (upload.user_id !== userId && !(await getIsAdmin(supabase))) {
+  if (!(await canManageUpload(requester, upload.user_id))) {
     return { ok: false, message: "본인이 올린 이벤트만 지울 수 있어요." };
   }
 
@@ -997,7 +997,7 @@ export async function deleteMyEvent(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  await deleteUploadIfEmpty(admin, event.upload_id);
+  await deleteUploadIfEmpty(admin, event.upload_id, requester);
 
   revalidatePath(`/show/${showId}`);
   updateTag(CASTING_FEED_CACHE_TAG);
@@ -1009,12 +1009,9 @@ export async function deleteMyUpload(
   showId: string,
   uploadId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const requester = await getRequester();
 
-  const userId = data?.claims?.sub;
-
-  if (!userId) return { ok: false, message: "로그인이 필요해요." };
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
 
   const admin = createAdminClient();
 
@@ -1030,7 +1027,7 @@ export async function deleteMyUpload(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!upload || upload.user_id !== userId) {
+  if (!upload || !(await canManageUpload(requester, upload.user_id))) {
     return { ok: false, message: "본인이 올린 캐스팅보드만 지울 수 있어요." };
   }
 
