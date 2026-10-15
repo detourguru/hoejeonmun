@@ -7,7 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
-import { canManageUpload, getRequester, Requester } from "@/service/permission";
+import {
+  canManageUpload,
+  getRequester,
+  isCorrectionLimited,
+  Requester,
+} from "@/service/permission";
 import {
   CASTING_BOARD_BUCKET,
   EventSlotException,
@@ -71,7 +76,12 @@ async function deleteUploadIfEmpty(
 }
 
 type CorrectionStatus =
-  "ok" | "slot_not_found" | "role_not_found" | "duplicate" | "event_not_found";
+  | "ok"
+  | "slot_not_found"
+  | "role_not_found"
+  | "duplicate"
+  | "event_not_found"
+  | "rate_limited";
 
 type CorrectionResult = {
   status: CorrectionStatus;
@@ -87,6 +97,7 @@ const CORRECTION_FAILURE_MESSAGE: Record<
   role_not_found: "해당 배역을 찾을 수 없어요.",
   duplicate: "이미 같은 배역·배우가 있어요.",
   event_not_found: "이벤트를 찾을 수 없어요.",
+  rate_limited: "정정을 너무 자주 했어요. 잠시 후 다시 시도해 주세요.",
 };
 
 const isDuplicateKey = (error: unknown) =>
@@ -94,10 +105,18 @@ const isDuplicateKey = (error: unknown) =>
 
 async function runCorrection(
   admin: ReturnType<typeof createAdminClient>,
+  requester: Requester,
   name: string,
   args: Record<string, unknown>,
 ): Promise<CorrectionResult> {
-  const { data, error } = await admin.rpc(name, args);
+  if (await isCorrectionLimited(admin, requester)) {
+    return { status: "rate_limited" };
+  }
+
+  const { data, error } = await admin.rpc(name, {
+    p_user_id: requester.userId,
+    ...args,
+  });
 
   if (error) throw error;
 
@@ -150,8 +169,7 @@ export async function correctSlotCasting({
   let result: CorrectionResult;
 
   try {
-    result = await runCorrection(admin, "correct_casting", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "correct_casting", {
       p_show_id: showId,
       p_slot_id: slotId,
       p_all_slots: applyToAllSlots,
@@ -213,8 +231,7 @@ export async function addSlotCasting({
   let result: CorrectionResult;
 
   try {
-    result = await runCorrection(admin, "add_casting", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "add_casting", {
       p_show_id: showId,
       p_slot_id: slotId,
       p_all_slots: applyToAllSlots,
@@ -260,8 +277,7 @@ export async function deleteSlotCasting({
   let result: CorrectionResult;
 
   try {
-    result = await runCorrection(admin, "delete_casting", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "delete_casting", {
       p_show_id: showId,
       p_slot_id: slotId,
       p_all_slots: applyToAllSlots,
@@ -308,8 +324,7 @@ export async function correctSlotDate(
   let result: CorrectionResult;
 
   try {
-    result = await runCorrection(admin, "move_slot_casting", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "move_slot_casting", {
       p_show_id: showId,
       p_slot_id: slotId,
       p_date: newDate,
@@ -376,8 +391,7 @@ export async function correctSlotVariant(
   let result: CorrectionResult;
 
   try {
-    result = await runCorrection(admin, "set_slot_variant", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "set_slot_variant", {
       p_show_id: showId,
       p_slot_id: slotId,
       p_label: label,
@@ -761,8 +775,7 @@ export async function correctEventText(
       excludedSlots: sanitizeSlotExceptions(excludedSlots),
     });
 
-    result = await runCorrection(admin, "update_event_text", {
-      p_user_id: requester.userId,
+    result = await runCorrection(admin, requester, "update_event_text", {
       p_show_id: showId,
       p_event_id: eventId,
       p_title: trimmedTitle,
