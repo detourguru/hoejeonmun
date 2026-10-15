@@ -8,6 +8,7 @@ import {
   createCastingBoardOverview,
   needsConsensus,
   pickMostCommonValue,
+  resizeCastingImage,
   shouldCreateCastingBoardOverview,
 } from "./parse";
 
@@ -309,5 +310,45 @@ describe("createCastingBoardOverview", () => {
     expect(await createCastingBoardOverview([await solidImage(0, RED)])).toBe(
       null,
     );
+  });
+
+  it("이어 붙일 캡처 중 끝이 잘린 JPEG가 있어도 만든다", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const overview = await createCastingBoardOverview([
+      await solidImage(0, RED),
+      { index: 1, width: 100, height: 200, buffer: await truncatedJpeg() },
+    ]);
+
+    expect(overview?.mime_type).toBe("image/jpeg");
+  });
+});
+
+const truncatedJpeg = async () => {
+  const jpeg = await sharp({
+    create: {
+      width: 100,
+      height: 200,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+      noise: { type: "gaussian", mean: 128, sigma: 30 },
+    },
+  })
+    .jpeg()
+    .toBuffer();
+
+  return jpeg.subarray(0, Math.floor(jpeg.length * 0.6));
+};
+
+describe("resizeCastingImage", () => {
+  it("끝이 잘린 JPEG도 실패하지 않고 JPEG로 줄인다", async () => {
+    const image = await truncatedJpeg();
+
+    // sharp 기본 설정으로는 실패하는 이미지인지 먼저 확인한다
+    await expect(sharp(image).toBuffer()).rejects.toThrow();
+
+    const resized = await resizeCastingImage(image);
+
+    expect((await sharp(resized).metadata()).format).toBe("jpeg");
   });
 });

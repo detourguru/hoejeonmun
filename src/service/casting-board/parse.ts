@@ -38,8 +38,10 @@ import {
   describeGeminiError,
 } from "./prompt";
 
+const DECODE_OPTIONS = { failOn: "none" } as const;
+
 export async function resizeCastingImage(buffer: Buffer) {
-  return sharp(buffer)
+  return sharp(buffer, DECODE_OPTIONS)
     .resize({
       width: GEMINI_IMAGE_MAX_WIDTH,
       height: GEMINI_IMAGE_MAX_HEIGHT,
@@ -91,6 +93,7 @@ export async function createCastingBoardOverview(
   for (const image of images) {
     composites.push({
       input: image.buffer,
+      ...DECODE_OPTIONS,
       top,
       left: 0,
     });
@@ -129,7 +132,7 @@ export async function buildCastingImageBlocks(
   const prepared = await Promise.all(
     images.map(async (image, index) => {
       const buffer = Buffer.from(await image.arrayBuffer());
-      const metadata = await sharp(buffer).metadata();
+      const metadata = await sharp(buffer, DECODE_OPTIONS).metadata();
 
       return {
         index,
