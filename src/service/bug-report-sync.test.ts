@@ -35,7 +35,6 @@ describe("buildTitle", () => {
 describe("buildBody", () => {
   const report: BugReportRow = {
     id: 1,
-    user_id: "user-1",
     message: "배우 필터가 이상해요",
     url: "/show/PF1/castings",
     user_agent: "Mozilla/5.0",
@@ -44,12 +43,12 @@ describe("buildBody", () => {
     image_paths: [],
   };
 
-  it("제보 내용 아래에 재현에 필요한 정보(제보자, 화면 주소, 브라우저, 배포 커밋, 시각)를 붙인다", () => {
+  it("제보 내용 아래에 재현에 필요한 정보(제보 번호, 화면 주소, 브라우저, 배포 커밋, 시각)를 붙인다", () => {
     expect(buildBody(report, [])).toBe(
       [
         "배우 필터가 이상해요",
         "",
-        "제보자: user-1",
+        "제보 번호: 1",
         "URL: /show/PF1/castings",
         "User-Agent: Mozilla/5.0",
         "커밋: abc123",

@@ -9,7 +9,6 @@ const TITLE_MAX_LENGTH = 60;
 
 export type BugReportRow = {
   id: number;
-  user_id: string;
   message: string;
   url: string;
   user_agent: string;
@@ -30,7 +29,7 @@ export function buildBody(report: BugReportRow, imageUrls: string[]) {
   const lines = [
     report.message,
     "",
-    `제보자: ${report.user_id}`,
+    `제보 번호: ${report.id}`,
     `URL: ${report.url}`,
     `User-Agent: ${report.user_agent}`,
     `커밋: ${report.commit_sha ?? "알 수 없음"}`,
@@ -93,9 +92,7 @@ export async function syncBugReportsToGithub() {
 
   const { data, error } = await admin
     .from("bug_reports")
-    .select(
-      "id, user_id, message, url, user_agent, commit_sha, created_at, image_paths",
-    )
+    .select("id, message, url, user_agent, commit_sha, created_at, image_paths")
     .is("resolved_at", null)
     .is("github_issue_number", null)
     .order("created_at");
