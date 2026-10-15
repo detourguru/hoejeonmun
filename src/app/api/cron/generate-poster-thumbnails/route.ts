@@ -1,3 +1,4 @@
+import { isCronAuthorized } from "@/lib/cron";
 import {
   cleanupStaleThumbnails,
   generatePosterThumbnails,
@@ -13,9 +14,7 @@ const CLEANUP_BUDGET_MS = 5_000;
 
 // 새로 등록됐거나 포스터가 바뀐 공연의 목록용 썸네일을 만든다
 export async function GET(request: Request) {
-  const auth = request.headers.get("authorization");
-
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

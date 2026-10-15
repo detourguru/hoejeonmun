@@ -1,5 +1,6 @@
 import { revalidateTag } from "next/cache";
 
+import { isCronAuthorized } from "@/lib/cron";
 import { addDays, getToday, normalizeDate, toKopisDate } from "@/lib/date";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { discoverCastingFromKopis } from "@/service/casting-board-discovery";
@@ -10,9 +11,7 @@ export const maxDuration = 60;
 
 // 오늘 날짜부로 개막한 공연 & 오늘 이후 회차 여부를 확인한다
 export async function GET(request: Request) {
-  const auth = request.headers.get("authorization");
-
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(request)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
