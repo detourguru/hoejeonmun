@@ -3,12 +3,21 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-import { CURRENT_UPDATE_ID, UPDATE_NOTICE_MESSAGE } from "@/lib/site";
+import { getToday, toInputDate } from "@/lib/date";
+import {
+  CURRENT_UPDATE_ID,
+  isUpdateNoticeActive,
+  UPDATE_NOTICE_MESSAGE,
+} from "@/lib/site";
 
 const STORAGE_KEY = "seen-update-id";
 
 export const UpdateToast = () => {
   useEffect(() => {
+    if (!isUpdateNoticeActive(CURRENT_UPDATE_ID, toInputDate(getToday()))) {
+      return;
+    }
+
     const seenUpdateId = localStorage.getItem(STORAGE_KEY);
 
     if (seenUpdateId === CURRENT_UPDATE_ID) return;
