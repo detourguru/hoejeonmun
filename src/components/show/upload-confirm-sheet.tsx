@@ -10,6 +10,10 @@ import {
 } from "@/components/show/casting-confirm-list";
 import { EventDraft } from "@/components/show/event-confirm-list";
 import { EventReview } from "@/components/show/event-review";
+import {
+  NoticeConfirmList,
+  NoticeDraft,
+} from "@/components/show/notice-confirm-list";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_REPORT_TYPE_TAB,
@@ -21,6 +25,7 @@ export const UploadConfirmSheet = ({
   open,
   castingDrafts,
   eventDrafts,
+  noticeDrafts,
   knownDates,
   knownSlots,
   previewUrls,
@@ -29,12 +34,14 @@ export const UploadConfirmSheet = ({
   initialTab = DEFAULT_REPORT_TYPE_TAB,
   onCastingChange,
   onEventChange,
+  onNoticeChange,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
   castingDrafts: CastingDraft[];
   eventDrafts: EventDraft[];
+  noticeDrafts: NoticeDraft[];
   knownDates: Set<string>;
   knownSlots: { date: string; time: string }[];
   previewUrls: string[];
@@ -43,6 +50,7 @@ export const UploadConfirmSheet = ({
   initialTab?: ReportTypeTab;
   onCastingChange: (drafts: CastingDraft[]) => void;
   onEventChange: (drafts: EventDraft[]) => void;
+  onNoticeChange: (drafts: NoticeDraft[]) => void;
   onConfirm: () => void;
   onCancel: () => void;
 }) => {
@@ -66,6 +74,7 @@ export const UploadConfirmSheet = ({
   };
 
   const showCasting = castingDrafts.length > 0;
+  const showNotices = noticeDrafts.length > 0;
   const showEvents = eventDrafts.length > 0;
 
   return (
@@ -77,7 +86,7 @@ export const UploadConfirmSheet = ({
       title="읽어낸 내용 확인"
     >
       <div className="flex flex-col gap-3">
-        {showCasting && showEvents && (
+        {(showCasting || showNotices) && showEvents && (
           <div className="flex gap-1">
             {REPORT_TYPE_TAB.options.map(({ value, label }) => (
               <button
@@ -89,17 +98,19 @@ export const UploadConfirmSheet = ({
                   value === tab ? "bg-primary text-surface" : "text-text",
                 )}
               >
-                {label}
+                {value === "casting" && !showCasting ? "취소·변경" : label}
               </button>
             ))}
           </div>
         )}
 
-        {tab === "casting" && showCasting && (
+        {tab === "casting" && (showCasting || showNotices) && (
           <>
-            <p className="text-text-muted text-xs">
-              원본과 대조해 날짜, 시간, 배역과 배우 이름을 확인해 주세요.
-            </p>
+            {showCasting && (
+              <p className="text-text-muted text-xs">
+                원본과 대조해 날짜, 시간, 배역과 배우 이름을 확인해 주세요.
+              </p>
+            )}
 
             <ul className="flex flex-wrap gap-2">
               {previewUrls.map((url, index) => (
@@ -113,10 +124,20 @@ export const UploadConfirmSheet = ({
               ))}
             </ul>
 
-            <CastingConfirmList
-              drafts={castingDrafts}
-              onChange={onCastingChange}
-            />
+            {showNotices && (
+              <NoticeConfirmList
+                drafts={noticeDrafts}
+                disabled={saving}
+                onChange={onNoticeChange}
+              />
+            )}
+
+            {showCasting && (
+              <CastingConfirmList
+                drafts={castingDrafts}
+                onChange={onCastingChange}
+              />
+            )}
           </>
         )}
 

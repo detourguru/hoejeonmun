@@ -10,6 +10,7 @@ import {
   attachAmbiguousBadgeFlags,
   attachOverlappingEvents,
   checkParseResultAccess,
+  excludeNotices,
   getParseResult,
   linkParseResultToUpload,
   saveCastingBoard,
@@ -72,11 +73,18 @@ const eventSchema = z
     message: "이벤트 시작일이 종료일보다 늦어요.",
   });
 
+const noticeIndexesSchema = z.array(z.number().int().min(0)).max(500);
+
 const bodySchema = z.object({
   showId: z.string().min(1),
   parseId: z.uuid(),
   performances: z.array(performanceSchema),
   events: z.array(eventSchema),
+  excludedNotices: z.object({
+    cancelledSlots: noticeIndexesSchema,
+    castingChanges: noticeIndexesSchema,
+    cancelledEvents: noticeIndexesSchema,
+  }),
 });
 
 export async function POST(request: Request) {
@@ -91,7 +99,7 @@ export async function POST(request: Request) {
 
   if (!body.success) return fail(400, "잘못된 요청이에요.");
 
-  const { showId, parseId, performances, events } = body.data;
+  const { showId, parseId, performances, events, excludedNotices } = body.data;
   const admin = createAdminClient();
 
   try {
@@ -103,7 +111,10 @@ export async function POST(request: Request) {
     if (!access.ok) return fail(access.status, access.message);
 
     const { storage_paths: storagePaths, result: stored } = access.row;
-    const { skipped, cancelledSlots, castingChanges, cancelledEvents } = stored;
+    const { cancelledSlots, castingChanges, cancelledEvents } = excludeNotices(
+      stored,
+      excludedNotices,
+    );
 
     if (
       performances.length === 0 &&
@@ -131,7 +142,7 @@ export async function POST(request: Request) {
       storagePaths,
       performances,
       events: events.map((event, index) => ({ ...event, ...checked[index] })),
-      skipped,
+      skipped: stored.skipped,
       cancelledSlots,
       castingChanges,
       cancelledEvents,

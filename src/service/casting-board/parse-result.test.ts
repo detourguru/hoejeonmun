@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { checkParseResultAccess, PARSE_RESULT_TTL_HOURS } from "./parse-result";
+import {
+  checkParseResultAccess,
+  excludeNotices,
+  PARSE_RESULT_TTL_HOURS,
+} from "./parse-result";
 
 const NOW = Date.parse("2026-10-15T12:00:00Z");
 const HOUR = 60 * 60 * 1000;
@@ -72,5 +76,53 @@ describe("checkParseResultAccess", () => {
         context,
       ),
     ).toMatchObject({ ok: true });
+  });
+});
+
+describe("excludeNotices", () => {
+  const slot = (time: string) => ({ date: "2026-10-03", time, imageIndex: 0 });
+  const notices = {
+    cancelledSlots: [slot("14:00"), slot("19:30")],
+    castingChanges: [
+      {
+        date: "2026-10-03",
+        time: "14:00",
+        role: "배역A",
+        actor: "배우1",
+        imageIndex: 0,
+      },
+    ],
+    cancelledEvents: [
+      {
+        title: "커튼콜 데이",
+        periodStart: "2026-10-01",
+        periodEnd: "2026-10-05",
+        imageIndex: 0,
+      },
+    ],
+  };
+
+  it("사용자가 체크를 푼 항목만 빼고 나머지는 보관본 그대로 적용한다", () => {
+    expect(
+      excludeNotices(notices, {
+        cancelledSlots: [1],
+        castingChanges: [],
+        cancelledEvents: [0],
+      }),
+    ).toStrictEqual({
+      cancelledSlots: [slot("14:00")],
+      castingChanges: notices.castingChanges,
+      cancelledEvents: [],
+    });
+  });
+
+  it("보관본에 없는 번호는 무시한다", () => {
+    expect(
+      excludeNotices(notices, {
+        cancelledSlots: [5],
+        castingChanges: [-1],
+        cancelledEvents: [],
+      }),
+    ).toStrictEqual(notices);
   });
 });

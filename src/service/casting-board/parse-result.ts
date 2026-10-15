@@ -1,20 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  ParsedCancelledEvent,
-  ParsedCancelledSlot,
-  ParsedCastingChange,
+  CastingNotices,
+  ExcludedNotices,
   ParsedPerformance,
   PendingEvent,
   SkippedPerformance,
 } from "@/type/casting";
 
-export type ParseResultData = {
+export type ParseResultData = CastingNotices & {
   performances: ParsedPerformance[];
   events: PendingEvent[];
   skipped: SkippedPerformance[];
-  cancelledSlots: ParsedCancelledSlot[];
-  castingChanges: ParsedCastingChange[];
-  cancelledEvents: ParsedCancelledEvent[];
 };
 
 export type ParseResultRow = {
@@ -68,6 +64,20 @@ export function checkParseResultAccess<T extends AccessRow>(
   }
 
   return { ok: true, row };
+}
+
+export function excludeNotices(
+  notices: CastingNotices,
+  excluded: ExcludedNotices,
+): CastingNotices {
+  const keep = <T>(items: T[], indexes: number[]) =>
+    items.filter((_, index) => !indexes.includes(index));
+
+  return {
+    cancelledSlots: keep(notices.cancelledSlots, excluded.cancelledSlots),
+    castingChanges: keep(notices.castingChanges, excluded.castingChanges),
+    cancelledEvents: keep(notices.cancelledEvents, excluded.cancelledEvents),
+  };
 }
 
 export async function insertParseResult(

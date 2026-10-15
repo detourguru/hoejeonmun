@@ -15,6 +15,12 @@ import {
   toConfirmedEvents,
   toEventDrafts,
 } from "@/components/show/event-confirm-list";
+import {
+  countIncludedNotices,
+  NoticeDraft,
+  toExcludedNotices,
+  toNoticeDrafts,
+} from "@/components/show/notice-confirm-list";
 import { SelectedImagePanel } from "@/components/show/selected-image-panel";
 import { UploadConfirmSheet } from "@/components/show/upload-confirm-sheet";
 import { UploadProgress } from "@/components/show/upload-progress";
@@ -27,15 +33,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
+  CastingNotices,
   ConfirmedEvent,
   DEFAULT_REPORT_TYPE_TAB,
-  ParsedCancelledEvent,
-  ParsedCancelledSlot,
-  ParsedCastingChange,
   ParsedPerformance,
   PendingEvent,
   ReportTypeTab,
-  SkippedPerformance,
   UploadStatus,
 } from "@/type/casting";
 
@@ -43,10 +46,6 @@ type ParsedUpload = {
   parseId: string;
   storagePaths: string[];
   performances: ParsedPerformance[];
-  skipped: SkippedPerformance[];
-  cancelledSlots: ParsedCancelledSlot[];
-  castingChanges: ParsedCastingChange[];
-  cancelledEvents: ParsedCancelledEvent[];
 };
 
 const EXTENSIONS: Record<string, string> = {
@@ -91,6 +90,7 @@ export const CastingUploadButton = ({
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
   const [castingDrafts, setCastingDrafts] = useState<CastingDraft[]>([]);
+  const [noticeDrafts, setNoticeDrafts] = useState<NoticeDraft[]>([]);
   const [existingSlots, setExistingSlots] = useState<
     { date: string; time: string }[]
   >([]);
@@ -115,6 +115,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
+    setNoticeDrafts([]);
     setExistingSlots([]);
     setStatus("idle");
   };
@@ -202,33 +203,19 @@ export const CastingUploadButton = ({
       parseId,
       performances,
       events,
-      skipped,
       cancelledSlots,
       castingChanges,
       cancelledEvents,
-    } = (await parseResponse.json()) as {
+    } = (await parseResponse.json()) as CastingNotices & {
       parseId: string;
       performances: ParsedPerformance[];
       events: PendingEvent[];
-      skipped: SkippedPerformance[];
-      cancelledSlots: ParsedCancelledSlot[];
-      castingChanges: ParsedCastingChange[];
-      cancelledEvents: ParsedCancelledEvent[];
     };
-    const upload = {
-      parseId,
-      storagePaths,
-      performances,
-      skipped,
+    const notices = toNoticeDrafts({
       cancelledSlots,
       castingChanges,
       cancelledEvents,
-    };
-
-    if (performances.length === 0 && events.length === 0) {
-      await save(upload, []);
-      return;
-    }
+    });
 
     if (events.length > 0) {
       const { data: existingSlotRows } = await supabase
@@ -239,10 +226,13 @@ export const CastingUploadButton = ({
       setExistingSlots(existingSlotRows ?? []);
     }
 
-    setParsed(upload);
+    setParsed({ parseId, storagePaths, performances });
     setCastingDrafts(toCastingDrafts(performances));
     setDrafts(toEventDrafts(events));
-    setReviewTab(performances.length > 0 ? "casting" : "event");
+    setNoticeDrafts(notices);
+    setReviewTab(
+      performances.length > 0 || notices.length > 0 ? "casting" : "event",
+    );
     setStatus("confirming");
   };
 
@@ -256,6 +246,7 @@ export const CastingUploadButton = ({
         parseId: upload.parseId,
         performances: upload.performances,
         events,
+        excludedNotices: toExcludedNotices(noticeDrafts),
       }),
     });
 
@@ -285,6 +276,7 @@ export const CastingUploadButton = ({
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
+    setNoticeDrafts([]);
     setExistingSlots([]);
     setStatus("done");
     router.refresh();
@@ -306,7 +298,11 @@ export const CastingUploadButton = ({
       return;
     }
 
-    if (performances.length === 0 && events.length === 0) {
+    if (
+      performances.length === 0 &&
+      events.length === 0 &&
+      countIncludedNotices(noticeDrafts) === 0
+    ) {
       handleCancelConfirm();
       return;
     }
@@ -365,6 +361,7 @@ export const CastingUploadButton = ({
           open
           castingDrafts={castingDrafts}
           eventDrafts={drafts}
+          noticeDrafts={noticeDrafts}
           knownDates={knownDates}
           knownSlots={knownSlots}
           previewUrls={previewUrls}
@@ -373,6 +370,7 @@ export const CastingUploadButton = ({
           initialTab={reviewTab}
           onCastingChange={setCastingDrafts}
           onEventChange={setDrafts}
+          onNoticeChange={setNoticeDrafts}
           onConfirm={handleConfirm}
           onCancel={handleCancelConfirm}
         />

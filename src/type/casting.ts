@@ -185,6 +185,14 @@ export type ParsedCancelledEvent = {
   imageIndex: number;
 };
 
+export type CastingNotices = {
+  cancelledSlots: ParsedCancelledSlot[];
+  castingChanges: ParsedCastingChange[];
+  cancelledEvents: ParsedCancelledEvent[];
+};
+
+export type ExcludedNotices = Record<keyof CastingNotices, number[]>;
+
 export type EventSource = "badge" | "notice";
 
 // 코드 대조에 하나라도 실패했을 시 사용자 확인을 받는다
