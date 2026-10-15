@@ -86,6 +86,20 @@ export function toArray<T>(value: T | T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
+const KOPIS_HOSTS = new Set(["kopis.or.kr", "www.kopis.or.kr"]);
+
+export function toHttpsKopisUrl(url: string) {
+  try {
+    const parsed = new URL(url.trim());
+
+    if (!KOPIS_HOSTS.has(parsed.hostname)) return url;
+
+    return `https://kopis.or.kr${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+}
+
 const isRetryable = (error: unknown) =>
   error instanceof KopisHttpError
     ? error.status === 400 || error.status === 429 || error.status >= 500

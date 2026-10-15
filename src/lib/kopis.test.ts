@@ -1,6 +1,32 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchKopis, fetchKopisAll, toArray } from "./kopis";
+import { fetchKopis, fetchKopisAll, toArray, toHttpsKopisUrl } from "./kopis";
+
+describe("toHttpsKopisUrl", () => {
+  // https 페이지에서 http 이미지를 부르면 혼합 콘텐츠가 된다
+  it.each([
+    ["http://www.kopis.or.kr/upload/pfmPoster/PF_PF1.jpg"],
+    ["http://kopis.or.kr/upload/pfmPoster/PF_PF1.jpg"],
+    ["https://www.kopis.or.kr/upload/pfmPoster/PF_PF1.jpg"],
+  ])("KOPIS 이미지 주소는 https 로 바꾼다: %s", (url) => {
+    expect(toHttpsKopisUrl(url)).toBe(
+      "https://kopis.or.kr/upload/pfmPoster/PF_PF1.jpg",
+    );
+  });
+
+  it("쿼리스트링은 그대로 둔다", () => {
+    expect(
+      toHttpsKopisUrl("http://www.kopis.or.kr/upload/pfmPoster/PF1.gif?v=2"),
+    ).toBe("https://kopis.or.kr/upload/pfmPoster/PF1.gif?v=2");
+  });
+
+  it.each([["http://example.com/poster.jpg"], [""], ["poster.jpg"]])(
+    "KOPIS 가 아닌 주소는 건드리지 않는다: %j",
+    (url) => {
+      expect(toHttpsKopisUrl(url)).toBe(url);
+    },
+  );
+});
 
 describe("toArray", () => {
   // KOPIS XML은 항목이 하나면 객체로, 여럿이면 배열로 내려준다

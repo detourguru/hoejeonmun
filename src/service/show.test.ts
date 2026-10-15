@@ -8,6 +8,8 @@ import { Show, ShowDetail } from "@/type/show";
 import {
   filterShows,
   filterShowsByVenue,
+  getShow,
+  getShows,
   getShowSummaries,
   paginateShows,
   parseShowFilters,
@@ -287,6 +289,66 @@ const stubShowDetails = (byId: Record<string, ShowDetail | null | Error>) => {
     return Promise.resolve(result ? [result] : []);
   });
 };
+
+describe("KOPIS 이미지 주소", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("공연 목록의 포스터는 https 로 받는다", async () => {
+    vi.mocked(fetchKopisAll)
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([
+        show({ poster: "http://www.kopis.or.kr/upload/pfmPoster/PF1.jpg" }),
+      ]);
+
+    const [listed] = await getShows();
+
+    expect(listed.poster).toBe("https://kopis.or.kr/upload/pfmPoster/PF1.jpg");
+  });
+
+  it("공연 상세의 포스터와 소개 이미지는 https 로 받는다", async () => {
+    stubShowDetails({
+      PF1: {
+        ...show({
+          mt20id: "PF1",
+          poster: "http://www.kopis.or.kr/upload/pfmPoster/PF1.jpg",
+        }),
+        styurls: {
+          styurl: [
+            "http://www.kopis.or.kr/upload/pfmIntroImage/PF1_1.jpg",
+            "http://www.kopis.or.kr/upload/pfmIntroImage/PF1_2.jpg",
+          ],
+        },
+      },
+    });
+
+    const detail = await getShow("PF1");
+
+    expect(detail?.poster).toBe("https://kopis.or.kr/upload/pfmPoster/PF1.jpg");
+    expect(detail?.styurls?.styurl).toStrictEqual([
+      "https://kopis.or.kr/upload/pfmIntroImage/PF1_1.jpg",
+      "https://kopis.or.kr/upload/pfmIntroImage/PF1_2.jpg",
+    ]);
+  });
+
+  it("소개 이미지가 하나라 문자열로 와도 https 로 받는다", async () => {
+    stubShowDetails({
+      PF1: {
+        ...show({ mt20id: "PF1" }),
+        styurls: {
+          styurl: "http://www.kopis.or.kr/upload/pfmIntroImage/PF1_1.jpg",
+        },
+      },
+    });
+
+    const detail = await getShow("PF1");
+
+    expect(detail?.styurls?.styurl).toStrictEqual([
+      "https://kopis.or.kr/upload/pfmIntroImage/PF1_1.jpg",
+    ]);
+  });
+});
 
 describe("getShowSummaries", () => {
   beforeEach(() => {

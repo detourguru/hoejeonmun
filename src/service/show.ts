@@ -7,7 +7,13 @@ import {
   splitKopisPeriod,
   toKopisDate,
 } from "@/lib/date";
-import { fetchKopis, fetchKopisAll, KOPIS_MAX_ROWS } from "@/lib/kopis";
+import {
+  fetchKopis,
+  fetchKopisAll,
+  KOPIS_MAX_ROWS,
+  toArray,
+  toHttpsKopisUrl,
+} from "@/lib/kopis";
 import { parseRuntimeMinutes } from "@/lib/runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { selectAllRows } from "@/lib/supabase/select-all";
@@ -81,6 +87,20 @@ export type ShowFilters = {
   to: string;
 };
 
+const withHttpsPoster = <T extends Show>(show: T): T => ({
+  ...show,
+  poster: toHttpsKopisUrl(show.poster),
+});
+
+function withHttpsImages(show: ShowDetail): ShowDetail {
+  if (!show.styurls?.styurl) return withHttpsPoster(show);
+
+  return {
+    ...withHttpsPoster(show),
+    styurls: { styurl: toArray(show.styurls.styurl).map(toHttpsKopisUrl) },
+  };
+}
+
 // 오늘 + SEARCHABLE_MONTHS 개월
 function getPeriod() {
   const today = getToday();
@@ -106,7 +126,10 @@ async function fetchShowsForPeriod(stdate: string, eddate: string) {
     }),
   );
 
-  return pages.flat().filter((show) => show?.mt20id);
+  return pages
+    .flat()
+    .filter((show) => show?.mt20id)
+    .map(withHttpsPoster);
 }
 
 const PAST_CHUNK_DAYS = 31;
@@ -155,7 +178,7 @@ export async function getShow(id: string): Promise<ShowDetail | null> {
     { revalidate: REVALIDATE, tags: [SHOWS_CACHE_TAG, showCacheTag(id)] },
   );
 
-  return show ?? null;
+  return show ? withHttpsImages(show) : null;
 }
 
 const getFirstFromArray = (value: string | string[] | undefined) =>
@@ -327,7 +350,10 @@ async function fetchShowsByName(
       ),
     );
 
-    return pages.flat().filter((show) => show?.mt20id);
+    return pages
+      .flat()
+      .filter((show) => show?.mt20id)
+      .map(withHttpsPoster);
   } catch (error) {
     console.error("KOPIS 공연명 검색 실패", error);
 
