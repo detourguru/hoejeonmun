@@ -34,20 +34,24 @@ async function deleteUploadIfEmpty(
   admin: ReturnType<typeof createAdminClient>,
   uploadId: number,
 ) {
-  const [{ count: assignmentCount }, { count: eventCount }] = await Promise.all(
-    [
-      admin
-        .from("assignments")
-        .select("id", { count: "exact", head: true })
-        .eq("upload_id", uploadId),
-      admin
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .eq("upload_id", uploadId),
-    ],
-  );
+  const [assignments, events] = await Promise.all([
+    admin
+      .from("assignments")
+      .select("id", { count: "exact", head: true })
+      .eq("upload_id", uploadId),
+    admin
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("upload_id", uploadId),
+  ]);
 
-  if (assignmentCount || eventCount) return;
+  // 조회 에러 시 빈 업로드로 판단하면 cascade로 전부 삭제되므로 지우지 않고 에러로만 표기한다
+  if (assignments.error || events.error) {
+    console.error("빈 업로드 확인 실패", assignments.error ?? events.error);
+    return;
+  }
+
+  if (assignments.count !== 0 || events.count !== 0) return;
 
   const { error } = await admin.from("uploads").delete().eq("id", uploadId);
 
