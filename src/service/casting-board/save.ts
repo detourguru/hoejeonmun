@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CASTING_BOARD_BUCKET,
   CastingBoardResult,
+  CastingNotices,
   ConfirmedEvent,
   EventSource,
   ParsedCancelledEvent,
@@ -21,8 +22,13 @@ import {
   isPlaceholderActorName,
   selectEventSlotIds,
   slotKey,
-  toTitleKey,
 } from "./normalize";
+import {
+  buildCastingChangeTargets,
+  CastingChangeTarget,
+  matchCancelledEventIds,
+  matchCancelledSlotIds,
+} from "./notice-targets";
 
 export async function hashStoragePaths(
   admin: ReturnType<typeof createAdminClient>,
@@ -133,72 +139,46 @@ export async function computeEventSlotIds(
   return selectEventSlotIds(periodSlots, extraSlots, rules);
 }
 
-// 이미 등록된 회차를 취소 처리한다 (삭제하지 않고 cancelled_at만 채워 이력을 남긴다)
-export async function applyCancelledSlots(
+async function resolveCancelledSlotIds(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
   cancelledSlots: ParsedCancelledSlot[],
-): Promise<number> {
-  if (cancelledSlots.length === 0) return 0;
+): Promise<number[]> {
+  if (cancelledSlots.length === 0) return [];
 
-  const dates = [...new Set(cancelledSlots.map(({ date }) => date))];
-
-  const { data: slots, error: selectError } = await admin
+  const { data, error } = await admin
     .from("slots")
     .select("id, date, time")
     .eq("show_id", showId)
-    .in("date", dates)
+    .in("date", [...new Set(cancelledSlots.map(({ date }) => date))])
     .is("cancelled_at", null);
 
-  if (selectError) throw selectError;
+  if (error) throw error;
 
-  const cancelledKeys = new Set(
-    cancelledSlots.map(({ date, time }) => slotKey(date, time)),
+  return matchCancelledSlotIds(
+    data as { id: number; date: string; time: string }[],
+    cancelledSlots,
   );
-  const matchedIds = (slots as { id: number; date: string; time: string }[])
-    .filter((slot) => cancelledKeys.has(slotKey(slot.date, slot.time)))
-    .map(({ id }) => id);
-
-  if (matchedIds.length === 0) return 0;
-
-  const { error: updateError, count } = await admin
-    .from("slots")
-    .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
-    .in("id", matchedIds);
-
-  if (updateError) throw updateError;
-
-  return count ?? 0;
 }
 
-// 배역 하나에 배우가 여럿(앙상블)인 경우, 이 함수는 옛 배우를 특정하지 않고
-// role_name_raw만으로 매칭해 그 배역의 모든 배우를 새 배우 한 명으로 덮어쓴다.
-// castingChanges는 "배역 하나 = 배우 하나" 교체 공지만 다루므로 앙상블 배역
-// 캐스팅 변경 공지는 대상이 아니다
-export async function applyCastingChanges(
+async function resolveCastingChangeTargets(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
   castingChanges: ParsedCastingChange[],
-): Promise<number> {
-  if (castingChanges.length === 0) return 0;
-
-  const dates = [...new Set(castingChanges.map(({ date }) => date))];
+): Promise<CastingChangeTarget[]> {
+  if (castingChanges.length === 0) return [];
 
   const { data: slots, error: slotsError } = await admin
     .from("slots")
     .select("id, date, time")
     .eq("show_id", showId)
-    .in("date", dates)
+    .in("date", [...new Set(castingChanges.map(({ date }) => date))])
     .is("cancelled_at", null);
 
   if (slotsError) throw slotsError;
 
-  const slotIdByKey = new Map(
-    (slots as { id: number; date: string; time: string }[]).map(
-      ({ id, date, time }) => [slotKey(date, time), id],
-    ),
-  );
-  const slotIds = [...slotIdByKey.values()];
+  const slotRows = slots as { id: number; date: string; time: string }[];
+  const slotIds = slotRows.map(({ id }) => id);
 
   const { data: castings, error: castingsError } =
     slotIds.length > 0
@@ -209,12 +189,6 @@ export async function applyCastingChanges(
       : { data: [] as { slot_id: number; upload_id: number }[], error: null };
 
   if (castingsError) throw castingsError;
-
-  const uploadIdBySlotId = new Map(
-    (castings as { slot_id: number; upload_id: number }[]).map(
-      ({ slot_id, upload_id }) => [slot_id, upload_id],
-    ),
-  );
 
   const actorNames = [
     ...new Set(castingChanges.map(({ actor }) => normalizeActorName(actor))),
@@ -234,47 +208,28 @@ export async function applyCastingChanges(
 
   if (actorSelectError) throw actorSelectError;
 
-  const actorIdByName = new Map(
-    (actors as { id: number; name: string }[]).map(({ id, name }) => [
-      name,
-      id,
-    ]),
-  );
-
-  const updates = await Promise.all(
-    castingChanges.map(({ date, time, role, actor }) => {
-      const slotId = slotIdByKey.get(slotKey(date, time));
-      const uploadId = slotId && uploadIdBySlotId.get(slotId);
-      const actorId = actorIdByName.get(normalizeActorName(actor));
-
-      if (!slotId || !uploadId || actorId === undefined) return 0;
-
-      return admin
-        .from("assignments")
-        .update(
-          { actor_name_raw: actor, actor_id: actorId, verified: false },
-          { count: "exact" },
-        )
-        .eq("upload_id", uploadId)
-        .eq("slot_id", slotId)
-        .eq("role_name_raw", role)
-        .then(({ error, count }) => {
-          if (error) throw error;
-
-          return count ?? 0;
-        });
-    }),
-  );
-
-  return updates.reduce((sum, updated) => sum + updated, 0);
+  return buildCastingChangeTargets(castingChanges, {
+    slots: slotRows,
+    uploadIdBySlotId: new Map(
+      (castings as { slot_id: number; upload_id: number }[]).map(
+        ({ slot_id, upload_id }) => [slot_id, upload_id],
+      ),
+    ),
+    actorIdByName: new Map(
+      (actors as { id: number; name: string }[]).map(({ id, name }) => [
+        name,
+        id,
+      ]),
+    ),
+  });
 }
 
-export async function applyCancelledEvents(
+async function resolveCancelledEventIds(
   admin: ReturnType<typeof createAdminClient>,
   showId: string,
   cancelledEvents: ParsedCancelledEvent[],
-): Promise<number> {
-  if (cancelledEvents.length === 0) return 0;
+): Promise<number[]> {
+  if (cancelledEvents.length === 0) return [];
 
   const from = cancelledEvents.map(({ periodStart }) => periodStart).sort()[0];
   const to = cancelledEvents
@@ -291,36 +246,63 @@ export async function applyCancelledEvents(
 
   if (error) throw error;
 
-  const candidates = data as {
-    id: number;
-    title_key: string;
-    period_start: string;
-    period_end: string;
-  }[];
+  return matchCancelledEventIds(
+    data as {
+      id: number;
+      title_key: string;
+      period_start: string;
+      period_end: string;
+    }[],
+    cancelledEvents,
+  );
+}
 
-  const matchedIds = cancelledEvents.flatMap((cancelled) => {
-    const key = toTitleKey(cancelled.title);
+export async function applyCastingNotices(
+  admin: ReturnType<typeof createAdminClient>,
+  {
+    uploadId,
+    showId,
+    notices,
+  }: { uploadId: number; showId: string; notices: CastingNotices },
+) {
+  const [slotIds, eventIds, castingChanges] = await Promise.all([
+    resolveCancelledSlotIds(admin, showId, notices.cancelledSlots),
+    resolveCancelledEventIds(admin, showId, notices.cancelledEvents),
+    resolveCastingChangeTargets(admin, showId, notices.castingChanges),
+  ]);
 
-    const match = candidates.find(
-      (candidate) =>
-        candidate.title_key === key &&
-        candidate.period_start <= cancelled.periodEnd &&
-        cancelled.periodStart <= candidate.period_end,
-    );
+  if (
+    slotIds.length === 0 &&
+    eventIds.length === 0 &&
+    castingChanges.length === 0
+  ) {
+    return {
+      cancelledSlotCount: 0,
+      castingChangeCount: 0,
+      cancelledEventCount: 0,
+    };
+  }
 
-    return match ? [match.id] : [];
+  const { data, error } = await admin.rpc("apply_casting_notices", {
+    p_upload_id: uploadId,
+    p_slot_ids: slotIds,
+    p_event_ids: eventIds,
+    p_casting_changes: castingChanges,
   });
 
-  if (matchedIds.length === 0) return 0;
+  if (error) throw error;
 
-  const { error: updateError, count } = await admin
-    .from("events")
-    .update({ cancelled_at: new Date().toISOString() }, { count: "exact" })
-    .in("id", matchedIds);
+  const counts = data as {
+    cancelled_slots: number;
+    casting_changes: number;
+    cancelled_events: number;
+  };
 
-  if (updateError) throw updateError;
-
-  return count ?? 0;
+  return {
+    cancelledSlotCount: counts.cancelled_slots,
+    castingChangeCount: counts.casting_changes,
+    cancelledEventCount: counts.cancelled_events,
+  };
 }
 
 export async function saveCastingBoard({
@@ -625,16 +607,13 @@ export async function saveCastingBoardContent({
     return true;
   }
 
-  const [
-    savedEvents,
-    cancelledSlotCount,
-    castingChangeCount,
-    cancelledEventCount,
-  ] = await Promise.all([
+  const [savedEvents, noticeCounts] = await Promise.all([
     Promise.all(events.map((event) => saveEvent(event))),
-    applyCancelledSlots(admin, showId, cancelledSlots),
-    applyCastingChanges(admin, showId, castingChanges),
-    applyCancelledEvents(admin, showId, cancelledEvents),
+    applyCastingNotices(admin, {
+      uploadId: upload.id,
+      showId,
+      notices: { cancelledSlots, castingChanges, cancelledEvents },
+    }),
   ]);
 
   const eventCount = savedEvents.filter(Boolean).length;
@@ -646,8 +625,6 @@ export async function saveCastingBoardContent({
     eventCount,
     skippedCount: skipped.length,
     skipped,
-    cancelledSlotCount,
-    castingChangeCount,
-    cancelledEventCount,
+    ...noticeCounts,
   };
 }
