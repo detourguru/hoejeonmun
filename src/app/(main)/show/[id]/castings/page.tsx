@@ -18,6 +18,7 @@ import {
   toMonth,
 } from "@/lib/date";
 import { createClient } from "@/lib/supabase/server";
+import { getIsAdmin } from "@/service/admin";
 import {
   getShowCastings,
   getShowEvents,
@@ -101,11 +102,12 @@ export default async function Page({ params, searchParams }: Props) {
   const cells = getCalendarCells(monthDate);
   const supabase = await createClient();
 
-  const [slots, events, auth, filterData] = await Promise.all([
+  const [slots, events, auth, filterData, isAdmin] = await Promise.all([
     getShowCastings(id, start, end),
     getShowEvents(id, start, end),
     supabase.auth.getClaims(),
     getShowFilterData(id),
+    getIsAdmin(supabase).catch(() => false),
   ]);
 
   const initialActors = parseActorsParam(rawActors, filterData.actors);
@@ -135,6 +137,14 @@ export default async function Page({ params, searchParams }: Props) {
         >
           공연 정보 보기
         </Link>
+        {isAdmin && (
+          <Link
+            href={`/show/${id}/edits`}
+            className="text-text-muted w-fit text-xs underline underline-offset-2"
+          >
+            변경 이력
+          </Link>
+        )}
       </div>
 
       <p className="text-text-muted text-xs">

@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getIsAdmin } from "@/service/admin";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
@@ -1066,4 +1067,58 @@ export async function submitManualCasting(
 
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
+}
+
+export async function revertCastingEdit(
+  showId: string,
+  editId: number,
+): Promise<ReportResult> {
+  const requester = await getRequester();
+
+  if (!requester) return { ok: false, message: "로그인이 필요해요." };
+
+  const admin = createAdminClient();
+
+  try {
+    if (!(await getIsAdmin(requester.supabase))) {
+      return { ok: false, message: "관리자만 되돌릴 수 있어요." };
+    }
+
+    const { data: edit, error: editError } = await admin
+      .from("casting_edits")
+      .select("show_id")
+      .eq("id", editId)
+      .maybeSingle();
+
+    if (editError) throw editError;
+
+    if (!edit || edit.show_id !== showId) {
+      return { ok: false, message: "변경 기록을 찾을 수 없어요." };
+    }
+
+    const { data: reverted, error: revertError } = await admin.rpc(
+      "revert_casting_edit",
+      { p_edit_id: editId, p_reverted_by: requester.userId },
+    );
+
+    if (revertError) throw revertError;
+
+    if (!reverted) {
+      return {
+        ok: false,
+        message: "이미 되돌렸거나 이후 다른 변경이 덮어써서 되돌릴 수 없어요.",
+      };
+    }
+  } catch (error) {
+    console.error(error);
+
+    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+  }
+
+  revalidatePath(`/show/${showId}`);
+  revalidatePath(`/show/${showId}/edits`);
+  updateTag(showCastTag(showId));
+  updateTag(CASTING_FEED_CACHE_TAG);
+
+  return { ok: true, hidden: false };
 }
