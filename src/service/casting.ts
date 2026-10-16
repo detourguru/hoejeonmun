@@ -724,9 +724,7 @@ async function loadSlotsWithEvents(
     });
   }
 
-  const slots = [...slotsById.values()].sort((a, b) =>
-    a.time.localeCompare(b.time),
-  );
+  const slots = [...slotsById.values()];
 
   if (slots.length === 0) return [];
 
