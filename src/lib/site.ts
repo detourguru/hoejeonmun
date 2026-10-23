@@ -13,9 +13,9 @@ export const SITE_DESCRIPTION =
 
 export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
-export const CURRENT_UPDATE_ID = "2026-10-08";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (10/8)]
-- 최근 소식에서 이벤트만 올렸는데 캐스팅보드 업로드 소식까지 함께 뜨던 문제 수정 (올린 이벤트만 보여요)`;
+export const CURRENT_UPDATE_ID = "2026-10-23";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (10/23)]
+- 이벤트가 많은 이미지를 올리면 분석이 1분을 넘겨 실패하던 문제 완화 (분석 대기 시간을 2분까지 늘렸어요)`;
 
 const UPDATE_NOTICE_DAYS = 3;
 
