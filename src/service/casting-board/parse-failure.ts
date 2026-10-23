@@ -14,7 +14,12 @@ export async function logParseFailure({
   showId: string;
   userId: string;
   storagePaths: string[];
-  type: "no_table_found" | "cast_mismatch" | "show_mismatch" | "exception";
+  type:
+    | "no_table_found"
+    | "cast_mismatch"
+    | "show_mismatch"
+    | "exception"
+    | "timeout";
   reason?: string;
 }) {
   const { error } = await admin.from("parse_failures").insert(

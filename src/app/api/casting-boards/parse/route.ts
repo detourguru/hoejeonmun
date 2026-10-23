@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { errorMessage, fail } from "@/lib/api";
+import { DEADLINE_EXCEEDED, errorMessage, fail, withDeadline } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { DuplicateReason } from "@/service/casting-board";
@@ -39,8 +39,9 @@ function createLap() {
   const id = Math.random().toString(36).slice(2, 8);
   const started = performance.now();
   let last = started;
+  let lastLabel = "시작";
 
-  return (label: string) => {
+  const lap = (label: string) => {
     const now = performance.now();
 
     console.log(
@@ -48,10 +49,19 @@ function createLap() {
     );
 
     last = now;
+    lastLabel = label;
   };
+
+  lap.lastLabel = () => lastLabel;
+
+  return lap;
 }
 
+// Vercel이 maxDuration에서 함수를 끊으면 catch가 돌지 못해 실패 기록이 남지 않으므로 그 전에 멈춘다
+const PARSE_DEADLINE_MS = (maxDuration - 10) * 1000;
+
 export async function POST(request: Request) {
+  const startedAt = Date.now();
   const lap = createLap();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -114,7 +124,8 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
+  const analyze = async () => {
+    const parsed = await parseCastingBoardWithConsensus(images, show);
     const {
       performances,
       dateTags,
@@ -122,9 +133,7 @@ export async function POST(request: Request) {
       cancelledSlots,
       castingChanges,
       cancelledEvents,
-      skipped,
-      reason,
-    } = await parseCastingBoardWithConsensus(images, show);
+    } = parsed;
 
     lap(
       `표 추출 (회차 ${performances.length}건, 이벤트 ${events.length}건, 취소 회차 ${cancelledSlots.length}건, 캐스팅 변경 ${castingChanges.length}건, 취소 이벤트 ${cancelledEvents.length}건)`,
@@ -137,6 +146,67 @@ export async function POST(request: Request) {
       castingChanges.length === 0 &&
       cancelledEvents.length === 0
     ) {
+      return { parsed, pendingEvents: null };
+    }
+
+    const overlapping = await attachOverlappingEvents(
+      showId,
+      toPendingEvents(dateTags, events),
+    );
+
+    lap("겹치는 이벤트 조회");
+
+    const flagged = await attachAmbiguousBadgeFlags(showId, overlapping);
+
+    lap("모호한 배지 시간 조회");
+
+    const pendingEvents = await attachSuggestedDuplicates(flagged);
+
+    lap("이벤트 중복 판정");
+
+    return { parsed, pendingEvents };
+  };
+
+  try {
+    const analyzed = await withDeadline(
+      analyze(),
+      PARSE_DEADLINE_MS - (Date.now() - startedAt),
+    );
+
+    if (analyzed === DEADLINE_EXCEEDED) {
+      const reason = `${Math.round((Date.now() - startedAt) / 1000)}초 안에 끝나지 않음 (마지막으로 끝난 단계: ${lap.lastLabel()})`;
+
+      lap("시간 초과로 중단");
+
+      await logParseFailure({
+        admin,
+        showId,
+        userId,
+        storagePaths,
+        type: "timeout",
+        reason,
+      });
+
+      return fail(
+        504,
+        "분석이 너무 오래 걸려서 중단했어요. 잠시 후 다시 시도해 주세요.",
+        { retained: true },
+      );
+    }
+
+    const {
+      parsed: {
+        performances,
+        cancelledSlots,
+        castingChanges,
+        cancelledEvents,
+        skipped,
+        reason,
+      },
+      pendingEvents,
+    } = analyzed;
+
+    if (!pendingEvents) {
       await logParseFailure({
         admin,
         showId,
@@ -154,21 +224,6 @@ export async function POST(request: Request) {
         { retained: true },
       );
     }
-
-    const overlapping = await attachOverlappingEvents(
-      showId,
-      toPendingEvents(dateTags, events),
-    );
-
-    lap("겹치는 이벤트 조회");
-
-    const flagged = await attachAmbiguousBadgeFlags(showId, overlapping);
-
-    lap("모호한 배지 시간 조회");
-
-    const pendingEvents = await attachSuggestedDuplicates(flagged);
-
-    lap("이벤트 중복 판정");
 
     const result = {
       performances,

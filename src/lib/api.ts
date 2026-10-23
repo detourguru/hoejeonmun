@@ -13,3 +13,21 @@ export const errorMessage = (error: unknown): string => {
 
   return "알 수 없는 오류";
 };
+
+export const DEADLINE_EXCEEDED = Symbol("deadline-exceeded");
+
+export async function withDeadline<T>(
+  work: Promise<T>,
+  ms: number,
+): Promise<T | typeof DEADLINE_EXCEEDED> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<typeof DEADLINE_EXCEEDED>((resolve) => {
+    timer = setTimeout(() => resolve(DEADLINE_EXCEEDED), Math.max(0, ms));
+  });
+
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
