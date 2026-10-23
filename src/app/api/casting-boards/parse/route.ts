@@ -18,7 +18,7 @@ import {
 import { getShow } from "@/service/show";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const bodySchema = z.object({
   showId: z.string().min(1),
