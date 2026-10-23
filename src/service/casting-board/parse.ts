@@ -172,12 +172,29 @@ const CONSENSUS_CONFIDENCE_THRESHOLD = 0.7;
 
 // Gemini Free Tier 분당 요청 한도 때문에 확신도가 충분히 높으면 1회 호출로 끝낸다
 export function needsConsensus(
-  performances: ParsedPerformance[],
+  {
+    performances,
+    dateTags,
+    events,
+    cancelledSlots,
+    castingChanges,
+    cancelledEvents,
+  }: ParsedCastingBoardResult,
   confidenceThreshold: number,
 ): boolean {
+  if (performances.length > 0) {
+    return performances.some(
+      ({ confidence }) => confidence <= confidenceThreshold,
+    );
+  }
+
+  // 합의는 회차에만 적용되므로 이벤트나 공지를 읽었으면 다시 돌려도 쓸 결과가 없다
   return (
-    performances.length === 0 ||
-    performances.some(({ confidence }) => confidence <= confidenceThreshold)
+    dateTags.length === 0 &&
+    events.length === 0 &&
+    cancelledSlots.length === 0 &&
+    castingChanges.length === 0 &&
+    cancelledEvents.length === 0
   );
 }
 
@@ -379,7 +396,7 @@ export async function parseCastingBoardWithConsensus(
 
   if (
     firstResult.ok &&
-    !needsConsensus(firstResult.value.performances, confidenceThreshold)
+    !needsConsensus(firstResult.value, confidenceThreshold)
   ) {
     console.log(
       `[gemini-consensus] 확신도 충분, 1회만 호출하고 합의 생략 (${Math.round(performance.now() - startedAt)}ms)`,

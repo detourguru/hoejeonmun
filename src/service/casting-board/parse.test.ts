@@ -12,6 +12,8 @@ import {
   shouldCreateCastingBoardOverview,
 } from "./parse";
 
+import type { ParsedCastingBoardResult } from "./prompt";
+
 vi.mock("server-only", () => ({}));
 
 // 2026-09-28은 월요일
@@ -58,13 +60,27 @@ describe("pickMostCommonValue", () => {
 describe("needsConsensus", () => {
   const THRESHOLD = 0.7;
 
+  const result = (
+    overrides: Partial<ParsedCastingBoardResult> = {},
+  ): ParsedCastingBoardResult => ({
+    performances: [],
+    skipped: [],
+    dateTags: [],
+    events: [],
+    cancelledSlots: [],
+    castingChanges: [],
+    cancelledEvents: [],
+    reason: "",
+    ...overrides,
+  });
+
   it("모든 회차의 확신도가 기준보다 높으면 합의가 필요 없다", () => {
     const performances = [
       performance({ 햄릿: ["김배우"] }, { confidence: 0.9 }),
       performance({ 햄릿: ["이배우"] }, { confidence: 0.71 }),
     ];
 
-    expect(needsConsensus(performances, THRESHOLD)).toBe(false);
+    expect(needsConsensus(result({ performances }), THRESHOLD)).toBe(false);
   });
 
   it("확신도가 기준 이하인 회차가 하나라도 있으면 합의가 필요하다", () => {
@@ -73,11 +89,35 @@ describe("needsConsensus", () => {
       performance({ 햄릿: ["이배우"] }, { confidence: 0.7 }),
     ];
 
-    expect(needsConsensus(performances, THRESHOLD)).toBe(true);
+    expect(needsConsensus(result({ performances }), THRESHOLD)).toBe(true);
   });
 
-  it("회차를 하나도 못 읽었으면 확신도와 무관하게 합의가 필요하다", () => {
-    expect(needsConsensus([], THRESHOLD)).toBe(true);
+  it("회차도 이벤트도 공지도 못 읽었으면 다시 읽어 보도록 합의가 필요하다", () => {
+    expect(needsConsensus(result(), THRESHOLD)).toBe(true);
+  });
+
+  // 합의는 회차에만 적용되고 이벤트와 공지는 첫 결과를 그대로 쓴다
+  it("회차가 없어도 이벤트를 읽었으면 합의가 필요 없다", () => {
+    const events = [
+      {
+        title: "스페셜 커튼콜 (장면시연) 위크",
+        periodStart: "2026-11-09",
+        periodEnd: "2026-11-15",
+        printedStartWeekday: "월",
+        printedEndWeekday: "일",
+        imageIndex: 0,
+      },
+    ];
+
+    expect(needsConsensus(result({ events }), THRESHOLD)).toBe(false);
+  });
+
+  it("회차가 없어도 회차 취소 공지를 읽었으면 합의가 필요 없다", () => {
+    const cancelledSlots = [
+      { date: "2026-11-10", time: "19:30", imageIndex: 0 },
+    ];
+
+    expect(needsConsensus(result({ cancelledSlots }), THRESHOLD)).toBe(false);
   });
 });
 
