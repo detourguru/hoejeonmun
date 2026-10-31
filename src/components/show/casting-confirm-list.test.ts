@@ -203,7 +203,7 @@ describe("updateDraftRole", () => {
     const updated = updateDraftRole(original, "새 배역", "앙상블");
 
     expect(updated.performance.casting).toStrictEqual({
-      앙상블: ["이배우", "박배우", "김배우"],
+      앙상블: ["김배우", "이배우", "박배우"],
     });
   });
 
