@@ -9,6 +9,7 @@ import {
   renameActor,
   renameRole,
   toConfirmedPerformances,
+  updateDraftRole,
 } from "./casting-confirm-list";
 
 // AI가 캐스팅보드에서 읽은 회차 하나
@@ -163,5 +164,51 @@ describe("removeActorFromDrafts", () => {
     );
 
     expect(result.performance.casting).toStrictEqual({ 햄릿: ["김배우"] });
+  });
+});
+
+describe("updateDraftRole", () => {
+  it("회차 내 특정 배역의 이름을 변경하면 해당 배역명이 바뀌고 배우 목록은 유지된다", () => {
+    const original = draft({ "새 배역": ["김배우"], 오필리아: ["박배우"] });
+    const updated = updateDraftRole(original, "새 배역", "햄릿");
+
+    expect(updated.performance.casting).toStrictEqual({
+      햄릿: ["김배우"],
+      오필리아: ["박배우"],
+    });
+  });
+
+  it("새 배역명에 앞뒤 공백이 있으면 trim하여 적용한다", () => {
+    const original = draft({ "새 배역": ["김배우"] });
+    const updated = updateDraftRole(original, "새 배역", "  햄릿  ");
+
+    expect(updated.performance.casting).toStrictEqual({
+      햄릿: ["김배우"],
+    });
+  });
+
+  it("새 배역명이 비어있거나 기존과 같으면 변경하지 않는다", () => {
+    const original = draft({ 햄릿: ["김배우"] });
+
+    expect(updateDraftRole(original, "햄릿", "")).toBe(original);
+    expect(updateDraftRole(original, "햄릿", "   ")).toBe(original);
+    expect(updateDraftRole(original, "햄릿", "햄릿")).toBe(original);
+  });
+
+  it("이미 존재하는 다른 배역명으로 변경하면 두 배역의 배우를 하나로 합친다", () => {
+    const original = draft({
+      "새 배역": ["김배우", "이배우"],
+      앙상블: ["이배우", "박배우"],
+    });
+    const updated = updateDraftRole(original, "새 배역", "앙상블");
+
+    expect(updated.performance.casting).toStrictEqual({
+      앙상블: ["이배우", "박배우", "김배우"],
+    });
+  });
+
+  it("해당 배역이 회차에 없으면 변경 없이 원본을 반환한다", () => {
+    const original = draft({ 햄릿: ["김배우"] });
+    expect(updateDraftRole(original, "오필리아", "레어티스")).toBe(original);
   });
 });

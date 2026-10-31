@@ -13,9 +13,9 @@ export const SITE_DESCRIPTION =
 
 export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
-export const CURRENT_UPDATE_ID = "2026-10-23";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (10/23)]
-- 이벤트가 많은 이미지를 올리면 분석이 1분을 넘겨 실패하던 문제 완화 (분석 대기 시간을 2분까지 늘렸어요)`;
+export const CURRENT_UPDATE_ID = "2026-10-31";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (10/31)]
+- 캐스팅 확인 화면에서 배역 추가 시 배역명을 바로 수정할 수 있게 개선`;
 
 const UPDATE_NOTICE_DAYS = 3;
 
