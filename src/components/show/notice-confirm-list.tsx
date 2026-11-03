@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeActorName } from "@/lib/actor-name";
 import { toShortDate } from "@/lib/date";
 import {
   CastingNotices,
@@ -10,10 +11,20 @@ import {
 } from "@/type/casting";
 
 type NoticeKind = keyof CastingNotices;
+type ExistingCasting = {
+  date: string;
+  time: string;
+  role_name_raw: string;
+  actor_name_raw: string;
+};
 
 export type NoticeDraft = { index: number; include: boolean } & (
   | { kind: "cancelledSlots"; item: ParsedCancelledSlot }
-  | { kind: "castingChanges"; item: ParsedCastingChange }
+  | {
+      kind: "castingChanges";
+      item: ParsedCastingChange;
+      previousActor?: string;
+    }
   | { kind: "cancelledEvents"; item: ParsedCancelledEvent }
 );
 
@@ -23,19 +34,42 @@ const NOTICE_LABEL: Record<NoticeKind, string> = {
   cancelledEvents: "이벤트 취소",
 };
 
-export const toNoticeDrafts = (notices: CastingNotices): NoticeDraft[] => [
+export const toNoticeDrafts = (
+  notices: CastingNotices,
+  existingCastings: ExistingCasting[] = [],
+): NoticeDraft[] => [
   ...notices.cancelledSlots.map((item, index) => ({
     kind: "cancelledSlots" as const,
     index,
     item,
     include: true,
   })),
-  ...notices.castingChanges.map((item, index) => ({
-    kind: "castingChanges" as const,
-    index,
-    item,
-    include: true,
-  })),
+  ...notices.castingChanges.map((item, index) => {
+    const previousActors = [
+      ...new Set(
+        existingCastings
+          .filter(
+            (casting) =>
+              casting.date === item.date &&
+              casting.time.slice(0, 5) === item.time &&
+              casting.role_name_raw === item.role &&
+              normalizeActorName(casting.actor_name_raw) !==
+                normalizeActorName(item.actor),
+          )
+          .map(({ actor_name_raw }) => actor_name_raw),
+      ),
+    ];
+
+    return {
+      kind: "castingChanges" as const,
+      index,
+      item,
+      include: true,
+      ...(previousActors.length === 1
+        ? { previousActor: previousActors[0] }
+        : {}),
+    };
+  }),
   ...notices.cancelledEvents.map((item, index) => ({
     kind: "cancelledEvents" as const,
     index,
@@ -71,12 +105,12 @@ export const toExcludedNotices = (drafts: NoticeDraft[]): ExcludedNotices => {
 export const countIncludedNotices = (drafts: NoticeDraft[]) =>
   drafts.filter(({ include }) => include).length;
 
-const describeNotice = (draft: NoticeDraft) => {
+export const describeNotice = (draft: NoticeDraft) => {
   switch (draft.kind) {
     case "cancelledSlots":
       return `${toShortDate(draft.item.date)} ${draft.item.time}`;
     case "castingChanges":
-      return `${toShortDate(draft.item.date)} ${draft.item.time} ${draft.item.role} → ${draft.item.actor}`;
+      return `${toShortDate(draft.item.date)} ${draft.item.time} ${draft.item.role} 役 ${draft.previousActor ? `${draft.previousActor} → ` : ""}${draft.item.actor}`;
     case "cancelledEvents":
       return `${draft.item.title} ${toShortDate(draft.item.periodStart)}~${toShortDate(draft.item.periodEnd)}`;
   }

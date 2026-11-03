@@ -14,6 +14,7 @@ export type EventDraft = {
   original: PendingEvent;
   include: boolean;
   replacesGroupId?: number;
+  manual?: boolean;
 };
 
 // 날짜순으로 붙어 있어야 중복 이벤트가 눈에 바로 띈다
@@ -32,6 +33,22 @@ export const toEventDrafts = (events: PendingEvent[]): EventDraft[] =>
     replacesGroupId: event.suggestedSameAsGroupId,
   }));
 
+export const createManualEventDraft = (imageIndex: number): EventDraft => {
+  const event: PendingEvent = {
+    title: "",
+    periodStart: "",
+    periodEnd: "",
+    printedStartWeekday: "",
+    printedEndWeekday: "",
+    source: "notice",
+    imageIndex,
+    confirmReasons: [],
+    overlapping: [],
+  };
+
+  return { event, original: { ...event }, include: true, manual: true };
+};
+
 const sameSlots = (a?: EventSlotException[], b?: EventSlotException[]) =>
   JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 
@@ -41,10 +58,12 @@ const sameTimes = (a?: string[], b?: string[]) =>
 export const toConfirmedEvents = (drafts: EventDraft[]): ConfirmedEvent[] =>
   drafts
     .filter(({ include }) => include)
-    .map(({ event, original, replacesGroupId }) => ({
+    .map(({ event, original, replacesGroupId, manual }) => ({
       ...event,
       edited:
+        manual ||
         event.title !== original.title ||
+        event.description !== original.description ||
         event.periodStart !== original.periodStart ||
         event.periodEnd !== original.periodEnd ||
         !sameSlots(event.includedSlots, original.includedSlots) ||

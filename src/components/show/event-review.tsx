@@ -5,6 +5,7 @@ import { EventDraft } from "@/components/show/event-confirm-list";
 import { SlotChecklist } from "@/components/show/slot-checklist";
 import { SlotExceptionEditor } from "@/components/show/slot-exception-editor";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toShortDate } from "@/lib/date";
 import { datesWithoutSchedule, slotsWithinPeriod } from "@/lib/event-period";
 import { EVENT_CONFIRM_MESSAGE } from "@/type/casting";
@@ -16,6 +17,7 @@ export const EventReview = ({
   knownDates,
   knownSlots,
   previewUrl,
+  imageCount,
   onDraftChange,
   onEventChange,
 }: {
@@ -25,6 +27,7 @@ export const EventReview = ({
   knownDates: Set<string>;
   knownSlots: { date: string; time: string }[];
   previewUrl?: string;
+  imageCount: number;
   onDraftChange: (next: Partial<EventDraft>) => void;
   onEventChange: (next: Partial<EventDraft["event"]>) => void;
 }) => {
@@ -50,14 +53,18 @@ export const EventReview = ({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-text text-sm font-bold">
-        이벤트 {index + 1} / {count}
+        {draft.manual ? "이벤트 직접 추가" : `이벤트 ${index + 1} / ${count}`}
       </p>
 
       {previewUrl && (
         <div className="border-border bg-sub rounded-lg border p-3">
           <ImageZoom
             src={previewUrl}
-            alt={`${index + 1}번째 이벤트를 읽어낸 이미지`}
+            alt={
+              draft.manual
+                ? "이벤트를 직접 추가할 원본 이미지"
+                : `${index + 1}번째 이벤트를 읽어낸 이미지`
+            }
             className="mx-auto max-h-40 w-auto rounded-lg object-contain"
           />
           <p className="text-text-muted pt-2 text-center text-xs">
@@ -66,7 +73,27 @@ export const EventReview = ({
         </div>
       )}
 
-      {event.confirmReasons.length > 0 && (
+      {draft.manual && imageCount > 1 && (
+        <label className="flex flex-col gap-1">
+          <span className="text-text-muted text-xs">이벤트가 적힌 이미지</span>
+          <select
+            value={event.imageIndex}
+            disabled={!include}
+            className="border-input text-text rounded-control h-10 border bg-transparent px-2 text-base disabled:opacity-50 md:text-sm"
+            onChange={({ target }) =>
+              onEventChange({ imageIndex: Number(target.value) })
+            }
+          >
+            {Array.from({ length: imageCount }, (_, imageIndex) => (
+              <option key={imageIndex} value={imageIndex}>
+                이미지 {imageIndex + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {!draft.manual && event.confirmReasons.length > 0 && (
         <ul className="bg-point/20 flex flex-col gap-0.5 rounded-lg p-2">
           {event.confirmReasons.map((reason) => (
             <li key={reason} className="text-text text-xs">
@@ -118,6 +145,18 @@ export const EventReview = ({
           />
         </div>
       </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-text-muted text-xs">설명 (선택)</span>
+        <Textarea
+          value={event.description ?? ""}
+          disabled={!include}
+          rows={3}
+          onChange={({ target }) =>
+            onEventChange({ description: target.value || undefined })
+          }
+        />
+      </label>
 
       {event.periodStart > event.periodEnd && (
         <p className="text-destructive text-xs">시작일이 종료일보다 늦어요.</p>

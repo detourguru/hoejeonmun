@@ -34,6 +34,7 @@ export const UploadConfirmSheet = ({
   initialTab = DEFAULT_REPORT_TYPE_TAB,
   onCastingChange,
   onEventChange,
+  onAddEvent,
   onNoticeChange,
   onConfirm,
   onCancel,
@@ -50,6 +51,7 @@ export const UploadConfirmSheet = ({
   initialTab?: ReportTypeTab;
   onCastingChange: (drafts: CastingDraft[]) => void;
   onEventChange: (drafts: EventDraft[]) => void;
+  onAddEvent: () => void;
   onNoticeChange: (drafts: NoticeDraft[]) => void;
   onConfirm: () => void;
   onCancel: () => void;
@@ -76,6 +78,9 @@ export const UploadConfirmSheet = ({
   const showCasting = castingDrafts.length > 0;
   const showNotices = noticeDrafts.length > 0;
   const showEvents = eventDrafts.length > 0;
+  const reviewTabs = REPORT_TYPE_TAB.options.filter(
+    ({ value }) => value === "event" || showCasting || showNotices,
+  );
 
   return (
     <BottomSheet
@@ -86,23 +91,21 @@ export const UploadConfirmSheet = ({
       title="읽어낸 내용 확인"
     >
       <div className="flex flex-col gap-3">
-        {(showCasting || showNotices) && showEvents && (
-          <div className="flex gap-1">
-            {REPORT_TYPE_TAB.options.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setTab(value)}
-                className={cn(
-                  "border-border rounded-lg border px-3 py-1 text-xs",
-                  value === tab ? "bg-primary text-surface" : "text-text",
-                )}
-              >
-                {value === "casting" && !showCasting ? "취소·변경" : label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex gap-1">
+          {reviewTabs.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              className={cn(
+                "border-border rounded-lg border px-3 py-1 text-xs",
+                value === tab ? "bg-primary text-surface" : "text-text",
+              )}
+            >
+              {value === "casting" && !showCasting ? "취소·변경" : label}
+            </button>
+          ))}
+        </div>
 
         {tab === "casting" && (showCasting || showNotices) && (
           <>
@@ -141,24 +144,49 @@ export const UploadConfirmSheet = ({
           </>
         )}
 
-        {tab === "event" && draft && (
-          <EventReview
-            draft={draft}
-            index={eventIndex}
-            count={eventDrafts.length}
-            knownDates={knownDates}
-            knownSlots={knownSlots}
-            previewUrl={previewUrls[draft.event.imageIndex]}
-            onDraftChange={updateEventDraft}
-            onEventChange={updateEvent}
-          />
+        {tab === "event" && (
+          <>
+            {draft ? (
+              <EventReview
+                draft={draft}
+                index={eventIndex}
+                count={eventDrafts.length}
+                knownDates={knownDates}
+                knownSlots={knownSlots}
+                previewUrl={previewUrls[draft.event.imageIndex]}
+                imageCount={previewUrls.length}
+                onDraftChange={updateEventDraft}
+                onEventChange={updateEvent}
+              />
+            ) : (
+              <p className="text-text-muted text-xs">
+                읽어낸 이벤트가 없어요. 원본 이미지와 대조해 직접 추가할 수
+                있어요.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setEventIndex(eventDrafts.length);
+                onAddEvent();
+              }}
+              disabled={saving}
+              className="border-border text-text w-fit rounded-lg border px-3 py-1 text-xs disabled:opacity-40"
+            >
+              이벤트 직접 추가
+            </button>
+          </>
         )}
 
         {error && <p className="text-destructive text-xs">{error}</p>}
 
         <p className="text-text-muted text-xs">
-          AI가 이미지에서 읽어낸 값이라 틀릴 수 있어요. 저장하면 다른 사람에게
-          그대로 보여요.
+          {draft?.manual
+            ? "입력한 내용은 다른 사람에게 그대로 보여요. 원본과 대조해 확인해 주세요."
+            : draft
+              ? "AI가 이미지에서 읽어낸 값이라 틀릴 수 있어요. 저장하면 다른 사람에게 그대로 보여요."
+              : "원본 이미지와 대조해 이벤트를 직접 추가하거나, 이대로 저장할 수 있어요."}
         </p>
 
         <div className="flex gap-2">

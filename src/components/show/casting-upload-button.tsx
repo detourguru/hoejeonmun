@@ -11,6 +11,7 @@ import {
   toConfirmedPerformances,
 } from "@/components/show/casting-confirm-list";
 import {
+  createManualEventDraft,
   EventDraft,
   toConfirmedEvents,
   toEventDrafts,
@@ -211,21 +212,53 @@ export const CastingUploadButton = ({
       performances: ParsedPerformance[];
       events: PendingEvent[];
     };
-    const notices = toNoticeDrafts({
-      cancelledSlots,
-      castingChanges,
-      cancelledEvents,
-    });
+    const castingChangeDates = [
+      ...new Set(castingChanges.map(({ date }) => date)),
+    ];
+    let existingCastings: {
+      date: string;
+      time: string;
+      role_name_raw: string;
+      actor_name_raw: string;
+    }[] = [];
 
-    if (events.length > 0) {
-      const { data: existingSlotRows } = await supabase
-        .from("slots")
-        .select("date, time")
-        .eq("show_id", showId);
+    if (castingChangeDates.length > 0) {
+      const { data: castingRows, error: castingError } = await supabase
+        .from("slot_castings")
+        .select("date, time, role_name_raw, actor_name_raw")
+        .eq("show_id", showId)
+        .in("date", castingChangeDates);
 
-      setExistingSlots(existingSlotRows ?? []);
+      if (castingError) {
+        setStatus("selecting");
+        setError("기존 캐스팅 정보를 불러오지 못했어요. 다시 시도해 주세요.");
+        return;
+      }
+
+      existingCastings = castingRows;
     }
 
+    const notices = toNoticeDrafts(
+      {
+        cancelledSlots,
+        castingChanges,
+        cancelledEvents,
+      },
+      existingCastings,
+    );
+
+    const { data: existingSlotRows, error: slotsError } = await supabase
+      .from("slots")
+      .select("date, time")
+      .eq("show_id", showId);
+
+    if (slotsError) {
+      setStatus("selecting");
+      setError("기존 회차 정보를 불러오지 못했어요. 다시 시도해 주세요.");
+      return;
+    }
+
+    setExistingSlots(existingSlotRows);
     setParsed({ parseId, storagePaths, performances });
     setCastingDrafts(toCastingDrafts(performances));
     setDrafts(toEventDrafts(events));
@@ -299,6 +332,16 @@ export const CastingUploadButton = ({
     }
 
     if (
+      events.some(
+        ({ title, periodStart, periodEnd }) =>
+          !title.trim() || !periodStart || !periodEnd,
+      )
+    ) {
+      setError("이벤트 이름과 시작일·종료일을 입력해 주세요.");
+      return;
+    }
+
+    if (
       performances.length === 0 &&
       events.length === 0 &&
       countIncludedNotices(noticeDrafts) === 0
@@ -313,6 +356,9 @@ export const CastingUploadButton = ({
 
   const pending =
     status === "uploading" || status === "analyzing" || status === "saving";
+  const addManualEvent = () => {
+    setDrafts((current) => [...current, createManualEventDraft(0)]);
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -370,6 +416,7 @@ export const CastingUploadButton = ({
           initialTab={reviewTab}
           onCastingChange={setCastingDrafts}
           onEventChange={setDrafts}
+          onAddEvent={addManualEvent}
           onNoticeChange={setNoticeDrafts}
           onConfirm={handleConfirm}
           onCancel={handleCancelConfirm}

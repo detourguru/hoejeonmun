@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PendingEvent } from "@/type/casting";
 
 import {
+  createManualEventDraft,
   EventDraft,
   toConfirmedEvents,
   toEventDrafts,
@@ -51,6 +52,18 @@ describe("toEventDrafts", () => {
 });
 
 describe("toConfirmedEvents", () => {
+  it("직접 추가한 이벤트는 제보자가 확인한 일정으로 저장한다", () => {
+    const manual = createManualEventDraft(0);
+    manual.event.title = "관객과의 대화";
+    manual.event.periodStart = "2026-09-28";
+    manual.event.periodEnd = "2026-09-28";
+
+    expect(toConfirmedEvents([manual])[0]).toMatchObject({
+      title: "관객과의 대화",
+      edited: true,
+    });
+  });
+
   it("업로더가 등록하지 않기로 뺀 이벤트는 저장하지 않는다", () => {
     expect(
       toConfirmedEvents([draft({}, { include: false }), draft()]),
