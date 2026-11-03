@@ -13,9 +13,10 @@ export const SITE_DESCRIPTION =
 
 export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
-export const CURRENT_UPDATE_ID = "2026-10-31";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (10/31)]
-- 캐스팅 확인 화면에서 배역 추가 시 배역명을 바로 수정할 수 있게 개선`;
+export const CURRENT_UPDATE_ID = "2026-11-03";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (11/3)]
+- 이벤트 직접 추가와 캐스팅 변경 시 이전 배우 표시 지원
+- 버그신고 창 사용성 개선`;
 
 const UPDATE_NOTICE_DAYS = 3;
 

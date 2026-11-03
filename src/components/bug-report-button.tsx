@@ -181,7 +181,13 @@ export const BugReportButton = () => {
         <MessageSquareWarning className="size-5" />
       </button>
 
-      <BottomSheet open={open} onOpenChange={setOpen} title="문의 · 버그신고">
+      <BottomSheet
+        open={open}
+        onOpenChange={setOpen}
+        title="문의 및 버그신고"
+        snapPoints={[0.8, 1]}
+        showSwipeHandle
+      >
         <div
           className={cn(
             "flex flex-col gap-4 transition-opacity",

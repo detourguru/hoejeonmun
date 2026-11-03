@@ -18,14 +18,23 @@ export const BottomSheet = ({
   title,
   footer,
   children,
+  snapPoints,
+  showSwipeHandle = false,
 }: {
   open: boolean;
   onOpenChange: NonNullable<DrawerPrimitive.Root.Props["onOpenChange"]>;
   title: string;
   footer?: ReactNode;
   children: ReactNode;
+  snapPoints?: DrawerPrimitive.Root.Props["snapPoints"];
+  showSwipeHandle?: boolean;
 }) => (
-  <Drawer open={open} onOpenChange={onOpenChange}>
+  <Drawer
+    open={open}
+    onOpenChange={onOpenChange}
+    snapPoints={snapPoints}
+    showSwipeHandle={showSwipeHandle}
+  >
     <DrawerContent className="border-border bg-surface text-text">
       <div className="mx-auto flex min-h-0 w-full flex-1 flex-col sm:max-w-sm">
         <DrawerHeader>
