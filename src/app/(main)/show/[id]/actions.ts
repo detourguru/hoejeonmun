@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getIsAdmin } from "@/service/admin";
 import { getActionAuth } from "@/service/action-auth";
+import { getIsAdmin } from "@/service/admin";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
@@ -567,9 +567,11 @@ export async function reportSlot(
   type: SlotReportType,
   context?: string,
 ): Promise<ReportResult> {
-  if (!showIdSchema.safeParse(showId).success ||
-      !positiveIdSchema.safeParse(uploadId).success ||
-      !positiveIdSchema.safeParse(slotId).success) {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(uploadId).success ||
+    !positiveIdSchema.safeParse(slotId).success
+  ) {
     return { ok: false, message: "올바른 회차 정보를 확인해 주세요." };
   }
 
@@ -614,9 +616,11 @@ export async function cancelReport(
   uploadId: number,
   slotId: number,
 ): Promise<ReportResult> {
-  if (!showIdSchema.safeParse(showId).success ||
-      !positiveIdSchema.safeParse(uploadId).success ||
-      !positiveIdSchema.safeParse(slotId).success) {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(uploadId).success ||
+    !positiveIdSchema.safeParse(slotId).success
+  ) {
     return { ok: false, message: "올바른 회차 정보를 확인해 주세요." };
   }
 
@@ -650,8 +654,10 @@ export async function reportEvent(
   type: EventReportType,
   context?: string,
 ): Promise<ReportResult> {
-  if (!showIdSchema.safeParse(showId).success ||
-      !positiveIdSchema.safeParse(eventId).success) {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(eventId).success
+  ) {
     return { ok: false, message: "올바른 이벤트 정보를 확인해 주세요." };
   }
 
@@ -986,8 +992,10 @@ export async function cancelEventReport(
   showId: string,
   eventId: number,
 ): Promise<ReportResult> {
-  if (!showIdSchema.safeParse(showId).success ||
-      !positiveIdSchema.safeParse(eventId).success) {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(eventId).success
+  ) {
     return { ok: false, message: "올바른 이벤트 정보를 확인해 주세요." };
   }
 
