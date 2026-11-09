@@ -8,9 +8,7 @@ import {
 
 describe("parse error messages", () => {
   it("이미지 디코딩 오류는 다른 이미지 업로드를 안내한다", () => {
-    const error = new Error(
-      "Input buffer contains unsupported image format",
-    );
+    const error = new Error("Input buffer contains unsupported image format");
     expect(classifyParseError(error)).toBe("image");
     expect(parseErrorMessage(error)).toContain("다른 캡처나 원본 이미지");
   });

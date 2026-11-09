@@ -219,7 +219,9 @@ export async function POST(request: Request) {
         storagePaths,
         type:
           normalizationCounts &&
-          Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
+          Object.values(normalizationCounts).some(
+            ({ extracted }) => extracted > 0,
+          )
             ? "all_filtered"
             : "no_table_found",
         reason: normalizationCounts
@@ -230,7 +232,9 @@ export async function POST(request: Request) {
       return fail(
         422,
         normalizationCounts &&
-          Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
+          Object.values(normalizationCounts).some(
+            ({ extracted }) => extracted > 0,
+          )
           ? "안내 내용을 읽었지만 날짜·회차 등의 정보를 확인할 수 없어 저장하지 못했어요. 다른 이미지로 다시 시도해 주세요."
           : NO_TABLE_MESSAGE,
         { retained: true },
