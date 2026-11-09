@@ -610,7 +610,7 @@ export async function parseCastingBoard(
     realImageCount,
   );
 
-  const result = {
+  const result: ParsedCastingBoardResult = {
     performances,
     skipped,
     dateTags: normalizeDateTags(
@@ -641,7 +641,15 @@ export async function parseCastingBoard(
   };
 
   result.normalizationCounts = Object.fromEntries(
-    (["performances", "events", "cancelledSlots", "castingChanges", "cancelledEvents"] as const).map((key) => [
+    (
+      [
+        "performances",
+        "events",
+        "cancelledSlots",
+        "castingChanges",
+        "cancelledEvents",
+      ] as const
+    ).map((key) => [
       key,
       { extracted: parsed[key].length, retained: result[key].length },
     ]),
