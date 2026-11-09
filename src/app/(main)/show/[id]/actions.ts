@@ -453,6 +453,13 @@ export async function deleteSlotVariant(
   showId: string,
   slotId: number,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(slotId).success
+  ) {
+    return { ok: false, message: "회차 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
@@ -505,6 +512,14 @@ export async function deleteMySlotCasting(
   uploadId: number,
   slotId: number,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(uploadId).success ||
+    !positiveIdSchema.safeParse(slotId).success
+  ) {
+    return { ok: false, message: "회차 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
