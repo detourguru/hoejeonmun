@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Download, Share, SquarePlus } from "lucide-react";
+import { ChevronRight, Download, SquarePlus } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { BottomSheet } from "@/components/bottom-sheet";
