@@ -342,7 +342,12 @@ export async function correctSlotDate(
   newDate: string,
   newTime: string,
 ): Promise<ReportResult> {
-  if (!ISO_DATE.test(newDate) || !TIME.test(newTime)) {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(slotId).success ||
+    !z.string().regex(ISO_DATE).safeParse(newDate).success ||
+    !z.string().regex(TIME).safeParse(newTime).success
+  ) {
     return { ok: false, message: "날짜와 시간을 확인해 주세요." };
   }
 
@@ -402,6 +407,14 @@ export async function correctSlotVariant(
   slotId: number,
   variant: string,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(slotId).success ||
+    !z.string().safeParse(variant).success
+  ) {
+    return { ok: false, message: "회차 정보를 확인해 주세요." };
+  }
+
   const label = variant.trim().replace(/\s+/g, " ");
 
   if (!label) return { ok: false, message: "회차 구분을 입력해 주세요." };
