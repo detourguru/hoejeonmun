@@ -861,6 +861,13 @@ export async function deleteMyEvent(
   showId: string,
   eventId: number,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(eventId).success
+  ) {
+    return { ok: false, message: "삭제할 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
@@ -922,6 +929,13 @@ export async function deleteMyUpload(
   showId: string,
   uploadId: number,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(uploadId).success
+  ) {
+    return { ok: false, message: "삭제할 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
