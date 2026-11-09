@@ -28,6 +28,8 @@ const slotReportTypeSchema = z.enum([
   "other",
 ]);
 const eventReportTypeSchema = z.enum(["wrong_event", "other"]);
+const positiveIdSchema = z.number().int().positive();
+const showIdSchema = z.string().trim().min(1);
 
 export type SlotReportType = z.infer<typeof slotReportTypeSchema>;
 export type EventReportType = z.infer<typeof eventReportTypeSchema>;
@@ -546,6 +548,12 @@ export async function reportSlot(
   type: SlotReportType,
   context?: string,
 ): Promise<ReportResult> {
+  if (!showIdSchema.safeParse(showId).success ||
+      !positiveIdSchema.safeParse(uploadId).success ||
+      !positiveIdSchema.safeParse(slotId).success) {
+    return { ok: false, message: "올바른 회차 정보를 확인해 주세요." };
+  }
+
   if (!slotReportTypeSchema.safeParse(type).success) {
     return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
   }
@@ -596,6 +604,12 @@ export async function cancelReport(
   uploadId: number,
   slotId: number,
 ): Promise<ReportResult> {
+  if (!showIdSchema.safeParse(showId).success ||
+      !positiveIdSchema.safeParse(uploadId).success ||
+      !positiveIdSchema.safeParse(slotId).success) {
+    return { ok: false, message: "올바른 회차 정보를 확인해 주세요." };
+  }
+
   const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
@@ -626,6 +640,11 @@ export async function reportEvent(
   type: EventReportType,
   context?: string,
 ): Promise<ReportResult> {
+  if (!showIdSchema.safeParse(showId).success ||
+      !positiveIdSchema.safeParse(eventId).success) {
+    return { ok: false, message: "올바른 이벤트 정보를 확인해 주세요." };
+  }
+
   if (!eventReportTypeSchema.safeParse(type).success) {
     return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
   }
@@ -966,6 +985,11 @@ export async function cancelEventReport(
   showId: string,
   eventId: number,
 ): Promise<ReportResult> {
+  if (!showIdSchema.safeParse(showId).success ||
+      !positiveIdSchema.safeParse(eventId).success) {
+    return { ok: false, message: "올바른 이벤트 정보를 확인해 주세요." };
+  }
+
   const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
