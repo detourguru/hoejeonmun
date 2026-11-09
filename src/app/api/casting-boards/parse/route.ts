@@ -16,10 +16,10 @@ import {
   toPendingEvents,
 } from "@/service/casting-board";
 import {
-  NO_TABLE_MESSAGE,
   parseErrorMessage,
 } from "@/service/casting-board/parse-error-message";
 import { getShow } from "@/service/show";
+import { classifyEmptyParse } from "@/service/casting-board/empty-parse";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
 export const maxDuration = 120;
@@ -212,33 +212,22 @@ export async function POST(request: Request) {
     } = analyzed;
 
     if (!pendingEvents) {
+      const classification = classifyEmptyParse(normalizationCounts);
+
       await logParseFailure({
         admin,
         showId,
         userId,
         storagePaths,
-        type:
-          normalizationCounts &&
-          Object.values(normalizationCounts).some(
-            ({ extracted }) => extracted > 0,
-          )
-            ? "all_filtered"
-            : "no_table_found",
-        reason: normalizationCounts
-          ? JSON.stringify({ geminiReason: reason, normalizationCounts })
-          : reason,
+        type: classification.type,
+        reason: JSON.stringify({
+          geminiReason: reason,
+          normalizationCounts: normalizationCounts ?? null,
+          filteredReasons: classification.filteredReasons,
+        }),
       });
 
-      return fail(
-        422,
-        normalizationCounts &&
-          Object.values(normalizationCounts).some(
-            ({ extracted }) => extracted > 0,
-          )
-          ? "안내 내용을 읽었지만 날짜·회차 등의 정보를 확인할 수 없어 저장하지 못했어요. 다른 이미지로 다시 시도해 주세요."
-          : NO_TABLE_MESSAGE,
-        { retained: true },
-      );
+      return fail(422, classification.message, { retained: true });
     }
 
     const result = {
