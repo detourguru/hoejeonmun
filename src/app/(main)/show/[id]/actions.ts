@@ -46,6 +46,18 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
+function reportInsertFailure(
+  error: { code?: string },
+  duplicateMessage: string,
+): ReportResult {
+  if (error.code === DUPLICATE_KEY) {
+    return { ok: false, message: duplicateMessage };
+  }
+
+  console.error(error);
+  return { ok: false, message: "잠시 후 다시 시도해 주세요." };
+}
+
 // 신고/취소 액션에서 동일한 인증 조회를 재사용한다.
 async function getActionAuth() {
   const supabase = await createClient();
@@ -574,16 +586,7 @@ export async function reportSlot(
     context: context?.trim() || null,
   });
 
-  if (error) {
-    // unique(user_id, upload_id, slot_id) 위반
-    if (error.code === "23505") {
-      return { ok: false, message: "이미 신고한 회차예요." };
-    }
-
-    console.error(error);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
+  if (error) return reportInsertFailure(error, "이미 신고한 회차예요.");
 
   const { data: hidden } = await supabase
     .from("hidden_castings")
@@ -664,16 +667,7 @@ export async function reportEvent(
     context: context?.trim() || null,
   });
 
-  if (error) {
-    // unique(user_id, event_id) 위반
-    if (error.code === "23505") {
-      return { ok: false, message: "이미 신고한 이벤트예요." };
-    }
-
-    console.error(error);
-
-    return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-  }
+  if (error) return reportInsertFailure(error, "이미 신고한 이벤트예요.");
 
   const { data: hidden } = await supabase
     .from("hidden_events")
