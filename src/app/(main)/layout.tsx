@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { BugReportButton } from "@/components/bug-report-button";
 import { FooterNav } from "@/components/footer-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SearchBar } from "@/components/search/search-bar";
 import { APP_SCROLL_CONTAINER_ID } from "@/lib/scroll";
 
@@ -39,6 +40,7 @@ export default function MainLayout({
           <Suspense fallback={<div className="h-10" />}>
             <SearchBar />
           </Suspense>
+          <ThemeToggle />
         </header>
 
         <main className="flex w-full max-w-4xl flex-1 flex-col p-4">
