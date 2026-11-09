@@ -1163,6 +1163,13 @@ export async function revertCastingEdit(
   showId: string,
   editId: number,
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(editId).success
+  ) {
+    return { ok: false, message: "수정 내역을 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
