@@ -15,6 +15,7 @@ export async function logParseFailure({
   userId: string;
   storagePaths: string[];
   type:
+    | "all_filtered"
     | "no_table_found"
     | "cast_mismatch"
     | "show_mismatch"
