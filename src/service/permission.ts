@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getActionAuth } from "@/service/action-auth";
 import { getIsAdmin } from "@/service/admin";
 
 export const CORRECTION_LIMIT_PER_HOUR = 50;
@@ -10,9 +11,7 @@ export type Requester = {
 };
 
 export async function getRequester(): Promise<Requester | null> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   return userId ? { userId, supabase } : null;
 }
