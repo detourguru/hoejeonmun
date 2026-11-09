@@ -640,8 +640,15 @@ export async function parseCastingBoard(
     reason: parsed.reason,
   };
 
+  result.normalizationCounts = Object.fromEntries(
+    (["performances", "events", "cancelledSlots", "castingChanges", "cancelledEvents"] as const).map((key) => [
+      key,
+      { extracted: parsed[key].length, retained: result[key].length },
+    ]),
+  );
+
   console.log(
-    `[gemini] 정규화 ${Math.round(performance.now() - normalizeStart)}ms`,
+    `[gemini] 정규화 ${Math.round(performance.now() - normalizeStart)}ms counts=${JSON.stringify(result.normalizationCounts)}`,
   );
 
   return result;
