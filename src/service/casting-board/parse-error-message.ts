@@ -2,10 +2,18 @@ export type ParseErrorCategory = "image" | "overloaded" | "other";
 
 export function classifyParseError(error: unknown): ParseErrorCategory {
   const message = error instanceof Error ? error.message : String(error);
-  if (/429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|quota|rate.limit|overload/i.test(message)) {
+  if (
+    /429|503|RESOURCE_EXHAUSTED|UNAVAILABLE|quota|rate.limit|overload/i.test(
+      message,
+    )
+  ) {
     return "overloaded";
   }
-  if (/sharp|jpeg|jpg|png|webp|decode|corrupt|unsupported.image|invalid.image|Input buffer/i.test(message)) {
+  if (
+    /sharp|jpeg|jpg|png|webp|decode|corrupt|unsupported.image|invalid.image|Input buffer/i.test(
+      message,
+    )
+  ) {
     return "image";
   }
   return "other";
@@ -22,4 +30,5 @@ export function parseErrorMessage(error: unknown): string {
   }
 }
 
-export const NO_TABLE_MESSAGE = "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. 날짜별 캐스팅 정보가 없다면 직접 등록 기능을 이용해 주세요.";
+export const NO_TABLE_MESSAGE =
+  "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. 날짜별 캐스팅 정보가 없다면 직접 등록 기능을 이용해 주세요.";
