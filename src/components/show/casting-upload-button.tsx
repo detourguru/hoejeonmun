@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -87,6 +88,7 @@ export const CastingUploadButton = ({
   const [uploadedCount, setUploadedCount] = useState(0);
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [showManualLink, setShowManualLink] = useState(false);
   const [result, setResult] = useState<CastingBoardResult | null>(null);
   const [parsed, setParsed] = useState<ParsedUpload | null>(null);
   const [drafts, setDrafts] = useState<EventDraft[]>([]);
@@ -113,6 +115,7 @@ export const CastingUploadButton = ({
     setUploadedCount(0);
     setResult(null);
     setError(null);
+    setShowManualLink(false);
     setParsed(null);
     setDrafts([]);
     setCastingDrafts([]);
@@ -156,6 +159,7 @@ export const CastingUploadButton = ({
     }
 
     setError(null);
+    setShowManualLink(false);
     setUploadedCount(0);
     setStatus("uploading");
     const storagePaths: string[] = [];
@@ -195,6 +199,7 @@ export const CastingUploadButton = ({
 
       setStatus("selecting");
       setError(message);
+      setShowManualLink(typeof message === "string" && message.includes("직접 등록"));
       setDuplicateIndexes(duplicates ?? []);
       if (!retained) void discardUploadImages(storagePaths);
       return;
@@ -398,6 +403,15 @@ export const CastingUploadButton = ({
           onPickMore={() => inputRef.current?.click()}
           onCancel={reset}
         />
+      )}
+
+      {status === "selecting" && showManualLink && (
+        <Link
+          href={`/show/${showId}/castings`}
+          className="text-primary w-fit text-xs underline underline-offset-2"
+        >
+          일정/캐스팅 직접 등록으로 이동
+        </Link>
       )}
 
       <UploadTutorialDialog isLoggedIn={isLoggedIn} />
