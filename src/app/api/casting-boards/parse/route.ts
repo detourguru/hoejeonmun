@@ -1,5 +1,7 @@
 import * as z from "zod";
 
+import { NO_TABLE_MESSAGE, parseErrorMessage } from "@/service/casting-board/parse-error-message";
+
 import { DEADLINE_EXCEEDED, errorMessage, fail, withDeadline } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -218,9 +220,7 @@ export async function POST(request: Request) {
 
       return fail(
         422,
-        reason
-          ? `이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. (${reason})`
-          : "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.",
+        NO_TABLE_MESSAGE,
         { retained: true },
       );
     }
@@ -258,7 +258,7 @@ export async function POST(request: Request) {
 
     return fail(
       500,
-      "캐스팅보드를 분석하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      parseErrorMessage(error),
       { retained: true },
     );
   }
