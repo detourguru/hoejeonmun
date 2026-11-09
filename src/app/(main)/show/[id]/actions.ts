@@ -712,6 +712,8 @@ export async function reportEvent(
 export async function getShowSlotTimes(
   showId: string,
 ): Promise<EventSlotException[]> {
+  if (!showIdSchema.safeParse(showId).success) return [];
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -739,6 +741,16 @@ export async function getEventSlotAdjustments(
   included: EventSlotException[];
   excluded: EventSlotException[];
 }> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(eventId).success ||
+    !z.string().regex(ISO_DATE).safeParse(periodStart).success ||
+    !z.string().regex(ISO_DATE).safeParse(periodEnd).success ||
+    periodStart > periodEnd
+  ) {
+    return { included: [], excluded: [] };
+  }
+
   const supabase = await createClient();
 
   const [
@@ -803,6 +815,17 @@ export async function correctEventText(
   includedSlots: EventSlotException[],
   excludedSlots: EventSlotException[],
 ): Promise<ReportResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !positiveIdSchema.safeParse(eventId).success ||
+    !z.string().safeParse(title).success ||
+    !z.string().safeParse(description).success ||
+    !z.array(z.unknown()).safeParse(includedSlots).success ||
+    !z.array(z.unknown()).safeParse(excludedSlots).success
+  ) {
+    return { ok: false, message: "이벤트 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
