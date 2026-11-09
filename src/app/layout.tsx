@@ -111,7 +111,9 @@ export default function RootLayout({
       lang="ko"
       className={`${maruBuri.variable} ${maruBuriWordmark.variable}`}
     >
-      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <Analytics />
       <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       <body className="bg-primary">
