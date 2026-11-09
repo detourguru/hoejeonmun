@@ -15,7 +15,10 @@ import {
   parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
-import { NO_TABLE_MESSAGE, parseErrorMessage } from "@/service/casting-board/parse-error-message";
+import {
+  NO_TABLE_MESSAGE,
+  parseErrorMessage,
+} from "@/service/casting-board/parse-error-message";
 import { getShow } from "@/service/show";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
@@ -214,9 +217,11 @@ export async function POST(request: Request) {
         showId,
         userId,
         storagePaths,
-        type: normalizationCounts && Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
-          ? "all_filtered"
-          : "no_table_found",
+        type:
+          normalizationCounts &&
+          Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
+            ? "all_filtered"
+            : "no_table_found",
         reason: normalizationCounts
           ? JSON.stringify({ geminiReason: reason, normalizationCounts })
           : reason,
@@ -224,7 +229,8 @@ export async function POST(request: Request) {
 
       return fail(
         422,
-        normalizationCounts && Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
+        normalizationCounts &&
+          Object.values(normalizationCounts).some(({ extracted }) => extracted > 0)
           ? "안내 내용을 읽었지만 날짜·회차 등의 정보를 확인할 수 없어 저장하지 못했어요. 다른 이미지로 다시 시도해 주세요."
           : NO_TABLE_MESSAGE,
         { retained: true },
@@ -262,10 +268,6 @@ export async function POST(request: Request) {
       reason: errorMessage(error),
     });
 
-    return fail(
-      500,
-      parseErrorMessage(error),
-      { retained: true },
-    );
+    return fail(500, parseErrorMessage(error), { retained: true });
   }
 }
