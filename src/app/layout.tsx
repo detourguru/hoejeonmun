@@ -98,6 +98,8 @@ const websiteJsonLd = {
   },
 };
 
+const themeScript = `(function(){try{var t=localStorage.getItem("hoejeonmun-theme");var dark=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",dark);document.documentElement.style.colorScheme=dark?"dark":"light";}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -105,9 +107,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
+      suppressHydrationWarning
       lang="ko"
       className={`${maruBuri.variable} ${maruBuriWordmark.variable}`}
     >
+      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <Analytics />
       <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
       <body className="bg-primary">
