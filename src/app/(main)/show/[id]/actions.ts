@@ -1021,7 +1021,7 @@ export async function submitManualCasting(
   slots: EventSlotException[],
   casting: ManualCastingRole[],
 ): Promise<SubmitManualCastingResult> {
-  const { supabase, userId } = await getActionAuth();
+  const { userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
