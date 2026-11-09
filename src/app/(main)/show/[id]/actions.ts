@@ -49,6 +49,15 @@ const castingAddOrDeleteInputSchema = z.object({
   applyToAllSlots: z.boolean(),
 });
 
+const manualSlotSchema = z.object({
+  date: z.string(),
+  time: z.string(),
+});
+const manualCastingRoleSchema = z.object({
+  role: z.string(),
+  actor: z.string(),
+});
+
 export type SlotReportType = z.infer<typeof slotReportTypeSchema>;
 export type EventReportType = z.infer<typeof eventReportTypeSchema>;
 
@@ -1126,6 +1135,10 @@ export async function cancelEventReport(
 export async function discardUploadImages(
   storagePaths: string[],
 ): Promise<{ ok: boolean }> {
+  if (!z.array(z.string().min(1)).safeParse(storagePaths).success) {
+    return { ok: false };
+  }
+
   if (storagePaths.length === 0) return { ok: true };
 
   const { supabase, userId } = await getActionAuth();
@@ -1168,6 +1181,14 @@ export async function submitManualCasting(
   slots: EventSlotException[],
   casting: ManualCastingRole[],
 ): Promise<SubmitManualCastingResult> {
+  if (
+    !showIdSchema.safeParse(showId).success ||
+    !z.array(manualSlotSchema).safeParse(slots).success ||
+    !z.array(manualCastingRoleSchema).safeParse(casting).success
+  ) {
+    return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
+  }
+
   const { userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
