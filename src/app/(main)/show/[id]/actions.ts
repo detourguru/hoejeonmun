@@ -652,6 +652,10 @@ export async function reportSlot(
     return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
   }
 
+  if (context !== undefined && !z.string().safeParse(context).success) {
+    return { ok: false, message: "신고 사유를 확인해 주세요." };
+  }
+
   if (type === "other" && !context?.trim()) {
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
@@ -736,6 +740,10 @@ export async function reportEvent(
 
   if (!eventReportTypeSchema.safeParse(type).success) {
     return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
+  }
+
+  if (context !== undefined && !z.string().safeParse(context).success) {
+    return { ok: false, message: "신고 사유를 확인해 주세요." };
   }
 
   if (type === "other" && !context?.trim()) {
