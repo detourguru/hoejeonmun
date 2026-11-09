@@ -13,10 +13,11 @@ export const SITE_DESCRIPTION =
 
 export const GA_MEASUREMENT_ID = "G-4LSMECET6C";
 
-export const CURRENT_UPDATE_ID = "2026-11-03";
-export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (11/3)]
-- 이벤트 직접 추가와 캐스팅 변경 시 이전 배우 표시 지원
-- 버그신고 창 사용성 개선`;
+export const CURRENT_UPDATE_ID = "2026-11-10";
+export const UPDATE_NOTICE_MESSAGE = `🎉 [업데이트 안내 (11/10)]
+- 다크모드 지원: 상단 버튼으로 화면 테마 변경 가능
+- 캐스팅보드 이미지 분석 실패 시 원인에 맞는 안내 제공
+- 이미지에서 읽은 정보가 저장 조건에 맞지 않을 때 별도 안내`;
 
 const UPDATE_NOTICE_DAYS = 3;
 
