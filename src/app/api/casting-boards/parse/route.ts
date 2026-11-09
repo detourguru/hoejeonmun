@@ -1,7 +1,5 @@
 import * as z from "zod";
 
-import { NO_TABLE_MESSAGE, parseErrorMessage } from "@/service/casting-board/parse-error-message";
-
 import { DEADLINE_EXCEEDED, errorMessage, fail, withDeadline } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -17,6 +15,7 @@ import {
   parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
+import { NO_TABLE_MESSAGE, parseErrorMessage } from "@/service/casting-board/parse-error-message";
 import { getShow } from "@/service/show";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
