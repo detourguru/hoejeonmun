@@ -23,6 +23,7 @@ export type ParseCastingBoardOptions = {
 };
 
 export type ParsedCastingBoardResult = {
+  normalizationCounts?: Record<string, { extracted: number; retained: number }>;
   performances: ParsedPerformance[];
   skipped: SkippedPerformance[];
   dateTags: ParsedDateTag[];
