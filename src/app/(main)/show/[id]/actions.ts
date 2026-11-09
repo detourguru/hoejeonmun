@@ -36,6 +36,13 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // PostgreSQL 에러 코드: unique_violation
 const DUPLICATE_KEY = "23505";
 
+// 신고/취소 액션에서 동일한 인증 조회를 재사용한다.
+async function getActionAuth() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  return { supabase, userId: data?.claims?.sub ?? null };
+}
+
 async function deleteUploadIfEmpty(
   admin: ReturnType<typeof createAdminClient>,
   uploadId: number,
@@ -535,10 +542,7 @@ export async function reportSlot(
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
@@ -580,10 +584,7 @@ export async function cancelReport(
   uploadId: number,
   slotId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
@@ -617,10 +618,7 @@ export async function reportEvent(
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
@@ -952,10 +950,7 @@ export async function cancelEventReport(
   showId: string,
   eventId: number,
 ): Promise<ReportResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
@@ -1026,10 +1021,7 @@ export async function submitManualCasting(
   slots: EventSlotException[],
   casting: ManualCastingRole[],
 ): Promise<SubmitManualCastingResult> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
 
