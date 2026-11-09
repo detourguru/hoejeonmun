@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -20,9 +21,16 @@ import {
   SLOT_VARIANT_MAX_LENGTH,
 } from "@/type/casting";
 
-export type SlotReportType =
-  "wrong_date" | "wrong_cast" | "wrong_show" | "other";
-export type EventReportType = "wrong_event" | "other";
+const slotReportTypeSchema = z.enum([
+  "wrong_date",
+  "wrong_cast",
+  "wrong_show",
+  "other",
+]);
+const eventReportTypeSchema = z.enum(["wrong_event", "other"]);
+
+export type SlotReportType = z.infer<typeof slotReportTypeSchema>;
+export type EventReportType = z.infer<typeof eventReportTypeSchema>;
 
 export type ReportResult =
   { ok: true; hidden: boolean } | { ok: false; message: string };
@@ -538,6 +546,10 @@ export async function reportSlot(
   type: SlotReportType,
   context?: string,
 ): Promise<ReportResult> {
+  if (!slotReportTypeSchema.safeParse(type).success) {
+    return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
+  }
+
   if (type === "other" && !context?.trim()) {
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
@@ -614,6 +626,10 @@ export async function reportEvent(
   type: EventReportType,
   context?: string,
 ): Promise<ReportResult> {
+  if (!eventReportTypeSchema.safeParse(type).success) {
+    return { ok: false, message: "올바른 신고 유형을 선택해 주세요." };
+  }
+
   if (type === "other" && !context?.trim()) {
     return { ok: false, message: "신고 사유를 입력해 주세요." };
   }
