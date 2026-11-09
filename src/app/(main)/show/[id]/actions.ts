@@ -32,6 +32,23 @@ const eventReportTypeSchema = z.enum(["wrong_event", "other"]);
 const positiveIdSchema = z.number().int().positive();
 const showIdSchema = z.string().trim().min(1);
 
+const castingCorrectionInputSchema = z.object({
+  showId: showIdSchema,
+  slotId: positiveIdSchema,
+  role: z.string(),
+  oldActor: z.string(),
+  newRole: z.string(),
+  newActor: z.string(),
+  applyToAllSlots: z.boolean(),
+});
+const castingAddOrDeleteInputSchema = z.object({
+  showId: showIdSchema,
+  slotId: positiveIdSchema,
+  role: z.string(),
+  actor: z.string(),
+  applyToAllSlots: z.boolean(),
+});
+
 export type SlotReportType = z.infer<typeof slotReportTypeSchema>;
 export type EventReportType = z.infer<typeof eventReportTypeSchema>;
 
@@ -179,6 +196,18 @@ export async function correctSlotCasting({
   newActor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
+  if (!castingCorrectionInputSchema.safeParse({
+    showId,
+    slotId,
+    role,
+    oldActor,
+    newRole,
+    newActor,
+    applyToAllSlots,
+  }).success) {
+    return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
+  }
+
   const trimmedRole = newRole.trim();
   const trimmedActor = newActor.trim();
 
@@ -241,6 +270,16 @@ export async function addSlotCasting({
   actor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
+  if (!castingAddOrDeleteInputSchema.safeParse({
+    showId,
+    slotId,
+    role,
+    actor,
+    applyToAllSlots,
+  }).success) {
+    return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
+  }
+
   const trimmedRole = role.trim();
   const trimmedActor = actor.trim();
 
@@ -293,6 +332,16 @@ export async function deleteSlotCasting({
   actor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
+  if (!castingAddOrDeleteInputSchema.safeParse({
+    showId,
+    slotId,
+    role,
+    actor,
+    applyToAllSlots,
+  }).success) {
+    return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
+  }
+
   const requester = await getRequester();
 
   if (!requester) return { ok: false, message: "로그인이 필요해요." };
