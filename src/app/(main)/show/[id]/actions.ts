@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getIsAdmin } from "@/service/admin";
+import { getActionAuth } from "@/service/action-auth";
 import { CASTING_FEED_CACHE_TAG, showCastTag } from "@/service/casting";
 import { computeEventSlotIds } from "@/service/casting-board";
 import { ManualCastingRole, saveManualCasting } from "@/service/manual-casting";
@@ -56,13 +57,6 @@ function reportInsertFailure(
 
   console.error(error);
   return { ok: false, message: "잠시 후 다시 시도해 주세요." };
-}
-
-// 신고/취소 액션에서 동일한 인증 조회를 재사용한다.
-async function getActionAuth() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  return { supabase, userId: data?.claims?.sub ?? null };
 }
 
 async function deleteUploadIfEmpty(
@@ -1012,10 +1006,7 @@ export async function discardUploadImages(
 ): Promise<{ ok: boolean }> {
   if (storagePaths.length === 0) return { ok: true };
 
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  const userId = data?.claims?.sub;
+  const { supabase, userId } = await getActionAuth();
 
   if (!userId) return { ok: false };
 
