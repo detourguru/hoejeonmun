@@ -886,8 +886,8 @@ export async function correctEventText(
     !positiveIdSchema.safeParse(eventId).success ||
     !z.string().safeParse(title).success ||
     !z.string().safeParse(description).success ||
-    !z.array(z.unknown()).safeParse(includedSlots).success ||
-    !z.array(z.unknown()).safeParse(excludedSlots).success
+    !z.array(manualSlotSchema).safeParse(includedSlots).success ||
+    !z.array(manualSlotSchema).safeParse(excludedSlots).success
   ) {
     return { ok: false, message: "이벤트 정보를 확인해 주세요." };
   }
