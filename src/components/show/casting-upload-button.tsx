@@ -199,7 +199,9 @@ export const CastingUploadButton = ({
 
       setStatus("selecting");
       setError(message);
-      setShowManualLink(typeof message === "string" && message.includes("직접 등록"));
+      setShowManualLink(
+        typeof message === "string" && message.includes("직접 등록"),
+      );
       setDuplicateIndexes(duplicates ?? []);
       if (!retained) void discardUploadImages(storagePaths);
       return;
