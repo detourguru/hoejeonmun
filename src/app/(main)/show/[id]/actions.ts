@@ -17,6 +17,10 @@ import {
   Requester,
 } from "@/service/permission";
 import {
+  isUploadBanned,
+  UPLOAD_BANNED_MESSAGE,
+} from "@/service/upload-moderation";
+import {
   CASTING_BOARD_BUCKET,
   EventSlotException,
   SLOT_VARIANT_MAX_LENGTH,
@@ -1049,7 +1053,7 @@ export async function deleteMyUpload(
     return { ok: false, message: "잠시 후 다시 시도해 주세요." };
   }
 
-  if (!upload || !(await canManageUpload(requester, upload.user_id))) {
+  if (!upload || upload.user_id !== requester.userId) {
     return { ok: false, message: "본인이 올린 캐스팅보드만 지울 수 있어요." };
   }
 
@@ -1155,7 +1159,7 @@ export async function discardUploadImages(
 
   if (storagePaths.length === 0) return { ok: true };
 
-  const { supabase, userId } = await getActionAuth();
+  const { userId } = await getActionAuth();
 
   if (!userId) return { ok: false };
 
@@ -1206,6 +1210,9 @@ export async function submitManualCasting(
   const { userId } = await getActionAuth();
 
   if (!userId) return { ok: false, message: "로그인이 필요해요." };
+
+  if (await isUploadBanned(userId))
+    return { ok: false, message: UPLOAD_BANNED_MESSAGE };
 
   const validSlots = slots.filter(
     ({ date, time }) => ISO_DATE.test(date) && TIME.test(time),

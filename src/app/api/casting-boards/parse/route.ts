@@ -15,9 +15,13 @@ import {
   parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
+import { classifyEmptyParse } from "@/service/casting-board/empty-parse";
 import { parseErrorMessage } from "@/service/casting-board/parse-error-message";
 import { getShow } from "@/service/show";
-import { classifyEmptyParse } from "@/service/casting-board/empty-parse";
+import {
+  isUploadBanned,
+  UPLOAD_BANNED_MESSAGE,
+} from "@/service/upload-moderation";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
 
 export const maxDuration = 120;
@@ -71,6 +75,8 @@ export async function POST(request: Request) {
   const userId = data?.claims?.sub;
 
   if (!userId) return fail(401, "로그인이 필요해요.");
+
+  if (await isUploadBanned(userId)) return fail(403, UPLOAD_BANNED_MESSAGE);
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));
 

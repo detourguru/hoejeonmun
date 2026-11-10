@@ -5,6 +5,7 @@ import { OriginalImages } from "@/components/casting/original-images";
 import { CorrectEventTextButton } from "@/components/correct-event-text-button";
 import { DeleteMineButton } from "@/components/delete-mine-button";
 import { ReportButton } from "@/components/report-button";
+import { UploadModerationControls } from "@/components/upload-moderation-controls";
 import { getWeekday } from "@/lib/date";
 import { getEventCardColor } from "@/lib/event-color";
 import { type EventWithSlotTimes } from "@/lib/event-slots";
@@ -62,7 +63,10 @@ export const EventCard = ({
               initialPeriodEnd={event.periodEnd}
             />
 
-            {event.canDelete && (
+            {event.canDelete && !event.isMine && (
+              <UploadModerationControls uploadId={event.uploadId} />
+            )}
+            {event.canDelete && event.isMine && (
               <DeleteMineButton
                 target={{ kind: "event", showId, eventId: event.id }}
                 label={event.title}
