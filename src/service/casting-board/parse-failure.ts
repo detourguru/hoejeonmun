@@ -57,9 +57,25 @@ export async function purgeExpiredParseFailureImages(
 
   if (rows.length === 0) return { purged: 0 };
 
+  // A failed parse can share an object with a later saved upload. Use the same
+  // reference-aware selection as the daily orphan cleanup before removing it.
+  const { data: candidates, error: candidateError } = await admin.rpc(
+    "storage_cleanup_candidates",
+    { p_limit: 1000 },
+  );
+  if (candidateError) throw candidateError;
+  const safePaths = new Set(
+    (candidates as { bucket_id: string; name: string }[])
+      .filter(({ bucket_id }) => bucket_id === CASTING_BOARD_BUCKET)
+      .map(({ name }) => name),
+  );
+  const removableRows = rows.filter(({ storage_path }) =>
+    safePaths.has(storage_path),
+  );
   const storagePaths = [
-    ...new Set(rows.map(({ storage_path }) => storage_path)),
+    ...new Set(removableRows.map(({ storage_path }) => storage_path)),
   ];
+  if (storagePaths.length === 0) return { purged: 0 };
 
   const { error: removeError } = await admin.storage
     .from(CASTING_BOARD_BUCKET)
@@ -72,10 +88,10 @@ export async function purgeExpiredParseFailureImages(
     .update({ image_purged_at: new Date().toISOString() })
     .in(
       "id",
-      rows.map(({ id }) => id),
+      removableRows.map(({ id }) => id),
     );
 
   if (updateError) throw updateError;
 
-  return { purged: rows.length };
+  return { purged: removableRows.length };
 }
