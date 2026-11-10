@@ -6,7 +6,7 @@ run_sql() { docker --host=unix:///var/run/docker.sock exec -i "$container" psql 
 run_sql < supabase/tests/bootstrap.sql
 for migration in supabase/migrations/*.sql; do
   # Plain PostgreSQL lacks the Supabase-only pg_cron/pg_net/Vault runtime.
-  case "$migration" in *_schedule_storage_maintenance.sql) continue ;; esac
+  case "$migration" in *_schedule_storage_maintenance.sql|*_enable_storage_http.sql) continue ;; esac
   run_sql < "$migration"
 done
 run_sql < supabase/tests/upload_moderation.sql

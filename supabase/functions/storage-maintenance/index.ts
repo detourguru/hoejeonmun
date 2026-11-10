@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
-// The opaque bearer token is generated and encrypted in Vault. Only its hash is
-// deployed. Set this value during deployment; never commit the token itself.
-const TOKEN_SHA256 = "__TOKEN_SHA256__";
-const COMPRESSION_UNTIL = "__COMPRESSION_UNTIL__";
+// Public SHA-256 of the random bearer token encrypted in Vault.
+// Rotate the Vault token and redeploy this hash together; never commit the token.
+const TOKEN_SHA256 =
+  "f20835ed4b48d70a6c5b458d86eb8b259efb7d1817a526308be2a1741ba7a311";
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -28,47 +28,6 @@ Deno.serve(async (request: Request) => {
     return new Response("Unauthorized", { status: 401 });
   try {
     const body = await request.json();
-    if (body.action === "compression_urls") {
-      // One-off compression access is time bounded; remove this operation once done.
-      if (
-        !Number.isFinite(Date.parse(COMPRESSION_UNTIL)) ||
-        Date.now() > Date.parse(COMPRESSION_UNTIL)
-      )
-        return new Response("Expired", { status: 403 });
-      const files = body.files;
-      if (!Array.isArray(files) || files.length > 30)
-        throw new Error("Invalid file list");
-      const signed = [];
-      for (const file of files) {
-        if (
-          ![
-            "casting-boards",
-            "show-posters",
-            "bug-report-images",
-            "poster-thumbnails",
-          ].includes(file.bucket) ||
-          typeof file.path !== "string"
-        )
-          throw new Error("Invalid object");
-        const bucket = admin.storage.from(file.bucket);
-        const { data: info, error: infoError } = await bucket.info(file.path);
-        if (infoError) throw infoError;
-        if (Number(info.size) <= 5 * 1024 * 1024) continue;
-        const read = await bucket.createSignedUrl(file.path, 1800);
-        const write = await bucket.createSignedUploadUrl(file.path, {
-          upsert: true,
-        });
-        if (read.error || write.error) throw read.error || write.error;
-        signed.push({
-          bucket: file.bucket,
-          path: file.path,
-          size: info.size,
-          readUrl: read.data.signedUrl,
-          writeUrl: write.data.signedUrl,
-        });
-      }
-      return Response.json({ signed });
-    }
     if (body.action !== "cleanup" && body.action !== "preview")
       return new Response("Invalid action", { status: 400 });
     const { data, error } = await admin.rpc("storage_cleanup_candidates", {
