@@ -5,6 +5,7 @@ import { OriginalImages } from "@/components/casting/original-images";
 import { CorrectCastingButton } from "@/components/correct-casting-button";
 import { DeleteMineButton } from "@/components/delete-mine-button";
 import { ReportButton } from "@/components/report-button";
+import { UploadModerationControls } from "@/components/upload-moderation-controls";
 import { getWeekday } from "@/lib/date";
 import type { CastingSlotWithStatus } from "@/service/casting";
 
@@ -91,7 +92,10 @@ export const SlotCard = ({
             canDelete={canDelete}
           />
 
-          {canDelete && (
+          {canDelete && !isMine && (
+            <UploadModerationControls uploadId={slot.uploadId} />
+          )}
+          {canDelete && isMine && (
             <DeleteMineButton
               target={{
                 kind: "slot",

@@ -9,9 +9,15 @@ import {
   parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
+import { isUploadBanned } from "@/service/upload-moderation";
 import type { PendingEvent } from "@/type/casting";
 
 import { maxDuration, POST } from "./route";
+
+vi.mock("@/service/upload-moderation", () => ({
+  isUploadBanned: vi.fn().mockResolvedValue(false),
+  UPLOAD_BANNED_MESSAGE: "업로드 제한",
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -131,4 +137,11 @@ describe("POST /api/casting-boards/parse", () => {
     });
     expect(logParseFailure).not.toHaveBeenCalled();
   });
+});
+
+it("밴 사용자는 Gemini를 부르기 전에 거부한다", async () => {
+  vi.mocked(isUploadBanned).mockResolvedValueOnce(true);
+  const response = await POST(request());
+  expect(response.status).toBe(403);
+  expect(parseCastingBoardWithConsensus).not.toHaveBeenCalled();
 });

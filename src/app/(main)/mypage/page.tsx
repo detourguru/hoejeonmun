@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -14,6 +15,7 @@ import {
 import { ProfileHero } from "@/components/mypage/profile-hero";
 import { SignOutButton } from "@/components/mypage/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
+import { getIsAdmin } from "@/service/admin";
 
 import type { Metadata } from "next";
 
@@ -49,6 +51,11 @@ export default async function Page() {
       <h1 className="sr-only">마이페이지</h1>
 
       <ProfileHero userId={userId} displayName={displayName} />
+      {(await getIsAdmin(supabase)) && (
+        <Link href="/mypage/moderation" className="text-sm underline">
+          업로드 운영 이력·차단 관리
+        </Link>
+      )}
 
       <Suspense fallback={<FavoriteActorsPreviewLoading />}>
         <FavoriteActorsPreview />
