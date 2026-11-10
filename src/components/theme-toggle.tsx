@@ -1,14 +1,19 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 const KEY = "hoejeonmun-theme";
 const CHANGE_EVENT = "hoejeonmun-theme-change";
 type Theme = "light" | "dark";
 
 function getTheme(): Theme {
-  const saved = localStorage.getItem(KEY);
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(KEY);
+  } catch {
+    // 저장소를 사용할 수 없어도 시스템 테마는 적용한다.
+  }
   if (saved === "dark" || saved === "light") return saved;
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
@@ -30,6 +35,12 @@ function subscribe(onChange: () => void) {
 
 export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribe, getTheme, () => null);
+
+  useEffect(() => {
+    if (theme === null) return;
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
 
   const toggle = () => {
     const next = theme === "dark" ? "light" : "dark";
