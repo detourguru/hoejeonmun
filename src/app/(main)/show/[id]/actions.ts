@@ -205,15 +205,17 @@ export async function correctSlotCasting({
   newActor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
-  if (!castingCorrectionInputSchema.safeParse({
-    showId,
-    slotId,
-    role,
-    oldActor,
-    newRole,
-    newActor,
-    applyToAllSlots,
-  }).success) {
+  if (
+    !castingCorrectionInputSchema.safeParse({
+      showId,
+      slotId,
+      role,
+      oldActor,
+      newRole,
+      newActor,
+      applyToAllSlots,
+    }).success
+  ) {
     return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
   }
 
@@ -279,13 +281,15 @@ export async function addSlotCasting({
   actor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
-  if (!castingAddOrDeleteInputSchema.safeParse({
-    showId,
-    slotId,
-    role,
-    actor,
-    applyToAllSlots,
-  }).success) {
+  if (
+    !castingAddOrDeleteInputSchema.safeParse({
+      showId,
+      slotId,
+      role,
+      actor,
+      applyToAllSlots,
+    }).success
+  ) {
     return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
   }
 
@@ -341,13 +345,15 @@ export async function deleteSlotCasting({
   actor: string;
   applyToAllSlots: boolean;
 }): Promise<CorrectCastingResult> {
-  if (!castingAddOrDeleteInputSchema.safeParse({
-    showId,
-    slotId,
-    role,
-    actor,
-    applyToAllSlots,
-  }).success) {
+  if (
+    !castingAddOrDeleteInputSchema.safeParse({
+      showId,
+      slotId,
+      role,
+      actor,
+      applyToAllSlots,
+    }).success
+  ) {
     return { ok: false, message: "캐스팅 정보를 확인해 주세요." };
   }
 

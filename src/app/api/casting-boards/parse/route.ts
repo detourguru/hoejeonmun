@@ -15,9 +15,7 @@ import {
   parseCastingBoardWithConsensus,
   toPendingEvents,
 } from "@/service/casting-board";
-import {
-  parseErrorMessage,
-} from "@/service/casting-board/parse-error-message";
+import { parseErrorMessage } from "@/service/casting-board/parse-error-message";
 import { getShow } from "@/service/show";
 import { classifyEmptyParse } from "@/service/casting-board/empty-parse";
 import { CASTING_BOARD_BUCKET, MAX_IMAGE_COUNT } from "@/type/casting";
