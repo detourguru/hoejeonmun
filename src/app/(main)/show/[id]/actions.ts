@@ -1149,7 +1149,7 @@ export async function discardUploadImages(
 
   if (storagePaths.length === 0) return { ok: true };
 
-  const { supabase, userId } = await getActionAuth();
+  const { userId } = await getActionAuth();
 
   if (!userId) return { ok: false };
 
