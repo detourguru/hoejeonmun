@@ -4,7 +4,7 @@ export type NormalizationCounts = Record<
 >;
 
 export const NO_TABLE_MESSAGE =
-  "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요.";
+  "이미지에서 캐스팅 표나 이벤트 안내를 찾지 못했어요. 날짜별 캐스팅 정보가 없다면 직접 등록 기능을 이용해 주세요.";
 
 export function classifyEmptyParse(counts?: NormalizationCounts) {
   const filteredReasons: Record<string, { filtered: number; reason: string }> =
