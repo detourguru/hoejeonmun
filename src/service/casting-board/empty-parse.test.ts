@@ -11,6 +11,7 @@ describe("classifyEmptyParse", () => {
     expect(result.type).toBe("no_table_found");
     expect(result.filteredReasons).toEqual({});
     expect(result.message).toContain("찾지 못했어요");
+    expect(result.message).toContain("직접 등록");
   });
 
   it("회차 없는 스윙 변경 공지 2건이 모두 탈락하면 별도 실패 유형과 원인을 남긴다", () => {
